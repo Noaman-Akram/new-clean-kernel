@@ -21,6 +21,40 @@ const INITIAL_STATE: AppState = {
       taskId: null,
       startTime: null
   },
+  activities: [
+    {
+        id: 'act-1',
+        title: 'Nemo HQ Work Sprint',
+        category: 'WORK',
+        location: 'Greek Campus, Downtown',
+        vibe: 'FOCUS',
+        details: 'Great wifi, desk setup, coffee downstairs',
+        lastVisited: Date.now() - 86400000 * 2
+    },
+    {
+        id: 'act-2',
+        title: 'Boxing + Sauna',
+        category: 'SPORT',
+        location: 'MMA Factory, 6th October',
+        vibe: 'ENERGY',
+        details: 'Coach Ahmed, Tuesday/Thursday 7pm',
+        lastVisited: Date.now() - 86400000 * 3
+    },
+    {
+        id: 'act-3',
+        title: 'Night Drive + Shawerma',
+        category: 'HANGOUT',
+        location: 'New Cairo -> Rehab street food',
+        vibe: 'RELAX',
+        details: 'Decompress after long sprint',
+        lastVisited: Date.now() - 86400000 * 6
+    }
+  ],
+  accounts: [
+    { id: 'acc-cash', name: 'Cash', type: 'CASH', currency: 'USD' },
+    { id: 'acc-bank', name: 'Bank', type: 'BANK', currency: 'USD' },
+    { id: 'acc-crypto', name: 'Crypto', type: 'CRYPTO', currency: 'USD' }
+  ],
   tasks: [
     {
       id: 't-1',
@@ -29,7 +63,9 @@ const INITIAL_STATE: AppState = {
       category: Category.AGENCY,
       createdAt: Date.now(),
       impact: 'HIGH',
-      deadline: generateFutureDate(14)
+      deadline: generateFutureDate(14),
+      slot: { day: 'MON', hour: '09:00' },
+      pillar: 'DESIGN'
     },
     {
       id: 't-2',
@@ -38,7 +74,9 @@ const INITIAL_STATE: AppState = {
       category: Category.ZOHO,
       createdAt: Date.now(),
       impact: 'HIGH',
-      deadline: generateFutureDate(0)
+      deadline: generateFutureDate(0),
+      slot: { day: 'WED', hour: '15:00' },
+      pillar: 'MASTERY'
     },
     {
       id: 't-3',
@@ -47,7 +85,9 @@ const INITIAL_STATE: AppState = {
       category: Category.AGENCY,
       createdAt: Date.now(),
       impact: 'HIGH',
-      deadline: generateFutureDate(1)
+      deadline: generateFutureDate(1),
+      slot: { day: 'FRI', hour: '18:00' },
+      pillar: 'KNOWLEDGE'
     }
   ],
   clients: [
@@ -56,7 +96,6 @@ const INITIAL_STATE: AppState = {
       id: 'c-team-1',
       name: 'Ahmed S.',
       role: 'Backend Dev',
-      company: 'Nemo Core',
       context: 'NEMO',
       type: 'TEAM',
       status: 'ACTIVE',
@@ -65,13 +104,15 @@ const INITIAL_STATE: AppState = {
       rateType: 'HOURLY',
       currency: 'USD',
       lastInteraction: Date.now(),
-      nextAction: 'Review API Endpoints'
+      nextAction: 'Review API Endpoints',
+      contactHandle: '@ahmed_core',
+      profileUrl: 'https://linkedin.com/in/ahmed',
+      focusArea: 'APIs'
     },
     {
       id: 'c-team-2',
       name: 'Sarah M.',
       role: 'UI Designer',
-      company: 'Nemo Core',
       context: 'NEMO',
       type: 'TEAM',
       status: 'ACTIVE',
@@ -80,7 +121,10 @@ const INITIAL_STATE: AppState = {
       rateType: 'MONTHLY',
       currency: 'USD',
       lastInteraction: Date.now() - 86400000,
-      nextAction: 'Brief for Granite Site'
+      nextAction: 'Brief for Granite Site',
+      contactHandle: '@sarah.design',
+      profileUrl: 'https://dribbble.com/sarah',
+      focusArea: 'UI Systems'
     },
     
     // --- NEMO AGENCY: RECRUITMENT ---
@@ -97,7 +141,9 @@ const INITIAL_STATE: AppState = {
       rateType: 'HOURLY',
       currency: 'USD',
       lastInteraction: Date.now() - 86400000 * 2,
-      nextAction: 'Schedule Technical Test'
+      nextAction: 'Schedule Technical Test',
+      profileUrl: 'https://github.com/karimf',
+      contactHandle: '@karim.react'
     },
 
     // --- NEMO AGENCY: CLIENTS ---
@@ -114,7 +160,27 @@ const INITIAL_STATE: AppState = {
       rateType: 'FIXED',
       currency: 'USD',
       lastInteraction: Date.now() - 86400000 * 3,
-      nextAction: 'Send Portfolio'
+      nextAction: 'Send Portfolio',
+      stage: 'DISCOVERY',
+      needs: 'Full bilingual site revamp + SEO rollout',
+      contactHandle: 'mahmoud@redsea.com'
+    },
+    {
+      id: 'c-partner-1',
+      name: 'Shift Studio',
+      role: 'Brand Partner',
+      company: 'Shift Studio',
+      context: 'NEMO',
+      type: 'PARTNER',
+      status: 'ACTIVE',
+      tags: ['Design', 'Brand'],
+      rate: 0,
+      rateType: 'NONE',
+      currency: 'USD',
+      lastInteraction: Date.now() - 86400000 * 6,
+      nextAction: 'Share Nemo case studies',
+      focusArea: 'Brand systems',
+      contactHandle: 'hello@shiftstudio.com'
     },
 
     // --- PERSONAL: NETWORK ---
@@ -126,7 +192,7 @@ const INITIAL_STATE: AppState = {
       context: 'PERSONAL',
       type: 'NETWORK',
       status: 'WARM',
-      circle: 'INNER',
+      circle: 'MENTOR',
       tags: ['Academia', 'Mentor', 'Career Advice'],
       rate: 0,
       rateType: 'NONE',
@@ -213,7 +279,13 @@ export const loadState = async (): Promise<AppState> => {
               console.log("☁️ Loaded from Cloud");
               const data = docSnap.data();
               // Merge with initial state to ensure new fields (like marketing) exist if DB is old
-              return { ...INITIAL_STATE, ...data, marketing: data.marketing || INITIAL_STATE.marketing } as AppState;
+              return { 
+                ...INITIAL_STATE, 
+                ...data, 
+                marketing: data.marketing || INITIAL_STATE.marketing,
+                accounts: data.accounts || INITIAL_STATE.accounts,
+                activities: data.activities || INITIAL_STATE.activities
+              } as AppState;
           } else {
               console.log("☁️ New Cloud User - Creating Initial Data");
               await setDoc(docRef, INITIAL_STATE);
@@ -230,7 +302,12 @@ export const loadState = async (): Promise<AppState> => {
     console.log("💾 Loaded from Local");
     if (stored) {
         const parsed = JSON.parse(stored);
-        return { ...INITIAL_STATE, ...parsed };
+        return { 
+          ...INITIAL_STATE, 
+          ...parsed,
+          accounts: parsed.accounts || INITIAL_STATE.accounts,
+          activities: parsed.activities || INITIAL_STATE.activities
+        } as AppState;
     }
     return INITIAL_STATE;
   } catch (e) {

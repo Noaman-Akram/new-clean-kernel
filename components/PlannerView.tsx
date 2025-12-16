@@ -1,322 +1,610 @@
-
-import React, { useState } from 'react';
-import { AppState, Task, TaskStatus, Category, Severity } from '../types';
-import { 
-    ArrowRight,
-    Play,
-    Pause,
-    Check,
-    Inbox,
-    Calendar,
-    Target,
-    AlertCircle,
-    MoreHorizontal,
-    ChevronRight,
-    ChevronLeft,
+import React, { useMemo, useState } from 'react';
+import { AppState, Task, TaskStatus, Category, Severity, TaskSlot, Pillar } from '../types';
+import {
     CalendarDays,
-    Flag
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 
 interface Props {
-  state: AppState;
-  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH') => void;
-  onUpdate: (id: string, updates: Partial<Task>) => void;
-  onStartSession: (id: string) => void;
-  activeTaskId: string | null;
+    state: AppState;
+    onAdd: (
+        title: string,
+        category: Category,
+        impact: Severity,
+        options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus }
+    ) => void;
+    onUpdate: (id: string, updates: Partial<Task>) => void;
+    onStartSession: (id: string) => void;
+    activeTaskId: string | null;
 }
 
-// --- UTILS ---
+type WeekDay = {
+    index: number;
+    label: string;
+    dateNumber: string;
+    monthLabel: string;
+    longLabel: string;
+    start: number;
+    end: number;
+    isToday: boolean;
+};
 
-const getNextFriday = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + (5 + 7 - d.getDay()) % 7);
-    d.setHours(23, 59, 0, 0);
+const CATEGORY_LABELS: Record<Category, string> = {
+    [Category.ZOHO]: 'Corp',
+    [Category.FREELANCE]: 'Freelance',
+    [Category.AGENCY]: 'Nemo'
+};
+
+const DAY_TAGS = ['@MON', '@TUE', '@WED', '@THU', '@FRI', '@SAT', '@SUN'];
+
+const getDayStart = (value: number) => {
+    const d = new Date(value);
+    d.setHours(0, 0, 0, 0);
     return d.getTime();
 };
 
-const getTodayEnd = () => {
-    const d = new Date();
-    d.setHours(23, 59, 59, 999);
-    return d.getTime();
-}
+const getWeekStart = (input: Date) => {
+    const d = new Date(input);
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+};
 
-// --- MAIN COMPONENT ---
+const buildWeekDays = (weekStart: Date): WeekDay[] => {
+    return Array.from({ length: 7 }).map((_, idx) => {
+        const day = new Date(weekStart);
+        day.setDate(day.getDate() + idx);
+
+        const start = new Date(day);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(day);
+        end.setHours(23, 59, 59, 999);
+
+        return {
+            index: idx,
+            label: day.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+            dateNumber: day.toLocaleDateString('en-US', { day: 'numeric' }),
+            monthLabel: day.toLocaleDateString('en-US', { month: 'short' }),
+            longLabel: day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+            start: start.getTime(),
+            end: end.getTime(),
+            isToday: start.getTime() <= Date.now() && end.getTime() >= Date.now()
+        };
+    });
+};
+
+const formatWeekRange = (days: WeekDay[]) => {
+    if (days.length === 0) return '';
+    return `${days[0].longLabel} — ${days[6].longLabel}`;
+};
+
+const resolveDayTag = (tagRaw: string, weekDays: WeekDay[]): WeekDay | null => {
+    const tag = tagRaw.toLowerCase();
+    if (!tag) return null;
+    if (tag === 'today') {
+        return weekDays.find(d => d.isToday) || weekDays[0] || null;
+    }
+    if (tag === 'tomorrow') {
+        const todayIdx = weekDays.findIndex(d => d.isToday);
+        const idx = todayIdx >= 0 ? todayIdx + 1 : 1;
+        return weekDays[idx] || null;
+    }
+    if (/\d{4}-\d{2}-\d{2}/.test(tag)) {
+        const parsed = Date.parse(tag);
+        if (!Number.isNaN(parsed)) {
+            const start = getDayStart(parsed);
+            return weekDays.find(d => d.start === start) || null;
+        }
+    }
+    const short = tag.slice(0, 3);
+    return weekDays.find(d => d.label.slice(0, 3).toLowerCase() === short) || null;
+};
+
+const parseCommandDraft = (draft: string, weekDays: WeekDay[]) => {
+    const tokens = draft.trim().split(/\s+/).filter(Boolean);
+    let scheduledDay: WeekDay | null = null;
+    let severity: Severity = draft.includes('!') ? 'HIGH' : 'MED';
+    const cleaned: string[] = [];
+
+    tokens.forEach(token => {
+        if (token.startsWith('@')) {
+            const tag = token.slice(1);
+            const match = resolveDayTag(tag, weekDays);
+            if (match) {
+                scheduledDay = match;
+                return;
+            }
+        }
+        cleaned.push(token.replace(/!/g, ''));
+    });
+
+    return {
+        text: cleaned.join(' ').trim(),
+        severity,
+        scheduledDay
+    };
+};
 
 const PlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId }) => {
-  const [input, setInput] = useState('');
+    const [commandDraft, setCommandDraft] = useState('');
+    const [weekOffset, setWeekOffset] = useState(0);
+    const [dayDrafts, setDayDrafts] = useState<Record<number, string>>({});
 
-  // --- LOGIC ---
+    const tasks = state.tasks.filter(t => t.status !== TaskStatus.DONE);
+    const inboxTasks = tasks.filter(t => !t.deadline);
 
-  const tasks = state.tasks.filter(t => t.status !== TaskStatus.DONE);
+    const referenceDate = new Date();
+    referenceDate.setDate(referenceDate.getDate() + weekOffset * 7);
+    const weekStart = getWeekStart(referenceDate);
+    const weekDays = buildWeekDays(weekStart);
+    const weekLabel = formatWeekRange(weekDays);
 
-  // 1. Objectives (Goals): High Impact + Future Deadline (> 7 days) OR Explicitly marked
-  const objectives = tasks.filter(t => t.impact === 'HIGH' && t.deadline && t.deadline > Date.now() + 86400000 * 7);
+    const tasksByDay = useMemo(() => {
+        const map: Record<number, Task[]> = {};
+        tasks.forEach(task => {
+            if (!task.deadline) return;
+            const key = getDayStart(task.deadline);
+            if (!map[key]) map[key] = [];
+            map[key].push(task);
+        });
+        Object.values(map).forEach(list => list.sort((a, b) => a.createdAt - b.createdAt));
+        return map;
+    }, [tasks]);
 
-  // 2. Buckets
-  const now = Date.now();
-  const todayEnd = getTodayEnd();
-  const nextWeekEnd = now + 86400000 * 7;
+    const categorySummary = useMemo(() => {
+        return Object.values(Category).map(cat => ({
+            key: cat,
+            label: CATEGORY_LABELS[cat],
+            count: tasks.filter(t => t.category === cat).length
+        }));
+    }, [tasks]);
 
-  const inboxTasks = tasks.filter(t => !t.deadline && !objectives.includes(t));
-  
-  const weekTasks = tasks.filter(t => {
-      if (objectives.includes(t)) return false;
-      if (!t.deadline) return false;
-      return t.deadline > todayEnd && t.deadline <= nextWeekEnd;
-  });
+    const upcoming = useMemo(() => {
+        const dated = tasks.filter(t => t.deadline).sort((a, b) => (a.deadline || 0) - (b.deadline || 0));
+        return dated.slice(0, 4);
+    }, [tasks]);
 
-  const todayTasks = tasks.filter(t => {
-      if (objectives.includes(t)) return false;
-      if (!t.deadline) return false;
-      return t.deadline <= todayEnd;
-  });
+    const handleCommandSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!commandDraft.trim()) return;
+        const { text, severity, scheduledDay } = parseCommandDraft(commandDraft, weekDays);
+        if (!text) return;
+        const options = scheduledDay ? { deadline: scheduledDay.end } : undefined;
+        onAdd(text, Category.AGENCY, severity, options);
+        setCommandDraft('');
+    };
 
-  // --- HANDLERS ---
+    const handleInsertTag = (tag: string) => {
+        setCommandDraft(prev => `${prev.trim()} ${tag}`.trim());
+    };
 
-  const handleAdd = (e: React.FormEvent) => {
-      e.preventDefault();
-      if(!input.trim()) return;
-      const isHigh = input.includes('!');
-      onAdd(input.replace('!', '').trim(), Category.AGENCY, isHigh ? 'HIGH' : 'MED');
-      setInput('');
-  };
+    const handleDayDraftChange = (dayStart: number, value: string) => {
+        setDayDrafts(prev => ({ ...prev, [dayStart]: value }));
+    };
 
-  const handleMove = (id: string, dest: 'INBOX' | 'WEEK' | 'TODAY') => {
-      let updates: Partial<Task> = {};
-      if (dest === 'INBOX') updates = { deadline: undefined };
-      if (dest === 'WEEK') updates = { deadline: getNextFriday() };
-      if (dest === 'TODAY') updates = { deadline: Date.now() }; // Sets to current time, effectively due
-      onUpdate(id, updates);
-  };
+    const handleDayAdd = (day: WeekDay) => {
+        const draft = dayDrafts[day.start] || '';
+        if (!draft.trim()) return;
+        const severity: Severity = draft.includes('!') ? 'HIGH' : 'MED';
+        onAdd(draft.replace(/!/g, '').trim(), Category.AGENCY, severity, { deadline: day.end });
+        setDayDrafts(prev => ({ ...prev, [day.start]: '' }));
+    };
 
-  return (
-    <div className="h-full flex flex-col bg-background animate-fade-in overflow-hidden">
-        
-        {/* --- TOP BAR: OBJECTIVES --- */}
-        <div className="h-32 border-b border-border bg-surface/30 shrink-0 flex flex-col px-6 py-4">
-             <div className="flex items-center gap-2 text-xs font-mono text-zinc-500 uppercase tracking-widest mb-3">
-                 <Target size={12} className="text-zinc-400"/> Active Objectives
-             </div>
-             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                 {objectives.length === 0 && (
-                     <div className="flex items-center justify-center w-64 border border-dashed border-zinc-800 rounded text-[10px] text-zinc-600 font-mono h-16">
-                         No Long-term Objectives Set
-                     </div>
-                 )}
-                 {objectives.map(t => (
-                     <ObjectiveCard key={t.id} task={t} onUpdate={onUpdate} />
-                 ))}
-             </div>
-        </div>
+    const handleClearDay = (day: WeekDay) => {
+        const dayTasks = tasksByDay[day.start] || [];
+        dayTasks.forEach(task => onUpdate(task.id, { deadline: undefined }));
+    };
 
-        {/* --- MAIN GRID --- */}
-        <div className="flex-1 p-6 overflow-hidden">
-            <div className="h-full grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-[1800px] mx-auto">
-                
-                {/* COL 1: INBOX */}
-                <div className="flex flex-col h-full min-h-0">
-                    <div className="flex items-center justify-between mb-4 px-1">
-                        <div className="flex items-center gap-2 text-zinc-500 text-xs font-mono font-bold uppercase tracking-wider">
-                            <Inbox size={14}/> Backlog / Inbox
-                        </div>
-                        <span className="text-[10px] font-mono text-zinc-600 bg-zinc-900 px-2 py-0.5 rounded">{inboxTasks.length}</span>
-                    </div>
-                    
-                    {/* QUICK INPUT */}
-                    <form onSubmit={handleAdd} className="mb-4 relative">
-                         <input 
-                            value={input}
-                            onChange={e => setInput(e.target.value)}
-                            placeholder="+ Add to Inbox..."
-                            className="w-full bg-zinc-900/50 border border-zinc-800 rounded p-2 pl-3 text-sm text-zinc-200 placeholder:text-zinc-700 focus:border-zinc-600 outline-none font-mono"
-                         />
-                    </form>
+    const handleUnschedule = (taskId: string) => {
+        onUpdate(taskId, { deadline: undefined });
+    };
 
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                        {inboxTasks.map(t => (
-                            <TaskCard key={t.id} task={t} isActive={activeTaskId === t.id} onUpdate={onUpdate}>
-                                <div className="flex gap-1">
-                                    <MoveBtn icon={<ChevronRight size={14}/>} onClick={() => handleMove(t.id, 'WEEK')} tooltip="Schedule This Week" />
-                                </div>
-                            </TaskCard>
-                        ))}
-                    </div>
-                </div>
+    const handleComplete = (taskId: string) => {
+        onUpdate(taskId, { status: TaskStatus.DONE });
+    };
 
-                {/* COL 2: THIS WEEK */}
-                <div className="flex flex-col h-full min-h-0 border-l border-r border-border/50 px-4 lg:px-6">
-                    <div className="flex items-center justify-between mb-4 px-1">
-                        <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono font-bold uppercase tracking-wider">
-                            <CalendarDays size={14}/> This Week
-                        </div>
-                        <span className="text-[10px] font-mono text-zinc-600 bg-zinc-900 px-2 py-0.5 rounded">{weekTasks.length}</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                        {weekTasks.map(t => (
-                            <TaskCard key={t.id} task={t} isActive={activeTaskId === t.id} onUpdate={onUpdate}>
-                                <div className="flex gap-1">
-                                    <MoveBtn icon={<ChevronLeft size={14}/>} onClick={() => handleMove(t.id, 'INBOX')} tooltip="Backlog" />
-                                    <MoveBtn icon={<ChevronRight size={14}/>} onClick={() => handleMove(t.id, 'TODAY')} tooltip="Do Today" />
-                                </div>
-                            </TaskCard>
-                        ))}
-                    </div>
-                </div>
+    const handleScheduleFromBacklog = (taskId: string, day: WeekDay) => {
+        onUpdate(taskId, { deadline: day.end });
+    };
 
-                {/* COL 3: TODAY */}
-                <div className="flex flex-col h-full min-h-0">
-                    <div className="flex items-center justify-between mb-4 px-1">
-                        <div className="flex items-center gap-2 text-emerald-500 text-xs font-mono font-bold uppercase tracking-wider">
-                            <AlertCircle size={14}/> Execution (Today)
-                        </div>
-                        <span className="text-[10px] font-mono text-emerald-500 bg-emerald-950/30 border border-emerald-900/50 px-2 py-0.5 rounded">{todayTasks.length}</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                         {todayTasks.map(t => (
-                            <TaskCard key={t.id} task={t} isActive={activeTaskId === t.id} onUpdate={onUpdate} isToday>
-                                <div className="flex gap-1 items-center">
-                                    <MoveBtn icon={<ChevronLeft size={14}/>} onClick={() => handleMove(t.id, 'WEEK')} tooltip="Defer" />
-                                    
-                                    {/* PLAY BUTTON */}
-                                    <button 
-                                        onClick={() => activeTaskId === t.id ? null : onStartSession(t.id)}
-                                        className={`w-6 h-6 flex items-center justify-center rounded border transition-all mx-2
-                                            ${activeTaskId === t.id 
-                                                ? 'bg-emerald-500 border-emerald-400 text-black' 
-                                                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-emerald-500 hover:border-emerald-500'
-                                            }`}
-                                    >
-                                        {activeTaskId === t.id ? <Pause size={10} fill="currentColor"/> : <Play size={10} fill="currentColor"/>}
-                                    </button>
+    return (
+        <div className="min-h-screen bg-background text-zinc-100">
+            <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 flex flex-col gap-6">
+                <FocusPanel
+                    weekLabel={weekLabel}
+                    backlogCount={inboxTasks.length}
+                    totalPending={tasks.length}
+                    commandDraft={commandDraft}
+                    onCommandChange={setCommandDraft}
+                    onCommandSubmit={handleCommandSubmit}
+                    onInsertTag={handleInsertTag}
+                    weekDays={weekDays}
+                    onPrevWeek={() => setWeekOffset(prev => prev - 1)}
+                    onNextWeek={() => setWeekOffset(prev => prev + 1)}
+                    onResetWeek={() => setWeekOffset(0)}
+                    categorySummary={categorySummary}
+                    upcoming={upcoming}
+                />
 
-                                    <button 
-                                        onClick={() => onUpdate(t.id, { status: TaskStatus.DONE })}
-                                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors"
-                                        title="Complete"
-                                    >
-                                        <Check size={14} />
-                                    </button>
-                                </div>
-                            </TaskCard>
-                        ))}
-                    </div>
-                </div>
+                <WeekBoard
+                    days={weekDays}
+                    tasksByDay={tasksByDay}
+                    dayDrafts={dayDrafts}
+                    onDayDraftChange={handleDayDraftChange}
+                    onDayAdd={handleDayAdd}
+                    onClearDay={handleClearDay}
+                    onStartSession={onStartSession}
+                    onComplete={handleComplete}
+                    onUnschedule={handleUnschedule}
+                    onUpdate={onUpdate}
+                    activeTaskId={activeTaskId}
+                />
 
+                <BacklogPanel
+                    tasks={inboxTasks}
+                    weekDays={weekDays}
+                    onSchedule={handleScheduleFromBacklog}
+                    onStartSession={onStartSession}
+                    onComplete={handleComplete}
+                    onUnschedule={handleUnschedule}
+                    onUpdate={onUpdate}
+                    activeTaskId={activeTaskId}
+                />
             </div>
         </div>
-    </div>
-  );
+    );
 };
 
-// --- COMPONENTS ---
-
-const ObjectiveCard: React.FC<{ task: Task, onUpdate: (id: string, updates: Partial<Task>) => void }> = ({ task, onUpdate }) => {
-    const daysLeft = Math.ceil(((task.deadline || 0) - Date.now()) / 86400000);
-    
-    return (
-        <div className="min-w-[280px] p-3 rounded border border-zinc-800 bg-surface hover:border-zinc-700 transition-colors flex flex-col justify-between group">
-            <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-medium text-zinc-200 line-clamp-2">{task.title}</span>
-                <Flag size={12} className="text-amber-500 shrink-0 ml-2" fill="currentColor"/>
+const FocusPanel = ({
+    weekLabel,
+    backlogCount,
+    totalPending,
+    commandDraft,
+    onCommandChange,
+    onCommandSubmit,
+    onInsertTag,
+    weekDays,
+    onPrevWeek,
+    onNextWeek,
+    onResetWeek,
+    categorySummary,
+    upcoming
+}: {
+    weekLabel: string;
+    backlogCount: number;
+    totalPending: number;
+    commandDraft: string;
+    onCommandChange: (value: string) => void;
+    onCommandSubmit: (e: React.FormEvent) => void;
+    onInsertTag: (tag: string) => void;
+    weekDays: WeekDay[];
+    onPrevWeek: () => void;
+    onNextWeek: () => void;
+    onResetWeek: () => void;
+    categorySummary: { key: Category; label: string; count: number }[];
+    upcoming: Task[];
+}) => (
+    <section className="bg-surface/30 border border-border rounded-3xl p-6 flex flex-col gap-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <div className="text-xs font-black tracking-[0.6em] text-zinc-500">INSPIRED • SUNSAMA x NOTION BOARD</div>
+                <div className="text-2xl lg:text-3xl font-semibold text-white">Command the week with one line</div>
+                <p className="text-[12px] text-zinc-500">Use @day tokens and ! for priority. Everything else feels like a spreadsheet.</p>
             </div>
-            <div className="flex items-center justify-between">
-                <span className={`text-[10px] font-mono ${daysLeft < 3 ? 'text-red-400' : 'text-zinc-500'}`}>
-                    {daysLeft} Days Left
-                </span>
-                <button 
-                    onClick={() => onUpdate(task.id, { status: TaskStatus.DONE })}
-                    className="opacity-0 group-hover:opacity-100 text-[10px] bg-zinc-900 px-2 py-1 rounded text-zinc-400 hover:text-white"
-                >
-                    Complete
+            <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+                <button onClick={onPrevWeek} className="w-8 h-8 border border-border rounded-lg flex items-center justify-center hover:border-white/40">
+                    <ChevronLeft size={14} />
+                </button>
+                <div className="px-3 py-1.5 rounded-lg bg-black/40 border border-border text-[11px] uppercase tracking-widest text-zinc-300 flex items-center gap-2">
+                    <CalendarDays size={14} />
+                    {weekLabel}
+                </div>
+                <button onClick={onNextWeek} className="w-8 h-8 border border-border rounded-lg flex items-center justify-center hover:border-white/40">
+                    <ChevronRight size={14} />
+                </button>
+                <button onClick={onResetWeek} className="text-[10px] uppercase tracking-widest text-emerald-400">
+                    Today
                 </button>
             </div>
         </div>
-    )
-}
 
-const TaskCard = ({ task, isActive, onUpdate, children, isToday }: any) => {
-    const isOverdue = task.deadline && task.deadline < new Date().setHours(0,0,0,0);
-    
-    // Severity Colors
-    const severityColor = {
-        'HIGH': 'bg-amber-500',
-        'MED': 'bg-blue-500',
-        'LOW': 'bg-zinc-600'
-    };
+        <form onSubmit={onCommandSubmit} className="flex flex-col gap-2">
+            <input
+                value={commandDraft}
+                onChange={(e) => onCommandChange(e.target.value)}
+                placeholder="Type 'Prepare deck @Tue !' or simply 'Inbox clean'"
+                className="w-full bg-black/30 border border-zinc-800 rounded-2xl px-4 py-3 text-sm placeholder:text-zinc-600 focus:border-emerald-500 outline-none"
+            />
+            <div className="flex flex-wrap items-center gap-2 text-[10px] text-zinc-500">
+                <span>Shortcuts:</span>
+                {DAY_TAGS.map(tag => (
+                    <button
+                        key={tag}
+                        type="button"
+                        onClick={() => onInsertTag(tag)}
+                        className="px-2 py-0.5 border border-zinc-700 rounded-full text-[10px] uppercase tracking-wide hover:border-white"
+                    >
+                        {tag}
+                    </button>
+                ))}
+                <span className="text-zinc-600">Use ! anywhere for High priority</span>
+            </div>
+        </form>
 
-    // Date Display
-    const dateStr = task.deadline 
-        ? new Date(task.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        : 'No Date';
-
-    return (
-        <div className={`
-            group relative flex flex-col gap-2 p-3 rounded border transition-all duration-200
-            ${isActive 
-                ? 'bg-zinc-900 border-emerald-500/40 shadow-glow z-10' 
-                : 'bg-surface border-zinc-800 hover:border-zinc-700'
-            }
-            ${isOverdue && !isActive ? 'border-red-900/30 bg-red-950/5' : ''}
-        `}>
-            {/* Header: Severity + Title */}
-            <div className="flex justify-between items-start gap-2">
-                <div className="flex items-start gap-2">
-                    <div className={`w-1 h-1 rounded-full mt-1.5 shrink-0 ${severityColor[task.impact as Severity] || 'bg-zinc-600'}`} title={task.impact} />
-                    <input 
-                        className={`bg-transparent w-full outline-none text-sm font-medium leading-snug truncate ${isActive ? 'text-emerald-100' : isOverdue ? 'text-red-200' : 'text-zinc-300 group-hover:text-zinc-100'}`}
-                        value={task.title}
-                        onChange={(e) => onUpdate(task.id, { title: e.target.value })}
-                    />
+        <div className="grid gap-4 lg:grid-cols-12">
+            <div className="lg:col-span-7 flex flex-col gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <StatTile label="Open" value={totalPending} hint="all pending" />
+                    <StatTile label="Backlog" value={backlogCount} hint="unscheduled" />
+                    <StatTile label="Week" value={weekLabel} hint="range" compact />
+                    <StatTile label="Day tokens" value="@Mon ..." hint="type to schedule" compact />
+                </div>
+                <div className="border border-zinc-800 rounded-2xl p-4 bg-black/20 flex flex-wrap gap-3">
+                    {categorySummary.map(item => (
+                        <div key={item.key} className="flex items-center gap-2 px-3 py-2 bg-black/40 rounded-xl border border-zinc-800 text-sm">
+                            <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                            <span>{item.label}</span>
+                            <span className="text-zinc-500">{item.count}</span>
+                        </div>
+                    ))}
                 </div>
             </div>
-
-            {/* Footer: Date + Controls */}
-            <div className="flex items-center justify-between mt-1">
-                 {/* Date Picker Trigger */}
-                 <div className="relative group/date">
-                    <div className={`flex items-center gap-1.5 text-[10px] font-mono cursor-pointer ${isOverdue ? 'text-red-400' : 'text-zinc-600 hover:text-zinc-400'}`}>
-                        <Calendar size={10} />
-                        <span>{isOverdue ? 'OVERDUE' : dateStr}</span>
-                    </div>
-                    {/* Native Date Input Overlay */}
-                    <input 
-                        type="date" 
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        onChange={(e) => {
-                            if(e.target.valueAsNumber) {
-                                onUpdate(task.id, { deadline: e.target.valueAsNumber });
-                            }
-                        }}
-                    />
-                 </div>
-
-                 {/* Severity Toggle (Clicking dot cycles priority) */}
-                 <button 
-                    onClick={() => {
-                        const next = task.impact === 'HIGH' ? 'LOW' : task.impact === 'LOW' ? 'MED' : 'HIGH';
-                        onUpdate(task.id, { impact: next });
-                    }}
-                    className="text-[9px] font-mono text-zinc-600 uppercase hover:text-zinc-300 transition-colors opacity-0 group-hover:opacity-100"
-                 >
-                    {task.impact}
-                 </button>
-
-                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
-                    {children}
-                 </div>
+            <div className="lg:col-span-5 flex flex-col gap-3">
+                <div className="text-[11px] font-mono text-zinc-500 uppercase">Next deadlines</div>
+                <div className="border border-zinc-800 rounded-2xl bg-black/30 p-4 space-y-2 max-h-[200px] overflow-y-auto">
+                    {upcoming.length === 0 ? (
+                        <div className="text-[12px] text-zinc-600 font-mono">No scheduled work yet.</div>
+                    ) : (
+                        upcoming.map(task => (
+                            <div key={task.id} className="flex items-center justify-between text-xs text-zinc-300">
+                                <span className="flex-1 truncate pr-3">{task.title}</span>
+                                <span className="text-[10px] text-zinc-500">
+                                    {task.deadline ? new Date(task.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                                </span>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         </div>
-    )
-}
+    </section>
+);
 
-const MoveBtn = ({ icon, onClick, tooltip }: any) => (
-    <button 
-        onClick={onClick}
-        title={tooltip}
-        className="w-6 h-6 flex items-center justify-center rounded hover:bg-zinc-700 transition-colors text-zinc-500 hover:text-zinc-200"
-    >
-        {icon}
-    </button>
+const WeekBoard = ({
+    days,
+    tasksByDay,
+    dayDrafts,
+    onDayDraftChange,
+    onDayAdd,
+    onClearDay,
+    onStartSession,
+    onComplete,
+    onUnschedule,
+    onUpdate,
+    activeTaskId
+}: {
+    days: WeekDay[];
+    tasksByDay: Record<number, Task[]>;
+    dayDrafts: Record<number, string>;
+    onDayDraftChange: (dayStart: number, value: string) => void;
+    onDayAdd: (day: WeekDay) => void;
+    onClearDay: (day: WeekDay) => void;
+    onStartSession: (id: string) => void;
+    onComplete: (id: string) => void;
+    onUnschedule: (id: string) => void;
+    onUpdate: (id: string, updates: Partial<Task>) => void;
+    activeTaskId: string | null;
+}) => (
+    <section className="bg-surface/20 border border-border rounded-3xl p-5 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+            <div>
+                <div className="text-[11px] font-mono text-zinc-500 uppercase">Weekly board</div>
+                <p className="text-sm text-zinc-400">Ideas from Sunsama + Trello: drag-feel columns, instant inputs.</p>
+            </div>
+        </div>
+        <div className="overflow-x-auto">
+            <div className="flex gap-4 min-w-[720px]">
+                {days.map(day => (
+                    <DayColumn
+                        key={day.start}
+                        day={day}
+                        tasks={tasksByDay[day.start] || []}
+                        draft={dayDrafts[day.start] || ''}
+                        onDraftChange={value => onDayDraftChange(day.start, value)}
+                        onAdd={() => onDayAdd(day)}
+                        onClear={() => onClearDay(day)}
+                        onStartSession={onStartSession}
+                        onComplete={onComplete}
+                        onUnschedule={onUnschedule}
+                        onUpdate={onUpdate}
+                        activeTaskId={activeTaskId}
+                    />
+                ))}
+            </div>
+        </div>
+    </section>
+);
+
+const DayColumn = ({
+    day,
+    tasks,
+    draft,
+    onDraftChange,
+    onAdd,
+    onClear,
+    onStartSession,
+    onComplete,
+    onUnschedule,
+    onUpdate,
+    activeTaskId
+}: {
+    day: WeekDay;
+    tasks: Task[];
+    draft: string;
+    onDraftChange: (value: string) => void;
+    onAdd: () => void;
+    onClear: () => void;
+    onStartSession: (id: string) => void;
+    onComplete: (id: string) => void;
+    onUnschedule: (id: string) => void;
+    onUpdate: (id: string, updates: Partial<Task>) => void;
+    activeTaskId: string | null;
+}) => (
+    <div className="flex flex-col bg-black/20 border border-zinc-800 rounded-3xl p-3 min-w-[200px]">
+        <div className="flex items-center justify-between mb-2">
+            <div>
+                <div className="text-xs text-zinc-500 uppercase">{day.label}</div>
+                <div className="text-lg font-semibold text-white">{day.dateNumber}</div>
+            </div>
+            <button onClick={onClear} className="text-[10px] text-zinc-500 border border-zinc-700 rounded-full px-2 py-0.5 hover:text-white">
+                Clear
+            </button>
+        </div>
+        <div className="flex-1 flex flex-col gap-2">
+            {tasks.length === 0 && (
+                <div className="text-[11px] text-zinc-600 font-mono border border-dashed border-zinc-800 rounded-2xl p-3 text-center">
+                    Empty slot
+                </div>
+            )}
+            {tasks.map(task => (
+                <TaskCard
+                    key={task.id}
+                    task={task}
+                    isActive={activeTaskId === task.id}
+                    onStartSession={onStartSession}
+                    onComplete={onComplete}
+                    onUnschedule={onUnschedule}
+                    onUpdate={onUpdate}
+                />
+            ))}
+        </div>
+        <form
+            onSubmit={(e) => {
+                e.preventDefault();
+                onAdd();
+            }}
+            className="mt-3"
+        >
+            <input
+                value={draft}
+                onChange={(e) => onDraftChange(e.target.value)}
+                placeholder="Add task (use ! for high)"
+                className="w-full bg-black/40 border border-zinc-800 rounded-2xl px-3 py-2 text-sm placeholder:text-zinc-600 focus:border-emerald-500 outline-none"
+            />
+        </form>
+    </div>
+);
+
+const TaskCard = ({
+    task,
+    isActive,
+    onStartSession,
+    onComplete,
+    onUnschedule,
+    onUpdate
+}: {
+    task: Task;
+    isActive: boolean;
+    onStartSession: (id: string) => void;
+    onComplete: (id: string) => void;
+    onUnschedule: (id: string) => void;
+    onUpdate: (id: string, updates: Partial<Task>) => void;
+}) => (
+    <div className={`flex flex-col gap-1 p-3 rounded-2xl border ${isActive ? 'border-emerald-400/60 bg-emerald-950/20' : 'border-zinc-800 bg-black/30'}`}>
+        <textarea
+            value={task.title}
+            onChange={(e) => onUpdate(task.id, { title: e.target.value })}
+            className={`w-full bg-transparent resize-none text-sm font-medium leading-snug outline-none ${isActive ? 'text-emerald-50' : 'text-zinc-200'}`}
+        />
+        <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+            <button
+                onClick={() => onStartSession(task.id)}
+                className={`px-2 py-0.5 rounded-full border ${isActive ? 'border-emerald-400 text-emerald-300' : 'border-zinc-700 hover:border-emerald-400 hover:text-emerald-300'}`}
+            >
+                {isActive ? 'PAUSE' : 'FOCUS'}
+            </button>
+            <button
+                onClick={() => onComplete(task.id)}
+                className="px-2 py-0.5 rounded-full border border-zinc-700 hover:border-emerald-400 hover:text-emerald-300"
+            >
+                DONE
+            </button>
+            <button
+                onClick={() => onUnschedule(task.id)}
+                className="px-2 py-0.5 rounded-full border border-zinc-700 hover:border-zinc-400 hover:text-white"
+            >
+                BACKLOG
+            </button>
+            <span className="ml-auto text-[9px] uppercase tracking-wide">{task.impact}</span>
+        </div>
+    </div>
+);
+
+const BacklogPanel = ({
+    tasks,
+    weekDays,
+    onSchedule,
+    onStartSession,
+    onComplete,
+    onUnschedule,
+    onUpdate,
+    activeTaskId
+}: {
+    tasks: Task[];
+    weekDays: WeekDay[];
+    onSchedule: (taskId: string, day: WeekDay) => void;
+    onStartSession: (id: string) => void;
+    onComplete: (id: string) => void;
+    onUnschedule: (id: string) => void;
+    onUpdate: (id: string, updates: Partial<Task>) => void;
+    activeTaskId: string | null;
+}) => (
+    <section className="bg-surface/20 border border-border rounded-3xl p-5 flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+            <div className="text-[11px] font-mono text-zinc-500 uppercase">Backlog</div>
+            <p className="text-xs text-zinc-500">Inspired by Todoist quick capture. Use command box above or schedule from here.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+            {tasks.length === 0 ? (
+                <div className="text-[12px] text-zinc-600 font-mono border border-dashed border-zinc-800 rounded-2xl p-4 text-center">Inbox clear.</div>
+            ) : (
+                tasks.map(task => (
+                    <div key={task.id} className="border border-zinc-800 rounded-2xl bg-black/30 p-3 space-y-2">
+                        <TaskCard
+                            task={task}
+                            isActive={activeTaskId === task.id}
+                            onStartSession={onStartSession}
+                            onComplete={onComplete}
+                            onUnschedule={onUnschedule}
+                            onUpdate={onUpdate}
+                        />
+                        <div className="flex flex-wrap gap-1 text-[10px] text-zinc-500">
+                            {weekDays.map(day => (
+                                <button
+                                    key={`${task.id}-${day.start}`}
+                                    onClick={() => onSchedule(task.id, day)}
+                                    className="px-2 py-0.5 border border-zinc-700 rounded-full hover:border-emerald-400 hover:text-emerald-300"
+                                >
+                                    {day.label.slice(0, 3)} {day.dateNumber}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ))
+            )}
+        </div>
+    </section>
+);
+
+const StatTile = ({ label, value, hint, compact }: { label: string; value: string | number; hint?: string; compact?: boolean }) => (
+    <div className="border border-zinc-800 rounded-2xl bg-black/20 p-3 flex flex-col">
+        <div className="text-[10px] font-mono text-zinc-500 uppercase">{label}</div>
+        <div className={`text-white font-semibold ${compact ? 'text-xs truncate' : 'text-2xl'}`}>{value}</div>
+        {hint && <div className="text-[10px] text-zinc-500">{hint}</div>}
+    </div>
 );
 
 export default PlannerView;

@@ -13,9 +13,20 @@ export enum TaskStatus {
   DONE = 'DONE'
 }
 
+export type Weekday = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+
+export interface TaskSlot {
+  day: Weekday;
+  hour: string;
+}
+
+export type Pillar = 'KNOWLEDGE' | 'DESIGN' | 'MASTERY';
+
 export enum Page {
   COCKPIT = 'COCKPIT',
   GRID = 'GRID',
+  GRID2 = 'GRID2',
+  ACTIVITIES = 'ACTIVITIES',
   NETWORK = 'NETWORK',
   LEDGER = 'LEDGER',
   MARKETING = 'MARKETING',
@@ -29,8 +40,8 @@ export type Severity = 'LOW' | 'MED' | 'HIGH';
 
 // Network / CRM Types
 export type EntityContext = 'NEMO' | 'PERSONAL';
-export type EntityType = 'TEAM' | 'CANDIDATE' | 'CLIENT' | 'NETWORK';
-export type PersonalCircle = 'INNER' | 'OUTER' | 'PROFESSIONAL' | 'NONE';
+export type EntityType = 'TEAM' | 'CANDIDATE' | 'CLIENT' | 'NETWORK' | 'PARTNER';
+export type PersonalCircle = 'FRIEND' | 'FAMILY' | 'MENTOR' | 'ALLY' | 'NONE';
 
 // Simplified Marketing Types
 export type ContentIdentity = 'AGENCY' | 'CAREER' | 'PERSONAL';
@@ -46,6 +57,18 @@ export interface MarketingItem {
     postedAt?: number;
 }
 
+export type ActivityCategory = 'WORK' | 'SPORT' | 'SOCIAL' | 'HANGOUT';
+
+export interface Activity {
+    id: string;
+    title: string;
+    category: ActivityCategory;
+    location: string;
+    vibe: 'FOCUS' | 'ENERGY' | 'RELAX';
+    details?: string;
+    lastVisited?: number;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -55,6 +78,8 @@ export interface Task {
   deadline?: number; // Timestamp
   impact: Severity;
   notes?: string;
+  slot?: TaskSlot;
+  pillar?: Pillar;
 }
 
 export interface Client { // Acts as "Entity" (Person or Company)
@@ -80,6 +105,11 @@ export interface Client { // Acts as "Entity" (Person or Company)
   
   email?: string;
   phone?: string;
+  profileUrl?: string;
+  contactHandle?: string;
+  needs?: string;
+  stage?: 'LEAD' | 'DISCOVERY' | 'PROPOSAL' | 'CLOSED' | 'LOST';
+  focusArea?: string;
 }
 
 export interface Transaction {
@@ -89,7 +119,18 @@ export interface Transaction {
   description: string;
   type: 'INCOME' | 'EXPENSE';
   category: Category;
+  accountId?: string;
   relatedEntityId?: string; // Link to Client/Entity
+}
+
+export type AccountType = 'CASH' | 'BANK' | 'CRYPTO' | 'ASSET';
+
+export interface Account {
+    id: string;
+    name: string;
+    type: AccountType;
+    currency: 'USD' | 'EGP';
+    note?: string;
 }
 
 export interface Note {
@@ -130,8 +171,10 @@ export interface ActiveSession {
 export interface AppState {
   currentPage: Page;
   tasks: Task[];
+  activities: Activity[];
   clients: Client[];
   transactions: Transaction[];
+  accounts: Account[];
   notes: Note[];
   resources: Resource[];
   marketing: MarketingItem[]; 

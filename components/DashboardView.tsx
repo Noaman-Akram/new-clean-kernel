@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppState, TaskStatus, Category, Task } from '../types';
+import { AppState, TaskStatus, Category, Task, TaskSlot, Pillar } from '../types';
 import { getNextPrayer } from '../utils';
 import { 
     Target,
@@ -16,10 +16,17 @@ import {
     Calendar
 } from 'lucide-react';
 
+type TaskAddHandler = (
+    title: string,
+    category: Category,
+    impact: 'LOW' | 'MED' | 'HIGH',
+    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus }
+) => void;
+
 interface Props {
   state: AppState;
   onTaskUpdate: (id: string, updates: Partial<Task>) => void;
-  onTaskAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH') => void;
+  onTaskAdd: TaskAddHandler;
   onPrayerToggle: (key: string) => void;
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
@@ -195,7 +202,7 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
   );
 };
 
-const QuickInput: React.FC<{ onAdd: any }> = ({ onAdd }) => {
+const QuickInput: React.FC<{ onAdd: TaskAddHandler }> = ({ onAdd }) => {
     const [val, setVal] = useState('');
     
     const handleSubmit = (e: React.FormEvent) => {

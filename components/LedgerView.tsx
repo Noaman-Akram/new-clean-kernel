@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
-import { AppState, Transaction, Category } from '../types';
+import React, { useState, useMemo } from 'react';
+import { AppState, Transaction, Category, Account } from '../types';
 import { generateId } from '../utils';
-import { Plus, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, CreditCard, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 
 interface Props {
   state: AppState;
@@ -13,10 +13,11 @@ const LedgerView: React.FC<Props> = ({ state, onAdd }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [desc, setDesc] = useState('');
     const [amount, setAmount] = useState('');
+    const [accountId, setAccountId] = useState(state.accounts[0]?.id || '');
 
     const handleAdd = (type: 'INCOME' | 'EXPENSE') => {
         const val = parseFloat(amount);
-        if(!val || !desc) return;
+        if(!val || !desc || !accountId) return;
         
         onAdd({
             id: generateId(),
@@ -24,12 +25,24 @@ const LedgerView: React.FC<Props> = ({ state, onAdd }) => {
             date: Date.now(),
             description: desc,
             type,
-            category: Category.FREELANCE
+            category: Category.FREELANCE,
+            accountId
         });
         setAmount('');
         setDesc('');
         setIsAdding(false);
     };
+
+    const byAccount = useMemo(() => {
+        const map: Record<string, { account: Account; balance: number }> = {};
+        state.accounts.forEach(acc => map[acc.id] = { account: acc, balance: 0 });
+        state.transactions.forEach(tx => {
+            const key = tx.accountId || state.accounts[0]?.id;
+            if (!key || !map[key]) return;
+            map[key].balance += tx.amount;
+        });
+        return Object.values(map);
+    }, [state.accounts, state.transactions]);
 
     const net = state.transactions.reduce((a,b) => a + b.amount, 0);
     const income = state.transactions.filter(t => t.type === 'INCOME').reduce((a,b) => a+b.amount, 0);
@@ -82,6 +95,15 @@ const LedgerView: React.FC<Props> = ({ state, onAdd }) => {
                         className="bg-background border border-border rounded-md px-4 py-2 text-sm text-white focus:border-zinc-500 outline-none w-80"
                         autoFocus
                     />
+                    <select
+                        value={accountId}
+                        onChange={e => setAccountId(e.target.value)}
+                        className="bg-background border border-border rounded-md px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
+                    >
+                        {state.accounts.map(acc => (
+                            <option key={acc.id} value={acc.id}>{acc.name} · {acc.type}</option>
+                        ))}
+                    </select>
                     <input 
                         value={amount}
                         onChange={e => setAmount(e.target.value)}
@@ -95,8 +117,24 @@ const LedgerView: React.FC<Props> = ({ state, onAdd }) => {
             )}
 
             {/* TABLE */}
-            <div className="flex-1 overflow-auto px-10 py-8">
-                <div className="text-[10px] font-mono text-zinc-600 uppercase mb-4">Recent Activity</div>
+            <div className="flex-1 overflow-auto px-10 py-8 space-y-6">
+                <div className="text-[10px] font-mono text-zinc-600 uppercase">Accounts</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {byAccount.map(item => (
+                        <div key={item.account.id} className="bg-surface/40 border border-border rounded-xl p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm text-white">
+                                <Wallet size={14} className="text-zinc-500" />
+                                <div className="flex flex-col">
+                                    <span className="font-semibold">{item.account.name}</span>
+                                    <span className="text-[10px] font-mono text-zinc-500 uppercase">{item.account.type}</span>
+                                </div>
+                            </div>
+                            <div className="text-sm font-mono text-emerald-400">${item.balance.toLocaleString()}</div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="text-[10px] font-mono text-zinc-600 uppercase mt-4">Recent Activity</div>
                 <div className="border-t border-border">
                     <table className="w-full text-left border-collapse">
                         <tbody className="divide-y divide-zinc-800">
@@ -115,6 +153,9 @@ const LedgerView: React.FC<Props> = ({ state, onAdd }) => {
                                     </td>
                                     <td className={`py-4 px-6 text-sm font-mono text-right w-40 ${tx.type === 'INCOME' ? 'text-emerald-500' : 'text-zinc-400'}`}>
                                         {tx.type === 'INCOME' ? '+' : ''}{tx.amount}
+                                    </td>
+                                    <td className="py-4 text-right text-[11px] text-zinc-500 font-mono w-32">
+                                        {state.accounts.find(a => a.id === tx.accountId)?.name || '—'}
                                     </td>
                                 </tr>
                             ))}

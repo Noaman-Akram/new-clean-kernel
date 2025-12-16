@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar } from './types';
 import { loadState, saveState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
@@ -19,12 +19,14 @@ import {
   StickyNote,
   Container,
   Loader2,
-  Megaphone
+  Megaphone,
+  MapPin
 } from 'lucide-react';
 
 // Views
 import DashboardView from './components/DashboardView';
-import PlannerView from './components/PlannerView';
+import TaskBoard from './components/TaskBoard';
+import GridTwoView from './components/GridTwoView';
 import NetworkView from './components/NetworkView';
 import LedgerView from './components/LedgerView';
 import MentorView from './components/MentorView';
@@ -32,6 +34,7 @@ import SupplicationsView from './components/SupplicationsView';
 import NotesView from './components/NotesView';
 import ResourcesView from './components/ResourcesView';
 import MarketingView from './components/MarketingView';
+import ActivitiesView from './components/ActivitiesView';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
@@ -64,15 +67,29 @@ const App: React.FC = () => {
     setState(prev => prev ? ({ ...prev, currentPage: page }) : null);
   };
 
-  const handleTaskAdd = (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH') => {
+  const handleTaskAdd = (
+    title: string, 
+    category: Category, 
+    impact: 'LOW' | 'MED' | 'HIGH',
+    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus }
+  ) => {
     const newTask: Task = {
       id: generateId(),
       title,
-      status: TaskStatus.TODO, // Default to TODO if added from Cockpit
+      status: options?.status ?? TaskStatus.TODO, // Default to TODO if not provided
       category,
       createdAt: Date.now(),
       impact
     };
+    if (options?.deadline) {
+      newTask.deadline = options.deadline;
+    }
+    if (options?.slot) {
+        newTask.slot = options.slot;
+    }
+    if (options?.pillar) {
+        newTask.pillar = options.pillar;
+    }
     setState(prev => prev ? ({ ...prev, tasks: [newTask, ...prev.tasks] }) : null);
   };
 
@@ -122,6 +139,25 @@ const App: React.FC = () => {
 
   const handleMarketingAdd = (item: MarketingItem) => {
       setState(prev => prev ? ({ ...prev, marketing: [item, ...prev.marketing] }) : null);
+  };
+
+  const handleActivityAdd = (activity: Omit<Activity, 'id'>) => {
+      const newActivity: Activity = { id: generateId(), ...activity };
+      setState(prev => prev ? ({ ...prev, activities: [newActivity, ...prev.activities] }) : null);
+  };
+
+  const handleActivityUpdate = (id: string, updates: Partial<Activity>) => {
+      setState(prev => prev ? ({
+          ...prev,
+          activities: prev.activities.map(act => act.id === id ? { ...act, ...updates } : act)
+      }) : null);
+  };
+
+  const handleActivityRemove = (id: string) => {
+      setState(prev => prev ? ({
+          ...prev,
+          activities: prev.activities.filter(act => act.id !== id)
+      }) : null);
   };
 
   const handlePrayerToggle = (key: string) => {
@@ -180,7 +216,15 @@ const App: React.FC = () => {
       case Page.COCKPIT:
         return <DashboardView {...viewProps} onPrayerToggle={handlePrayerToggle} onTaskAdd={handleTaskAdd} />;
       case Page.GRID:
-        return <PlannerView {...viewProps} onAdd={handleTaskAdd} onUpdate={handleTaskUpdate} />;
+        return (
+            <TaskBoard
+                state={state}
+                onAdd={handleTaskAdd}
+                onUpdate={handleTaskUpdate}
+                onStartSession={startSession}
+                activeTaskId={state.activeSession.taskId}
+            />
+        );
       case Page.NETWORK:
         return <NetworkView state={state} onUpdate={handleClientUpdate} onAdd={handleClientAdd} onAddTransaction={handleTransactionAdd} />;
       case Page.LEDGER:
@@ -195,6 +239,23 @@ const App: React.FC = () => {
         return <NotesView state={state} onUpdate={handleNoteUpdate} onAdd={handleNoteAdd} />;
       case Page.ARSENAL:
         return <ResourcesView state={state} onAdd={handleResourceAdd} />;
+      case Page.GRID2:
+        return (
+            <GridTwoView
+                state={state}
+                onAdd={handleTaskAdd}
+                onUpdate={handleTaskUpdate}
+            />
+        );
+      case Page.ACTIVITIES:
+        return (
+            <ActivitiesView 
+                state={state} 
+                onAdd={handleActivityAdd} 
+                onUpdate={handleActivityUpdate} 
+                onRemove={handleActivityRemove} 
+            />
+        );
       default:
         return <DashboardView {...viewProps} onPrayerToggle={handlePrayerToggle} onTaskAdd={handleTaskAdd} />;
     }
@@ -251,11 +312,23 @@ const App: React.FC = () => {
                 icon={<MessageSquare size={18} />} 
                 label="Protocol"
              />
-            <NavIcon 
+             <NavIcon 
                 active={state.currentPage === Page.GRID} 
                 onClick={() => handleNavigate(Page.GRID)} 
                 icon={<Layers size={18} />} 
-                label="Grid"
+                label="Tasks"
+             />
+             <NavIcon
+                active={state.currentPage === Page.GRID2}
+                onClick={() => handleNavigate(Page.GRID2)}
+                icon={<Square size={18} />}
+                label="Grid 2"
+             />
+            <NavIcon 
+                active={state.currentPage === Page.ACTIVITIES}
+                onClick={() => handleNavigate(Page.ACTIVITIES)}
+                icon={<MapPin size={18} />} 
+                label="Activities"
              />
              <div className="h-px w-3/4 bg-border my-1 opacity-50 shrink-0"></div>
             <NavIcon 
@@ -308,7 +381,7 @@ const App: React.FC = () => {
       {/* --- MAIN CONTENT --- */}
       <main className="flex-1 flex flex-col min-w-0 bg-background relative">
         {/* Top Bar */}
-        <div className="h-14 border-b border-border flex items-center justify-between px-6 bg-background/50 backdrop-blur-xl sticky top-0 z-40">
+        <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-background/60 backdrop-blur-xl sticky top-0 z-40">
              <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
                 <span className="text-zinc-300 font-medium">{state.currentPage}</span>
                 <span className="opacity-30">/</span>
@@ -324,7 +397,7 @@ const App: React.FC = () => {
              </div>
         </div>
 
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-y-auto relative">
             {renderView()}
         </div>
 

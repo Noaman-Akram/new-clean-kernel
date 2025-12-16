@@ -48,25 +48,25 @@ export type ContentIdentity = 'AGENCY' | 'CAREER' | 'PERSONAL';
 export type ContentPlatform = 'LINKEDIN' | 'TWITTER' | 'BLOG';
 
 export interface MarketingItem {
-    id: string;
-    content: string; // The hook or body
-    identity: ContentIdentity;
-    platform: ContentPlatform;
-    isPosted: boolean;
-    createdAt: number;
-    postedAt?: number;
+  id: string;
+  content: string; // The hook or body
+  identity: ContentIdentity;
+  platform: ContentPlatform;
+  isPosted: boolean;
+  createdAt: number;
+  postedAt?: number;
 }
 
 export type ActivityCategory = 'WORK' | 'SPORT' | 'SOCIAL' | 'HANGOUT';
 
 export interface Activity {
-    id: string;
-    title: string;
-    category: ActivityCategory;
-    location: string;
-    vibe: 'FOCUS' | 'ENERGY' | 'RELAX';
-    details?: string;
-    lastVisited?: number;
+  id: string;
+  title: string;
+  category: ActivityCategory;
+  location: string;
+  vibe: 'FOCUS' | 'ENERGY' | 'RELAX';
+  details?: string;
+  lastVisited?: number;
 }
 
 export interface Task {
@@ -87,22 +87,22 @@ export interface Client { // Acts as "Entity" (Person or Company)
   name: string;
   role: string; // e.g., "Frontend Dev", "Project Manager"
   company: string; // Organization name
-  
+
   context: EntityContext; // NEMO or PERSONAL
   type: EntityType; // TEAM, CANDIDATE, CLIENT, NETWORK
-  
+
   status: string; // e.g., "ACTIVE", "INTERVIEWING", "LEAD"
   tags: string[]; // NEW: For flexible categorization
   circle?: PersonalCircle; // NEW: For personal depth
-  
+
   // Financials
-  rate: number; 
+  rate: number;
   rateType: 'HOURLY' | 'MONTHLY' | 'FIXED' | 'NONE';
   currency: 'USD' | 'EGP';
-  
+
   lastInteraction: number;
   nextAction: string;
-  
+
   email?: string;
   phone?: string;
   profileUrl?: string;
@@ -126,27 +126,27 @@ export interface Transaction {
 export type AccountType = 'CASH' | 'BANK' | 'CRYPTO' | 'ASSET';
 
 export interface Account {
-    id: string;
-    name: string;
-    type: AccountType;
-    currency: 'USD' | 'EGP';
-    note?: string;
+  id: string;
+  name: string;
+  type: AccountType;
+  currency: 'USD' | 'EGP';
+  note?: string;
 }
 
 export interface Note {
-    id: string;
-    title: string;
-    content: string;
-    updatedAt: number;
-    tags: string[];
+  id: string;
+  title: string;
+  content: string;
+  updatedAt: number;
+  tags: string[];
 }
 
 export interface Resource {
-    id: string;
-    title: string;
-    url: string;
-    category: 'DEV' | 'DESIGN' | 'BUSINESS' | 'LEARNING';
-    description: string;
+  id: string;
+  title: string;
+  url: string;
+  category: 'DEV' | 'DESIGN' | 'BUSINESS' | 'LEARNING' | 'PRODUCTIVITY' | 'FINANCE' | 'MARKETING' | 'MEDIA';
+  description: string;
 }
 
 export interface SystemMetrics {
@@ -164,8 +164,8 @@ export interface ChatMessage {
 }
 
 export interface ActiveSession {
-    taskId: string | null;
-    startTime: number | null;
+  taskId: string | null;
+  startTime: number | null;
 }
 
 export interface AppState {
@@ -177,7 +177,7 @@ export interface AppState {
   accounts: Account[];
   notes: Note[];
   resources: Resource[];
-  marketing: MarketingItem[]; 
+  marketing: MarketingItem[];
   metrics: SystemMetrics;
   prayerLog: Record<string, boolean>;
   chatHistory: ChatMessage[];

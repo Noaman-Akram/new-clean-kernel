@@ -130,6 +130,20 @@ const App: React.FC = () => {
     setState(prev => prev ? ({ ...prev, resources: [res, ...prev.resources] }) : null);
   };
 
+  const handleResourceUpdate = (id: string, updates: Partial<Resource>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      resources: prev.resources.map(r => r.id === id ? { ...r, ...updates } : r)
+    }) : null);
+  };
+
+  const handleResourceDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      resources: prev.resources.filter(r => r.id !== id)
+    }) : null);
+  };
+
   const handleMarketingUpdate = (id: string, updates: Partial<MarketingItem>) => {
     setState(prev => prev ? ({
       ...prev,
@@ -238,7 +252,7 @@ const App: React.FC = () => {
       case Page.INTEL:
         return <NotesView state={state} onUpdate={handleNoteUpdate} onAdd={handleNoteAdd} />;
       case Page.ARSENAL:
-        return <ResourcesView state={state} onAdd={handleResourceAdd} />;
+        return <ResourcesView state={state} onAdd={handleResourceAdd} onUpdate={handleResourceUpdate} onRemove={handleResourceDelete} />;
       case Page.GRID2:
         return (
           <GridTwoView

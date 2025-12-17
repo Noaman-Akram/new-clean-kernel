@@ -18,6 +18,7 @@ export type Weekday = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 export interface TaskSlot {
   day: Weekday;
   hour: string;
+  date?: string; // ISO Date string YYYY-MM-DD
 }
 
 export type Pillar = 'KNOWLEDGE' | 'DESIGN' | 'MASTERY';

@@ -5,49 +5,49 @@ import { db } from './firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const STORAGE_KEY = 'noeman_kernel_v11_crm_prod';
-const USER_ID = 'user_default'; 
+const USER_ID = 'user_default';
 
 // --- DEFAULT STATE ---
 const generateFutureDate = (days: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    d.setHours(23, 59, 0, 0);
-    return d.getTime();
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(23, 59, 0, 0);
+  return d.getTime();
 }
 
 const INITIAL_STATE: AppState = {
   currentPage: Page.COCKPIT,
   activeSession: {
-      taskId: null,
-      startTime: null
+    taskId: null,
+    startTime: null
   },
   activities: [
     {
-        id: 'act-1',
-        title: 'Nemo HQ Work Sprint',
-        category: 'WORK',
-        location: 'Greek Campus, Downtown',
-        vibe: 'FOCUS',
-        details: 'Great wifi, desk setup, coffee downstairs',
-        lastVisited: Date.now() - 86400000 * 2
+      id: 'act-1',
+      title: 'Nemo HQ Work Sprint',
+      category: 'WORK',
+      location: 'Greek Campus, Downtown',
+      vibe: 'FOCUS',
+      details: 'Great wifi, desk setup, coffee downstairs',
+      lastVisited: Date.now() - 86400000 * 2
     },
     {
-        id: 'act-2',
-        title: 'Boxing + Sauna',
-        category: 'SPORT',
-        location: 'MMA Factory, 6th October',
-        vibe: 'ENERGY',
-        details: 'Coach Ahmed, Tuesday/Thursday 7pm',
-        lastVisited: Date.now() - 86400000 * 3
+      id: 'act-2',
+      title: 'Boxing + Sauna',
+      category: 'SPORT',
+      location: 'MMA Factory, 6th October',
+      vibe: 'ENERGY',
+      details: 'Coach Ahmed, Tuesday/Thursday 7pm',
+      lastVisited: Date.now() - 86400000 * 3
     },
     {
-        id: 'act-3',
-        title: 'Night Drive + Shawerma',
-        category: 'HANGOUT',
-        location: 'New Cairo -> Rehab street food',
-        vibe: 'RELAX',
-        details: 'Decompress after long sprint',
-        lastVisited: Date.now() - 86400000 * 6
+      id: 'act-3',
+      title: 'Night Drive + Shawerma',
+      category: 'HANGOUT',
+      location: 'New Cairo -> Rehab street food',
+      vibe: 'RELAX',
+      details: 'Decompress after long sprint',
+      lastVisited: Date.now() - 86400000 * 6
     }
   ],
   accounts: [
@@ -126,7 +126,7 @@ const INITIAL_STATE: AppState = {
       profileUrl: 'https://dribbble.com/sarah',
       focusArea: 'UI Systems'
     },
-    
+
     // --- NEMO AGENCY: RECRUITMENT ---
     {
       id: 'c-rec-1',
@@ -213,40 +213,40 @@ const INITIAL_STATE: AppState = {
     }
   ],
   notes: [
-      {
-          id: 'n-1',
-          title: 'Agency Strategy Q4',
-          content: 'Focus on Construction niche.\n\n- Build 3 case studies\n- Fix LinkedIn Profile\n- Outreach 5/day',
-          updatedAt: Date.now(),
-          tags: ['Strategy', 'Agency']
-      }
+    {
+      id: 'n-1',
+      title: 'Agency Strategy Q4',
+      content: 'Focus on Construction niche.\n\n- Build 3 case studies\n- Fix LinkedIn Profile\n- Outreach 5/day',
+      updatedAt: Date.now(),
+      tags: ['Strategy', 'Agency']
+    }
   ],
   resources: [
-      {
-          id: 'r-1',
-          title: 'Firebase Console',
-          url: 'https://console.firebase.google.com',
-          category: 'DEV',
-          description: 'Database Management'
-      }
+    {
+      id: 'r-1',
+      title: 'Firebase Console',
+      url: 'https://console.firebase.google.com',
+      category: 'DEV',
+      description: 'Database Management'
+    }
   ],
   marketing: [
-      {
-          id: 'm-1',
-          content: 'The biggest mistake Zoho consultants make is focusing on features, not workflows. Here is why...',
-          identity: 'CAREER',
-          platform: 'LINKEDIN',
-          isPosted: false,
-          createdAt: Date.now()
-      },
-      {
-          id: 'm-2',
-          content: 'Just launched a new Marble/Granite SEO case study. Ranked #1 in Cairo in 3 weeks. #SEO #WebDev',
-          identity: 'AGENCY',
-          platform: 'LINKEDIN',
-          isPosted: false,
-          createdAt: Date.now() - 86400000
-      }
+    {
+      id: 'm-1',
+      content: 'The biggest mistake Zoho consultants make is focusing on features, not workflows. Here is why...',
+      identity: 'CAREER',
+      platform: 'LINKEDIN',
+      isPosted: false,
+      createdAt: Date.now()
+    },
+    {
+      id: 'm-2',
+      content: 'Just launched a new Marble/Granite SEO case study. Ranked #1 in Cairo in 3 weeks. #SEO #WebDev',
+      identity: 'AGENCY',
+      platform: 'LINKEDIN',
+      isPosted: false,
+      createdAt: Date.now() - 86400000
+    }
   ],
   metrics: {
     revenue: 200,
@@ -268,51 +268,56 @@ const INITIAL_STATE: AppState = {
 // --- DATA LAYER ---
 
 // 1. LOAD
+// 1. LOAD
 export const loadState = async (): Promise<AppState> => {
-  // A. Try Firebase First
-  if (db) {
-      try {
-          const docRef = doc(db, "users", USER_ID);
-          const docSnap = await getDoc(docRef);
-          
-          if (docSnap.exists()) {
-              console.log("☁️ Loaded from Cloud");
-              const data = docSnap.data();
-              // Merge with initial state to ensure new fields (like marketing) exist if DB is old
-              return { 
-                ...INITIAL_STATE, 
-                ...data, 
-                marketing: data.marketing || INITIAL_STATE.marketing,
-                accounts: data.accounts || INITIAL_STATE.accounts,
-                activities: data.activities || INITIAL_STATE.activities
-              } as AppState;
-          } else {
-              console.log("☁️ New Cloud User - Creating Initial Data");
-              await setDoc(docRef, INITIAL_STATE);
-              return INITIAL_STATE;
-          }
-      } catch (e) {
-          console.error("Cloud load error, falling back to local:", e);
-      }
-  }
+  let localData: AppState | null = null;
 
-  // B. Fallback to LocalStorage
+  // Try to read local data first (to have it ready for seeding)
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    console.log("💾 Loaded from Local");
     if (stored) {
-        const parsed = JSON.parse(stored);
-        return { 
-          ...INITIAL_STATE, 
-          ...parsed,
-          accounts: parsed.accounts || INITIAL_STATE.accounts,
-          activities: parsed.activities || INITIAL_STATE.activities
-        } as AppState;
+      const parsed = JSON.parse(stored);
+      localData = {
+        ...INITIAL_STATE,
+        ...parsed,
+        accounts: parsed.accounts || INITIAL_STATE.accounts,
+        activities: parsed.activities || INITIAL_STATE.activities
+      } as AppState;
     }
-    return INITIAL_STATE;
-  } catch (e) {
-    return INITIAL_STATE;
+  } catch (e) { console.error("Local read error", e); }
+
+  // A. Try Firebase First
+  if (db) {
+    try {
+      const docRef = doc(db, "users", USER_ID);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        console.log("☁️ Loaded from Cloud");
+        const data = docSnap.data();
+        // Merge with initial state to ensure new fields
+        return {
+          ...INITIAL_STATE,
+          ...data,
+          marketing: data.marketing || INITIAL_STATE.marketing,
+          accounts: data.accounts || INITIAL_STATE.accounts,
+          activities: data.activities || INITIAL_STATE.activities
+        } as AppState;
+      } else {
+        console.log("☁️ New Cloud User - Seeding Data");
+        // CRITICAL: Use local data if available, otherwise default
+        const seedData = localData || INITIAL_STATE;
+        await setDoc(docRef, seedData);
+        return seedData;
+      }
+    } catch (e) {
+      console.error("Cloud load error, falling back to local:", e);
+    }
   }
+
+  // B. Fallback to LocalStorage (if Cloud failed or no DB)
+  console.log("💾 Loaded from Local");
+  return localData || INITIAL_STATE;
 };
 
 // 2. SAVE (Debounced slightly in UI, but direct here)
@@ -326,11 +331,11 @@ export const saveState = async (state: AppState) => {
 
   // B. Sync to Firebase (Fire and forget)
   if (db) {
-      try {
-          await setDoc(doc(db, "users", USER_ID), state);
-          // console.log("☁️ Synced to Cloud");
-      } catch (e) {
-          console.error("Cloud sync failed", e);
-      }
+    try {
+      await setDoc(doc(db, "users", USER_ID), state);
+      // console.log("☁️ Synced to Cloud");
+    } catch (e) {
+      console.error("Cloud sync failed", e);
+    }
   }
 };

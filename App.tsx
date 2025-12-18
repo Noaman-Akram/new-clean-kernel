@@ -40,6 +40,8 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'SAVED' | 'ERROR'>('IDLE');
+
   // --- INITIALIZATION ---
   useEffect(() => {
     const init = async () => {
@@ -53,9 +55,16 @@ const App: React.FC = () => {
   // --- PERSISTENCE ---
   useEffect(() => {
     if (state && !loading) {
+      setSyncStatus('SAVING');
       // We debounce save to avoid spamming the DB on every keystroke
-      const timer = setTimeout(() => {
-        saveState(state);
+      const timer = setTimeout(async () => {
+        try {
+          await saveState(state);
+          setSyncStatus('SAVED');
+          setTimeout(() => setSyncStatus('IDLE'), 2000);
+        } catch (e) {
+          setSyncStatus('ERROR');
+        }
       }, 1000);
       return () => clearTimeout(timer);
     }
@@ -402,6 +411,22 @@ const App: React.FC = () => {
             <span>{db ? 'CLOUD_SYNC' : 'LOCAL_ENV'}</span>
           </div>
           <div className="flex items-center gap-3">
+            {/* Sync Indicator */}
+            {!loading && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-surface border border-border rounded text-[10px] font-mono">
+                <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'SAVING' ? 'bg-amber-500 animate-pulse' :
+                    syncStatus === 'SAVED' ? 'bg-emerald-500' :
+                      syncStatus === 'ERROR' ? 'bg-red-500' :
+                        'bg-zinc-600'
+                  }`} />
+                <span className="text-zinc-500">
+                  {syncStatus === 'SAVING' ? 'SAVING...' :
+                    syncStatus === 'SAVED' ? 'SYNCED' :
+                      syncStatus === 'ERROR' ? 'SYNC_FAIL' : 'READY'}
+                </span>
+              </div>
+            )}
+
             {activeTask && (
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/30 border border-emerald-500/20 text-[10px] text-emerald-500 font-mono animate-pulse">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>

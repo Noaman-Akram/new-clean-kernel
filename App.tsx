@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar } from './types';
-import { loadState, saveState } from './services/storageService';
+import { loadState, saveState, subscribeToState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
+import { Unsubscribe } from 'firebase/firestore';
 import {
   LayoutGrid,
   Layers,
@@ -42,14 +43,31 @@ const App: React.FC = () => {
 
   const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'SAVED' | 'ERROR'>('IDLE');
 
-  // --- INITIALIZATION ---
+  // --- INITIALIZATION & REAL-TIME SYNC ---
   useEffect(() => {
+    let unsubscribe: Unsubscribe | null = null;
+
     const init = async () => {
+      // 1. Initial Load (Fast)
       const data = await loadState();
       setState(data);
       setLoading(false);
+
+      // 2. Real-time Subscription (Live)
+      if (db) {
+        unsubscribe = subscribeToState((newState) => {
+          setState(newState);
+          // Visual feedback that update came from cloud
+          setSyncStatus('SYNCED');
+          setTimeout(() => setSyncStatus('IDLE'), 2000);
+        });
+      }
     };
     init();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   // --- PERSISTENCE ---

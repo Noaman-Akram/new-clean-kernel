@@ -2,7 +2,7 @@
 
 import { AppState, Category, TaskStatus, Page } from '../types';
 import { db } from './firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 
 const STORAGE_KEY = 'noeman_kernel_v11_crm_prod';
 const USER_ID = 'user_default';
@@ -96,6 +96,7 @@ const INITIAL_STATE: AppState = {
       id: 'c-team-1',
       name: 'Ahmed S.',
       role: 'Backend Dev',
+      company: 'Nemo Agency',
       context: 'NEMO',
       type: 'TEAM',
       status: 'ACTIVE',
@@ -113,6 +114,7 @@ const INITIAL_STATE: AppState = {
       id: 'c-team-2',
       name: 'Sarah M.',
       role: 'UI Designer',
+      company: 'Nemo Agency',
       context: 'NEMO',
       type: 'TEAM',
       status: 'ACTIVE',
@@ -318,6 +320,37 @@ export const loadState = async (): Promise<AppState> => {
   // B. Fallback to LocalStorage (if Cloud failed or no DB)
   console.log("💾 Loaded from Local");
   return localData || INITIAL_STATE;
+};
+
+// 1.5 SUBSCRIBE (Real-time)
+export const subscribeToState = (onUpdate: (state: AppState) => void): Unsubscribe | null => {
+  if (!db) return null;
+
+  try {
+    const docRef = doc(db, "users", USER_ID);
+    // Turn on the listener
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log("🔥 Real-time Update Received");
+        const mergedState = {
+          ...INITIAL_STATE,
+          ...data,
+          marketing: data.marketing || INITIAL_STATE.marketing,
+          accounts: data.accounts || INITIAL_STATE.accounts,
+          activities: data.activities || INITIAL_STATE.activities
+        } as AppState;
+        onUpdate(mergedState);
+      }
+    }, (error) => {
+      console.error("Real-time sync error:", error);
+    });
+
+    return unsubscribe;
+  } catch (e) {
+    console.error("Subscription setup failed", e);
+    return null;
+  }
 };
 
 // 2. SAVE (Debounced slightly in UI, but direct here)

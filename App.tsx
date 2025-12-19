@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'SAVED' | 'ERROR'>('IDLE');
+  const [hoveredNav, setHoveredNav] = useState<{ label: string, top: number } | null>(null);
 
   // --- INITIALIZATION & REAL-TIME SYNC ---
   useEffect(() => {
@@ -207,6 +208,12 @@ const App: React.FC = () => {
       prayerLog: { ...prev.prayerLog, [key]: !prev.prayerLog[key] }
     }) : null);
   };
+  const handleAdhkarToggle = (key: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      adhkarLog: { ...(prev.adhkarLog || {}), [key]: !prev.adhkarLog?.[key] }
+    }) : null);
+  };
 
   const handleChatUpdate = (newHistory: ChatMessage[]) => {
     setState(prev => prev ? ({ ...prev, chatHistory: newHistory }) : null);
@@ -255,15 +262,22 @@ const App: React.FC = () => {
 
     switch (state.currentPage) {
       case Page.COCKPIT:
-        return <DashboardView {...viewProps} onPrayerToggle={handlePrayerToggle} onTaskAdd={handleTaskAdd} />;
-      case Page.GRID:
+        return <DashboardView
+          {...viewProps}
+          onPrayerToggle={handlePrayerToggle}
+          onAdhkarToggle={handleAdhkarToggle}
+          onTaskAdd={handleTaskAdd}
+          onNoteAdd={handleNoteAdd}
+          onNoteUpdate={handleNoteUpdate}
+        />;
+      // Page.GRID is removed, Page.GRID2 is now the main task view
+      case Page.GRID: // Fallback or legacy (redirect logic could go here, but let's just show Grid 2)
+      case Page.GRID2:
         return (
-          <TaskBoard
+          <GridTwoView
             state={state}
             onAdd={handleTaskAdd}
             onUpdate={handleTaskUpdate}
-            onStartSession={startSession}
-            activeTaskId={state.activeSession.taskId}
           />
         );
       case Page.NETWORK:
@@ -275,19 +289,11 @@ const App: React.FC = () => {
       case Page.MENTOR:
         return <MentorView state={state} onChatUpdate={handleChatUpdate} />;
       case Page.SUPPLICATIONS:
-        return <SupplicationsView />;
+        return <SupplicationsView state={state} onPrayerToggle={handlePrayerToggle} onAdhkarToggle={handleAdhkarToggle} />;
       case Page.INTEL:
         return <NotesView state={state} onUpdate={handleNoteUpdate} onAdd={handleNoteAdd} />;
       case Page.ARSENAL:
         return <ResourcesView state={state} onAdd={handleResourceAdd} onUpdate={handleResourceUpdate} onRemove={handleResourceDelete} />;
-      case Page.GRID2:
-        return (
-          <GridTwoView
-            state={state}
-            onAdd={handleTaskAdd}
-            onUpdate={handleTaskUpdate}
-          />
-        );
       case Page.ACTIVITIES:
         return (
           <ActivitiesView
@@ -298,7 +304,7 @@ const App: React.FC = () => {
           />
         );
       default:
-        return <DashboardView {...viewProps} onPrayerToggle={handlePrayerToggle} onTaskAdd={handleTaskAdd} />;
+        return <DashboardView {...viewProps} onPrayerToggle={handlePrayerToggle} onAdhkarToggle={handleAdhkarToggle} onTaskAdd={handleTaskAdd} />;
     }
   };
 
@@ -328,11 +334,12 @@ const App: React.FC = () => {
 
   const activeTask = state.tasks.find(t => t.id === state.activeSession.taskId);
 
+
   return (
     <div className="flex h-screen w-screen bg-background text-zinc-400 font-sans overflow-hidden selection:bg-zinc-700 selection:text-zinc-200">
 
       {/* --- SIDEBAR --- */}
-      <nav className="h-full w-[64px] flex flex-col items-center py-6 border-r border-border bg-surface z-50 flex-shrink-0">
+      <nav className="h-full w-[64px] flex flex-col items-center py-6 border-r border-border bg-surface z-50 flex-shrink-0 overflow-x-hidden">
 
         {/* Brand */}
         <div className="mb-8 text-zinc-100 opacity-80 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => handleNavigate(Page.COCKPIT)}>
@@ -346,30 +353,35 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.COCKPIT)}
             icon={<LayoutGrid size={18} />}
             label="Cockpit"
+            setHover={setHoveredNav}
           />
           <NavIcon
             active={state.currentPage === Page.MENTOR}
             onClick={() => handleNavigate(Page.MENTOR)}
             icon={<MessageSquare size={18} />}
             label="Protocol"
+            setHover={setHoveredNav}
           />
           <NavIcon
             active={state.currentPage === Page.GRID}
             onClick={() => handleNavigate(Page.GRID)}
             icon={<Layers size={18} />}
             label="Tasks"
+            setHover={setHoveredNav}
           />
           <NavIcon
             active={state.currentPage === Page.GRID2}
             onClick={() => handleNavigate(Page.GRID2)}
             icon={<Square size={18} />}
             label="Grid 2"
+            setHover={setHoveredNav}
           />
           <NavIcon
             active={state.currentPage === Page.ACTIVITIES}
             onClick={() => handleNavigate(Page.ACTIVITIES)}
             icon={<MapPin size={18} />}
             label="Activities"
+            setHover={setHoveredNav}
           />
           <div className="h-px w-3/4 bg-border my-1 opacity-50 shrink-0"></div>
           <NavIcon
@@ -377,18 +389,21 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.NETWORK)}
             icon={<Users size={18} />}
             label="Network"
+            setHover={setHoveredNav}
           />
           <NavIcon
             active={state.currentPage === Page.MARKETING}
             onClick={() => handleNavigate(Page.MARKETING)}
             icon={<Megaphone size={18} />}
             label="Marketing"
+            setHover={setHoveredNav}
           />
           <NavIcon
             active={state.currentPage === Page.LEDGER}
             onClick={() => handleNavigate(Page.LEDGER)}
             icon={<CreditCard size={18} />}
             label="Ledger"
+            setHover={setHoveredNav}
           />
           <div className="h-px w-3/4 bg-border my-1 opacity-50 shrink-0"></div>
           <NavIcon
@@ -396,18 +411,21 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.SUPPLICATIONS)}
             icon={<BookOpen size={18} />}
             label="Sanctuary"
+            setHover={setHoveredNav}
           />
           <NavIcon
             active={state.currentPage === Page.INTEL}
             onClick={() => handleNavigate(Page.INTEL)}
             icon={<StickyNote size={18} />}
             label="Intel"
+            setHover={setHoveredNav}
           />
           <NavIcon
             active={state.currentPage === Page.ARSENAL}
             onClick={() => handleNavigate(Page.ARSENAL)}
             icon={<Container size={18} />}
             label="Arsenal"
+            setHover={setHoveredNav}
           />
         </div>
 
@@ -418,6 +436,16 @@ const App: React.FC = () => {
         </div>
 
       </nav>
+
+      {/* GLOBAL TOOLTIP LAYER */}
+      {hoveredNav && (
+        <div
+          className="fixed left-[70px] bg-surface border border-border text-zinc-200 text-[10px] font-medium px-2 py-1 rounded shadow-xl z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none whitespace-nowrap"
+          style={{ top: hoveredNav.top }}
+        >
+          {hoveredNav.label}
+        </div>
+      )}
 
       {/* --- MAIN CONTENT --- */}
       <main className="flex-1 flex flex-col min-w-0 bg-background relative">
@@ -511,16 +539,19 @@ const App: React.FC = () => {
             </div>
             <span>You must create a .env file with firebase keys to sync with deployed site.</span>
           </div>
-        )
-      }
-
-    </div >
+        )}
+    </div>
   );
 };
 
-const NavIcon = ({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) => (
+const NavIcon = ({ active, onClick, icon, label, setHover }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, setHover: (val: { label: string, top: number } | null) => void }) => (
   <button
     onClick={onClick}
+    onMouseEnter={(e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setHover({ label, top: rect.top + (rect.height / 2) - 10 }); // Center vertically
+    }}
+    onMouseLeave={() => setHover(null)}
     className={`
             group relative w-9 h-9 flex items-center justify-center rounded-md transition-all duration-200 flex-shrink-0
             ${active
@@ -529,10 +560,6 @@ const NavIcon = ({ active, onClick, icon, label }: { active: boolean, onClick: (
         `}
   >
     {icon}
-    {/* Label Tooltip */}
-    <div className="absolute left-full ml-3 bg-surface border border-border text-zinc-200 text-[10px] font-medium px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap shadow-xl translate-x-1 group-hover:translate-x-0 duration-200">
-      {label}
-    </div>
     {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 w-1 h-4 bg-zinc-100 rounded-r-full" />}
   </button>
 );

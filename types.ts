@@ -181,6 +181,7 @@ export interface AppState {
   marketing: MarketingItem[];
   metrics: SystemMetrics;
   prayerLog: Record<string, boolean>;
+  adhkarLog: Record<string, boolean>;
   chatHistory: ChatMessage[];
   activeSession: ActiveSession;
 }

@@ -129,8 +129,8 @@ const GridTwoView: React.FC<Props> = ({ state, onAdd, onUpdate }) => {
 
     // --- METRICS ---
     const metrics = useMemo(() => {
-        const totalScheduled = Object.values(dayBuckets).reduce((acc, tasks) => acc + tasks.length, 0);
-        const openTasks = Object.values(dayBuckets).reduce((acc, tasks) => acc + tasks.filter(t => t.status !== TaskStatus.DONE).length, 0);
+        const totalScheduled = Object.values(dayBuckets).reduce((acc: number, tasks: Task[]) => acc + tasks.length, 0);
+        const openTasks = Object.values(dayBuckets).reduce((acc: number, tasks: Task[]) => acc + tasks.filter(t => t.status !== TaskStatus.DONE).length, 0);
         return { totalScheduled, openTasks };
     }, [dayBuckets]);
 
@@ -533,6 +533,9 @@ const TaskCard: React.FC<{
 
             {detailed && (
                 <div className="flex items-center justify-between mt-1 pl-6">
+                    <span className="text-[9px] font-mono text-zinc-600">
+                        {new Date(task.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric' })}
+                    </span>
                     {isHighImpact && <span className="text-[9px] font-bold text-red-500 tracking-wider">URGENT</span>}
                 </div>
             )}

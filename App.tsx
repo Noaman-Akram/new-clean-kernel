@@ -415,9 +415,9 @@ const App: React.FC = () => {
             {!loading && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-surface border border-border rounded text-[10px] font-mono">
                 <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'SAVING' ? 'bg-amber-500 animate-pulse' :
-                    syncStatus === 'SAVED' ? 'bg-emerald-500' :
-                      syncStatus === 'ERROR' ? 'bg-red-500' :
-                        'bg-zinc-600'
+                  syncStatus === 'SAVED' ? 'bg-emerald-500' :
+                    syncStatus === 'ERROR' ? 'bg-red-500' :
+                      'bg-zinc-600'
                   }`} />
                 <span className="text-zinc-500">
                   {syncStatus === 'SAVING' ? 'SAVING...' :
@@ -483,7 +483,20 @@ const App: React.FC = () => {
 
       </main>
 
-    </div>
+      {/* --- OFFLINE WARNING BANNER --- */}
+      {
+        !db && (
+          <div className="fixed bottom-0 left-0 right-0 bg-red-600/90 text-white text-xs font-mono py-2 px-4 flex items-center justify-between z-[100] backdrop-blur-md">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span className="font-bold">OFFLINE MODE: LOCAL DATA ONLY</span>
+            </div>
+            <span>You must create a .env file with firebase keys to sync with deployed site.</span>
+          </div>
+        )
+      }
+
+    </div >
   );
 };
 

@@ -31,6 +31,7 @@ interface Props {
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
+  onDelete: (id: string) => void;
 }
 
 interface WeekDay {
@@ -236,22 +237,20 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
             <div className="flex items-center gap-0.5 bg-zinc-900 rounded p-0.5">
               <button
                 onClick={() => setViewMode('stacked')}
-                className={`p-1.5 rounded transition-colors ${
-                  viewMode === 'stacked'
+                className={`p-1.5 rounded transition-colors ${viewMode === 'stacked'
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'text-zinc-600 hover:text-zinc-400'
-                }`}
+                  }`}
                 title="Stacked View"
               >
                 <AlignLeft size={14} />
               </button>
               <button
                 onClick={() => setViewMode('inline')}
-                className={`p-1.5 rounded transition-colors ${
-                  viewMode === 'inline'
+                className={`p-1.5 rounded transition-colors ${viewMode === 'inline'
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'text-zinc-600 hover:text-zinc-400'
-                }`}
+                  }`}
                 title="Inline View"
               >
                 <LayoutGrid size={14} />
@@ -262,36 +261,36 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
 
         <div className="flex-1 overflow-x-auto overflow-y-hidden">
           <div className="h-full flex min-w-max">{weekDays.map((day) => (
-              <DayColumn
-                key={day.dateStr}
-                day={day}
-                tasks={getTasksForDay(day)}
-                unscheduledTasks={getUnscheduledTasksForDay(day)}
-                currentTime={currentTime}
-                onAdd={onAdd}
-                onUpdate={onUpdate}
-                onStartSession={onStartSession}
-                activeTaskId={activeTaskId}
-                allTasks={state.tasks}
-                backlogTasks={getBacklogTasks()}
-                draggedTask={draggedTask}
-                onDragStart={setDraggedTask}
-                onDragOver={(hour) => {
-                  setDragOverDay(day.dateStr);
-                  setDragOverHour(hour);
-                }}
-                onDragLeave={() => {
-                  setDragOverDay(null);
-                  setDragOverHour(null);
-                }}
-                showDropIndicator={dragOverDay === day.dateStr}
-                dropHour={dragOverHour}
-                editingTaskId={editingTaskId}
-                onEditingChange={setEditingTaskId}
-                viewMode={viewMode}
-                ref={(el) => (dayRefs.current[day.dateStr] = el)}
-              />
-            ))}
+            <DayColumn
+              key={day.dateStr}
+              day={day}
+              tasks={getTasksForDay(day)}
+              unscheduledTasks={getUnscheduledTasksForDay(day)}
+              currentTime={currentTime}
+              onAdd={onAdd}
+              onUpdate={onUpdate}
+              onStartSession={onStartSession}
+              activeTaskId={activeTaskId}
+              allTasks={state.tasks}
+              backlogTasks={getBacklogTasks()}
+              draggedTask={draggedTask}
+              onDragStart={setDraggedTask}
+              onDragOver={(hour) => {
+                setDragOverDay(day.dateStr);
+                setDragOverHour(hour);
+              }}
+              onDragLeave={() => {
+                setDragOverDay(null);
+                setDragOverHour(null);
+              }}
+              showDropIndicator={dragOverDay === day.dateStr}
+              dropHour={dragOverHour}
+              editingTaskId={editingTaskId}
+              onEditingChange={setEditingTaskId}
+              viewMode={viewMode}
+              ref={(el) => (dayRefs.current[day.dateStr] = el)}
+            />
+          ))}
           </div>
         </div>
       </div>
@@ -376,9 +375,8 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
   }
 
   return (
-    <div className={`w-full md:w-72 border-r border-border flex flex-col shrink-0 bg-surface/20 ${
-      collapsed ? 'hidden md:flex' : 'flex'
-    }`}>
+    <div className={`w-full md:w-72 border-r border-border flex flex-col shrink-0 bg-surface/20 ${collapsed ? 'hidden md:flex' : 'flex'
+      }`}>
       <div className="h-14 border-b border-border px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
@@ -410,9 +408,8 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
             key={task.id}
             draggable
             onDragStart={() => onDragStart(task)}
-            className={`group bg-zinc-900/50 border border-zinc-800/50 rounded p-2 hover:border-zinc-700 transition-all cursor-grab ${
-              task.status === TaskStatus.DONE ? 'opacity-50' : ''
-            }`}
+            className={`group bg-zinc-900/50 border border-zinc-800/50 rounded p-2 hover:border-zinc-700 transition-all cursor-grab ${task.status === TaskStatus.DONE ? 'opacity-50' : ''
+              }`}
           >
             <div className="flex items-start gap-2">
               <GripVertical size={10} className="text-zinc-700 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5" />
@@ -420,9 +417,8 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
                 <div className="w-1 h-1 rounded-full bg-amber-500 mt-2 shrink-0" />
               )}
               <div
-                className={`flex-1 min-w-0 text-sm text-zinc-300 ${
-                  task.status === TaskStatus.DONE ? 'line-through' : ''
-                }`}
+                className={`flex-1 min-w-0 text-sm text-zinc-300 ${task.status === TaskStatus.DONE ? 'line-through' : ''
+                  }`}
               >
                 {task.title}
               </div>
@@ -435,8 +431,15 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
                   <Clock size={12} />
                 </button>
                 <button
+                  onClick={() => onUpdate(task.id, { status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE })}
+                  className={`p-1 hover:text-emerald-400 transition-colors opacity-0 group-hover:opacity-100 ${task.status === TaskStatus.DONE ? 'text-emerald-500' : 'text-zinc-600'}`}
+                  title="Toggle Complete"
+                >
+                  <Check size={12} />
+                </button>
+                <button
                   onClick={() => {
-                    if (window.confirm('Delete this task from backlog?')) {
+                    if (window.confirm('Permanently delete this task?')) {
                       onDelete(task.id);
                     }
                   }}
@@ -469,13 +472,12 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
                     <button
                       key={day.dateStr}
                       onClick={() => setScheduleDay(idx)}
-                      className={`py-2 rounded text-[10px] font-medium transition-colors ${
-                        scheduleDay === idx
+                      className={`py-2 rounded text-[10px] font-medium transition-colors ${scheduleDay === idx
                           ? day.isToday
                             ? 'bg-emerald-500 text-black'
                             : 'bg-zinc-100 text-black'
                           : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                      }`}
+                        }`}
                     >
                       <div>{day.dayName.slice(0, 1)}</div>
                     </button>
@@ -745,14 +747,12 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
     <div
       ref={ref}
       onDragEnd={handleDragEnd}
-      className={`flex-1 min-w-[200px] md:min-w-[240px] max-w-[200px] md:max-w-[240px] border-r border-border flex flex-col ${
-        isCurrentDay ? 'bg-zinc-900/20' : ''
-      }`}
+      className={`flex-1 min-w-[200px] md:min-w-[240px] max-w-[200px] md:max-w-[240px] border-r border-border flex flex-col ${isCurrentDay ? 'bg-zinc-900/20' : ''
+        }`}
     >
       <div
-        className={`h-16 border-b shrink-0 flex flex-col items-center justify-center ${
-          isCurrentDay ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-border'
-        }`}
+        className={`h-16 border-b shrink-0 flex flex-col items-center justify-center ${isCurrentDay ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-border'
+          }`}
       >
         <div className="text-[10px] font-mono uppercase text-zinc-600 mb-1">{day.dayName}</div>
         <div className={`text-lg font-medium ${isCurrentDay ? 'text-emerald-400' : 'text-zinc-300'}`}>
@@ -783,9 +783,8 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
                 onDragOver={(e) => handleDragOver(e, slot.hour)}
                 onDrop={(e) => handleDrop(e, slot.hour)}
                 onDragLeave={handleDragLeave}
-                className={`relative py-3 transition-colors ${
-                  draggingOver === slot.hour ? 'bg-emerald-500/5' : ''
-                }`}
+                className={`relative py-3 transition-colors ${draggingOver === slot.hour ? 'bg-emerald-500/5' : ''
+                  }`}
               >
                 {/* Current Time Indicator - positioned based on minutes */}
                 {showCurrentTime && (
@@ -1139,9 +1138,8 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
         draggable
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
-        className={`group inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors cursor-grab active:cursor-grabbing ${
-          isActive ? 'bg-emerald-950/20' : 'hover:bg-zinc-900/50'
-        }`}
+        className={`group inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors cursor-grab active:cursor-grabbing ${isActive ? 'bg-emerald-950/20' : 'hover:bg-zinc-900/50'
+          }`}
       >
         <GripVertical size={10} className="text-zinc-700 opacity-0 group-hover:opacity-100 shrink-0" />
         {task.impact === 'HIGH' && !isDone && (
@@ -1149,9 +1147,8 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
         )}
         <div
           onClick={() => onEditingChange(task.id)}
-          className={`text-xs cursor-text leading-tight truncate max-w-[140px] ${
-            isDone ? 'line-through text-zinc-500' : 'text-zinc-300'
-          }`}
+          className={`text-xs cursor-text leading-tight truncate max-w-[140px] ${isDone ? 'line-through text-zinc-500' : 'text-zinc-300'
+            }`}
           title={task.title}
         >
           {task.title}
@@ -1169,9 +1166,8 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
                 status: isDone ? TaskStatus.TODO : TaskStatus.DONE,
               })
             }
-            className={`p-0.5 transition-colors ${
-              isDone ? 'text-emerald-500 hover:text-zinc-400' : 'text-zinc-600 hover:text-zinc-400'
-            }`}
+            className={`p-0.5 transition-colors ${isDone ? 'text-emerald-500 hover:text-zinc-400' : 'text-zinc-600 hover:text-zinc-400'
+              }`}
           >
             <Check size={10} />
           </button>
@@ -1186,9 +1182,8 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
-      className={`group py-2 transition-colors cursor-grab active:cursor-grabbing ${
-        isActive ? 'bg-emerald-950/10' : 'hover:bg-zinc-900/30'
-      }`}
+      className={`group py-2 transition-colors cursor-grab active:cursor-grabbing ${isActive ? 'bg-emerald-950/10' : 'hover:bg-zinc-900/30'
+        }`}
     >
       <div className="flex items-start gap-2">
         <GripVertical size={11} className="text-zinc-700 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5" />
@@ -1206,9 +1201,8 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
         <div className="flex-1 min-w-0">
           <div
             onClick={() => onEditingChange(task.id)}
-            className={`text-sm cursor-text leading-relaxed break-words ${
-              isDone ? 'line-through text-zinc-500' : 'text-zinc-300'
-            }`}
+            className={`text-sm cursor-text leading-relaxed break-words ${isDone ? 'line-through text-zinc-500' : 'text-zinc-300'
+              }`}
           >
             {task.title}
           </div>
@@ -1231,9 +1225,8 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
                 status: isDone ? TaskStatus.TODO : TaskStatus.DONE,
               })
             }
-            className={`p-1 transition-colors ${
-              isDone ? 'text-emerald-500 hover:text-zinc-400' : 'text-zinc-600 hover:text-zinc-400'
-            }`}
+            className={`p-1 transition-colors ${isDone ? 'text-emerald-500 hover:text-zinc-400' : 'text-zinc-600 hover:text-zinc-400'
+              }`}
           >
             <Check size={11} />
           </button>

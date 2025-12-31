@@ -25,8 +25,6 @@ export type Pillar = 'KNOWLEDGE' | 'DESIGN' | 'MASTERY';
 
 export enum Page {
   COCKPIT = 'COCKPIT',
-  GRID = 'GRID',
-  GRID2 = 'GRID2',
   ACTIVITIES = 'ACTIVITIES',
   NETWORK = 'NETWORK',
   LEDGER = 'LEDGER',

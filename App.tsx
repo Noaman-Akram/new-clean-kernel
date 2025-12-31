@@ -26,8 +26,6 @@ import {
 
 // Views
 import DashboardView from './components/DashboardView';
-import TaskBoard from './components/TaskBoard';
-import GridTwoView from './components/GridTwoView';
 import NetworkView from './components/NetworkView';
 import LedgerView from './components/LedgerView';
 import MentorView from './components/MentorView';
@@ -289,6 +287,7 @@ const App: React.FC = () => {
           onTaskAdd={handleTaskAdd}
           onNoteAdd={handleNoteAdd}
           onNoteUpdate={handleNoteUpdate}
+          onNavigate={handleNavigate}
         />;
       case Page.WEEKLY:
         return (
@@ -298,19 +297,7 @@ const App: React.FC = () => {
             onStartSession={startSession}
             activeTaskId={state.activeSession.taskId}
             onAdd={handleTaskAdd}
-          />
-        );
-      // Page.GRID is removed, Page.GRID2 is now the main task view
-      case Page.GRID: // Fallback or legacy (redirect logic could go here, but let's just show Grid 2)
-      case Page.GRID2:
-        return (
-          <GridTwoView
-            state={state}
-            onAdd={handleTaskAdd}
-            onUpdate={handleTaskUpdate}
             onDelete={handleTaskDelete}
-            onAddHorizonGoal={handleHorizonGoalAdd}
-            onUpdateHorizonGoal={handleHorizonGoalUpdate}
           />
         );
       case Page.NETWORK:
@@ -400,20 +387,6 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.WEEKLY)}
             icon={<Layers size={18} />}
             label="Weekly"
-            setHover={setHoveredNav}
-          />
-          <NavIcon
-            active={state.currentPage === Page.GRID}
-            onClick={() => handleNavigate(Page.GRID)}
-            icon={<Layers size={18} />}
-            label="Tasks"
-            setHover={setHoveredNav}
-          />
-          <NavIcon
-            active={state.currentPage === Page.GRID2}
-            onClick={() => handleNavigate(Page.GRID2)}
-            icon={<Square size={18} />}
-            label="Grid 2"
             setHover={setHoveredNav}
           />
           <NavIcon

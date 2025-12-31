@@ -34,7 +34,8 @@ export enum Page {
   MENTOR = 'PROTOCOL',
   SUPPLICATIONS = 'SANCTUARY',
   INTEL = 'INTEL',
-  ARSENAL = 'ARSENAL'
+  ARSENAL = 'ARSENAL',
+  WEEKLY = 'WEEKLY'
 }
 
 export type Severity = 'LOW' | 'MED' | 'HIGH';
@@ -81,6 +82,8 @@ export interface Task {
   notes?: string;
   slot?: TaskSlot;
   pillar?: Pillar;
+  scheduledTime?: number; // Timestamp for time-based planning (exact time, not just date)
+  duration?: number; // Duration in minutes
 }
 
 export interface Client { // Acts as "Entity" (Person or Company)
@@ -169,6 +172,21 @@ export interface ActiveSession {
   startTime: number | null;
 }
 
+export interface HorizonGoal {
+  id: string;
+  title: string;
+  progress: number;
+}
+
+export type PrayerName = 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha';
+
+export interface PrayerTime {
+  name: PrayerName;
+  time: string; // AM/PM format (e.g., "1:15 PM")
+  timestamp: number; // Full timestamp for the prayer time
+  icon: string; // Emoji icon for the prayer
+}
+
 export interface AppState {
   currentPage: Page;
   tasks: Task[];
@@ -184,4 +202,5 @@ export interface AppState {
   adhkarLog: Record<string, boolean>;
   chatHistory: ChatMessage[];
   activeSession: ActiveSession;
+  horizonGoals: HorizonGoal[];
 }

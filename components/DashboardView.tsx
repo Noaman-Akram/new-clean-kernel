@@ -1,432 +1,287 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { getPrayerSchedule, getNextPrayer } from '../utils';
-import { AppState, TaskStatus, Task, Category, Note } from '../types';
-import {
+
+import React, { useState, useEffect } from 'react';
+import { AppState, TaskStatus, Category, Task } from '../types';
+import { getNextPrayer } from '../utils';
+import { 
+    Target,
+    ArrowUpRight,
     Zap,
-    CheckCircle2,
-    Circle,
-    Send,
+    Timer,
+    Plus,
     Play,
     Pause,
+    CheckCircle2,
     Flame,
-    Sun,
-    Moon,
-    Sparkles,
-    Target,
     AlertTriangle,
-    Plus,
-    X
+    Calendar
 } from 'lucide-react';
 
 interface Props {
-    state: AppState;
-    onTaskUpdate: (id: string, updates: Partial<Task>) => void;
-    onTaskAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH') => void;
-    onPrayerToggle: (key: string) => void;
-    onAdhkarToggle: (key: string) => void;
-    onStartSession: (id: string) => void;
-    onNoteAdd: (note: Note) => void;
-    onNoteUpdate: (id: string, updates: Partial<Note>) => void;
-    activeTaskId: string | null;
+  state: AppState;
+  onTaskUpdate: (id: string, updates: Partial<Task>) => void;
+  onTaskAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH') => void;
+  onPrayerToggle: (key: string) => void;
+  onStartSession: (id: string) => void;
+  activeTaskId: string | null;
 }
 
-const MOTIVATIONS = [
-    "Discipline equates to freedom.",
-    "Do what is necessary, not what is easy.",
-    "Protocol Active. Focus.",
-    "Momentum is your only friend.",
-    "Code the future, don't just dream it."
-];
+const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPrayerToggle, onStartSession, activeTaskId }) => {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPrayerToggle, onAdhkarToggle, onStartSession, onNoteAdd, onNoteUpdate, activeTaskId }) => {
-    const [now, setNow] = useState(new Date());
-    const [logInput, setLogInput] = useState('');
+  const nextPrayer = getNextPrayer();
+  const todayKey = new Date().toISOString().split('T')[0];
+  const prayerKey = `${todayKey}-${nextPrayer.name}`;
+  const isPrayerDone = state.prayerLog[prayerKey];
 
-    useEffect(() => {
-        const t = setInterval(() => setNow(new Date()), 1000);
-        return () => clearInterval(t);
-    }, []);
+  // LOGIC: Show Today's tasks OR Overdue tasks
+  const startOfToday = new Date();
+  startOfToday.setHours(0,0,0,0);
+  const endOfToday = new Date();
+  endOfToday.setHours(23,59,59,999);
 
-    // --- PRAYER LOGIC ---
-    const prayers = getPrayerSchedule();
-    const nextPrayer = getNextPrayer();
-    const todayKey = new Date().toISOString().split('T')[0];
-    const nextPrayerKey = `${todayKey}-${nextPrayer.name}`;
-    const isNextPrayerDone = state.prayerLog[nextPrayerKey];
-
-    // --- ADHKAR LOGIC ---
-    const morningKey = `${todayKey}-MORNING`;
-    const eveningKey = `${todayKey}-EVENING`;
-    const isMorningDone = state.adhkarLog?.[morningKey];
-    const isEveningDone = state.adhkarLog?.[eveningKey];
-
-    // --- TASKS LOGIC ---
-    const activeTask = state.tasks.find(t => t.id === activeTaskId);
-
-    // Simple impact sorting
-    const sortedTasks = state.tasks
-        .filter(t => t.status !== TaskStatus.DONE && t.status !== TaskStatus.BACKLOG)
-        .sort((a, b) => {
-            const impactScore = { 'HIGH': 3, 'MED': 2, 'LOW': 1 };
-            return impactScore[b.impact] - impactScore[a.impact];
-        });
-
-    const overdueCount = sortedTasks.filter(t => t.deadline && t.deadline < new Date().setHours(0, 0, 0, 0)).length;
-    const completedToday = state.tasks.filter(t => t.status === TaskStatus.DONE && new Date(t.createdAt).getDate() === new Date().getDate());
-    const progress = state.metrics.target > 0 ? Math.min((state.metrics.revenue / state.metrics.target) * 100, 100) : 0;
-
-    // --- BRAIN DUMP LOGIC ---
-    const dumpId = 'brain_dump';
-    const dumpNote = state.notes.find(n => n.id === dumpId);
-    const logs = dumpNote ? dumpNote.content.split('\n').filter(l => l.trim()) : [];
-    const logsEndRef = useRef<HTMLDivElement>(null);
-
-    const scrollToBottom = () => {
-        logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [logs.length]);
-
-    const handleLogSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!logInput.trim()) return;
-
-        // Format: [Fri 14:30] or [19 Dec 14:30]
-        const now = new Date();
-        const day = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-        const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const timestamp = `${day} ${time}`;
-        const newLine = `[${timestamp}] ${logInput.trim()}`;
-
-        if (!dumpNote) {
-            onNoteAdd({
-                id: dumpId,
-                title: 'Brain Dump',
-                content: newLine,
-                updatedAt: Date.now(),
-                tags: ['LOGS']
-            });
-        } else {
-            // Append to end for chat feel, or unshift for reverse. Chat usually appends.
-            // Wait, previous design had reverse. Let's do append (newest at bottom) like chat.
-            onNoteUpdate(dumpId, {
-                content: dumpNote.content ? dumpNote.content + '\n' + newLine : newLine,
-                updatedAt: Date.now()
-            });
+  const sortedTasks = state.tasks
+    .filter(t => {
+        if (t.status === TaskStatus.DONE) return false;
+        if (t.status === TaskStatus.IN_PROGRESS) return true; // Always show active
+        
+        if (t.deadline) {
+            // Show if deadline is today or in the past (overdue)
+            return t.deadline <= endOfToday.getTime();
         }
-        setLogInput('');
-    };
+        return false;
+    })
+    .sort((a, b) => {
+        // Sort by Overdue first, then Impact
+        const aDue = a.deadline || 0;
+        const bDue = b.deadline || 0;
+        if (aDue !== bDue) return aDue - bDue; // Earliest deadline first
+        
+        const impactScore = { 'HIGH': 3, 'MED': 2, 'LOW': 1 };
+        return impactScore[b.impact] - impactScore[a.impact];
+    });
 
-    return (
-        <div className="h-full flex flex-col p-6 animate-fade-in gap-6 overflow-hidden">
+  const overdueCount = sortedTasks.filter(t => t.deadline && t.deadline < startOfToday.getTime()).length;
+  const completedToday = state.tasks.filter(t => t.status === TaskStatus.DONE && new Date(t.createdAt).getDate() === new Date().getDate());
+  const progress = Math.min((state.metrics.revenue / state.metrics.target) * 100, 100);
 
-            {/* HEADER */}
-            <div className="flex justify-between items-center shrink-0">
-                <div className="flex items-baseline gap-3">
-                    <h1 className="text-lg font-bold font-mono text-zinc-100 tracking-tight">NOEMAN SYSTEM</h1>
-                    <span className="text-[10px] font-mono text-emerald-500 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-900/50">v1.1 ONLINE</span>
+  return (
+    <div className="h-full overflow-y-auto p-6 animate-fade-in bg-background">
+      <div className="max-w-[1200px] mx-auto flex flex-col gap-8 h-full">
+        
+        {/* --- TOP KPI STRIP --- */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+            
+            {/* FINANCIAL GAP */}
+            <div className="bg-surface border border-border rounded-md p-4 relative overflow-hidden">
+                 <div className="flex justify-between items-start mb-3">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Target size={12} /> Gap
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-600">{progress.toFixed(1)}%</span>
+                 </div>
+                 <div className="flex items-baseline gap-1">
+                     <span className="text-2xl font-medium text-white tracking-tight">${state.metrics.revenue}</span>
+                     <span className="text-xs text-zinc-500">/ ${state.metrics.target}</span>
+                 </div>
+                 <div className="mt-3 w-full h-0.5 bg-zinc-800 rounded-full overflow-hidden">
+                     <div className="h-full bg-white transition-all duration-500" style={{width: `${progress}%`}}></div>
+                 </div>
+            </div>
+
+            {/* OUTREACH */}
+            <div className="bg-surface border border-border rounded-md p-4">
+                <div className="flex justify-between items-start mb-3">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <ArrowUpRight size={12} className="text-zinc-400" /> Outreach
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-500">{state.metrics.outreachCount}/5</span>
+                 </div>
+                 <div className="flex items-baseline gap-2">
+                     <span className="text-2xl font-medium text-zinc-200">{state.metrics.outreachCount}</span>
+                     <span className="text-xs text-zinc-500">msgs</span>
+                 </div>
+            </div>
+
+            {/* PRAYER */}
+            <div className="bg-surface border border-border rounded-md p-4 relative">
+                <div className="flex justify-between items-start mb-2">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Zap size={12} /> Next
+                    </div>
+                    {isPrayerDone && <CheckCircle2 size={12} className="text-emerald-500" />}
                 </div>
-                <div className="text-right hidden md:block">
-                    <div className="text-sm font-serif text-emerald-400 italic">" {MOTIVATIONS[new Date().getDay() % MOTIVATIONS.length]} "</div>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="text-xl font-medium text-zinc-200">{nextPrayer.name}</div>
+                        <div className="text-xs text-zinc-500 font-mono">{nextPrayer.time}</div>
+                    </div>
+                    {!isPrayerDone && (
+                        <button 
+                            onClick={() => onPrayerToggle(prayerKey)}
+                            className="px-3 py-1 bg-zinc-900 text-zinc-300 border border-zinc-700 rounded-sm text-[10px] font-mono hover:bg-emerald-900/30 hover:text-emerald-500 hover:border-emerald-800 transition-all"
+                        >
+                            MARK
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* TOP ROW: PRAYER & FOCUS */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 shrink-0 min-h-[180px]">
-
-                {/* PRAYER MODULE */}
-                <div className="lg:col-span-2 bg-surface/50 border border-border rounded-xl p-6 relative overflow-hidden flex flex-col justify-between group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-                        <Sparkles size={64} />
+            {/* VELOCITY */}
+            <div className="bg-surface border border-border rounded-md p-4">
+                <div className="flex justify-between items-start mb-3">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Timer size={12} /> Velocity
                     </div>
+                 </div>
+                 <div className="flex items-baseline gap-2">
+                     <span className="text-2xl font-medium text-zinc-200">{completedToday.length}</span>
+                     <span className="text-xs text-zinc-500">tasks</span>
+                 </div>
+            </div>
+        </div>
 
-                    <div className="flex justify-between items-start z-10 relative">
-                        <div>
-                            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">Upcoming Prayer</div>
-                            <div className="text-5xl font-serif text-white mb-2">{nextPrayer.name}</div>
-                            <div className="flex items-center gap-3">
-                                <span className="text-xl font-mono text-emerald-400">{nextPrayer.time}</span>
-                                <span className="text-xs font-mono text-zinc-500 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800">
-                                    - {Math.floor(nextPrayer.remaining / 60)}h {nextPrayer.remaining % 60}m
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* PRAYER LIST TIMELINE */}
-                        <div className="flex gap-2">
-                            {prayers.map(p => {
-                                const key = `${todayKey}-${p.name}`;
-                                const isDone = state.prayerLog[key];
-                                const isNext = p.name === nextPrayer.name;
-
-                                return (
-                                    <button
-                                        key={p.name}
-                                        onClick={() => onPrayerToggle(key)}
-                                        className={`
-                                            flex flex-col items-center justify-center w-12 h-14 rounded border transition-all relative
-                                            ${isDone
-                                                ? 'bg-emerald-950/30 border-emerald-900/50 text-emerald-500'
-                                                : isNext
-                                                    ? 'bg-zinc-800 border-zinc-600 text-zinc-200 shadow-glow'
-                                                    : 'bg-zinc-900/30 border-zinc-800 text-zinc-600 hover:border-zinc-700'}
-                                        `}
-                                    >
-                                        {isDone ? <CheckCircle2 size={14} className="mb-1" /> : <Circle size={14} className="mb-1" />}
-                                        <span className="text-[9px] font-bold font-mono uppercase">{p.name.substring(0, 3)}</span>
-                                        {isNext && <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse border border-background" />}
-                                    </button>
-                                )
-                            })}
-                        </div>
+        {/* --- FLIGHT PLAN --- */}
+        <div className="flex-1 flex flex-col min-h-0 bg-surface/30 border border-border rounded-lg overflow-hidden backdrop-blur-sm">
+            
+            <div className="p-5 border-b border-border bg-surface/80">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <Flame size={18} className={overdueCount > 0 ? "text-red-500" : "text-zinc-100"} fill={overdueCount > 0 ? "currentColor" : "none"} />
+                        <h2 className="text-sm font-medium text-zinc-100 tracking-tight">EXECUTION PROTOCOL</h2>
                     </div>
-
-                    {/* Athkar Mini-Bar - NOW SYNCED */}
-                    <div className="mt-4 flex items-center gap-6 border-t border-white/5 pt-4">
-                        <button
-                            onClick={() => onAdhkarToggle(morningKey)}
-                            className={`flex items-center gap-2 text-xs transition-colors ${isMorningDone ? 'text-amber-400 font-medium' : 'text-zinc-500 hover:text-zinc-300'
-                                }`}
-                        >
-                            {isMorningDone ? <CheckCircle2 size={12} /> : <Sun size={12} />}
-                            <span>Morning Adhkar</span>
-                        </button>
-
-                        <button
-                            onClick={() => onAdhkarToggle(eveningKey)}
-                            className={`flex items-center gap-2 text-xs transition-colors ${isEveningDone ? 'text-indigo-400 font-medium' : 'text-zinc-500 hover:text-zinc-300'
-                                }`}
-                        >
-                            {isEveningDone ? <CheckCircle2 size={12} /> : <Moon size={12} />}
-                            <span>Evening Adhkar</span>
-                        </button>
+                    <div className="flex items-center gap-3">
+                         {overdueCount > 0 && (
+                             <div className="px-2 py-0.5 rounded bg-red-950/50 border border-red-900 text-[10px] font-mono text-red-400 flex items-center gap-1">
+                                 <AlertTriangle size={10} />
+                                 {overdueCount} OVERDUE
+                             </div>
+                         )}
+                        <div className="text-[10px] font-mono text-zinc-500">
+                            {sortedTasks.length} PENDING
+                        </div>
                     </div>
                 </div>
+                <QuickInput onAdd={onTaskAdd} />
+            </div>
 
-                {/* ACTIVE FOCUS (Based on Active Session) */}
-                <div className="bg-surface/50 border border-border rounded-xl p-6 flex flex-col relative overflow-hidden">
-                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <Zap size={12} className="text-amber-500" /> Current Focus
+            <div className="flex-1 overflow-y-auto p-2">
+                {sortedTasks.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-2 opacity-50">
+                        <CheckCircle2 size={24} />
+                        <span className="text-xs font-mono">NO IMMEDIATE DIRECTIVES</span>
                     </div>
+                ) : (
+                    <div className="space-y-1">
+                        {sortedTasks.map(task => (
+                            <UnifiedTaskRow 
+                                key={task.id} 
+                                task={task} 
+                                onUpdate={onTaskUpdate} 
+                                onStartSession={onStartSession} 
+                                isActive={task.id === activeTaskId}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
 
-                    {activeTaskId && activeTask ? (
-                        <div className="flex-1 flex flex-col justify-center animate-fade-in">
-                            <h2 className="text-lg font-medium text-white leading-snug mb-2 line-clamp-3">{activeTask.title}</h2>
-                            <div className="flex items-center gap-2 mb-4">
-                                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border border-white/10 uppercase ${activeTask.category === Category.ZOHO ? 'bg-blue-900/20 text-blue-400' :
-                                    activeTask.category === Category.AGENCY ? 'bg-amber-900/20 text-amber-400' :
-                                        'bg-purple-900/20 text-purple-400'
-                                    }`}>{activeTask.category}</span>
-                                <span className="flex items-center gap-1 text-[10px] font-mono text-red-500 uppercase animate-pulse">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                                    Live
-                                </span>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-zinc-600">
-                            <Zap size={24} className="mb-2 opacity-50" />
-                            <span className="text-sm font-mono text-zinc-500">SYSTEM IDLE</span>
+      </div>
+    </div>
+  );
+};
+
+const QuickInput: React.FC<{ onAdd: any }> = ({ onAdd }) => {
+    const [val, setVal] = useState('');
+    
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!val.trim()) return;
+        
+        const isHigh = val.includes('!');
+        // Auto-assign today's deadline if added from Cockpit
+        onAdd(val.replace('!', '').trim(), Category.AGENCY, isHigh ? 'HIGH' : 'MED');
+        setVal('');
+    }
+    return (
+        <form onSubmit={handleSubmit} className="relative">
+            <input 
+                className="w-full bg-background border border-zinc-800 rounded-md px-4 py-3 pl-10 text-sm text-zinc-200 focus:border-zinc-600 outline-none placeholder:text-zinc-700 font-mono transition-colors"
+                placeholder=":: Add directive for today..."
+                value={val}
+                onChange={e => setVal(e.target.value)}
+            />
+            <Plus size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+        </form>
+    )
+}
+
+const UnifiedTaskRow: React.FC<{ 
+    task: Task; 
+    onUpdate: (id: string, updates: Partial<Task>) => void; 
+    onStartSession: (id: string) => void; 
+    isActive: boolean; 
+}> = ({ task, onUpdate, onStartSession, isActive }) => {
+    const isOverdue = task.deadline && task.deadline < new Date().setHours(0,0,0,0);
+    
+    return (
+        <div className={`
+            group flex items-center justify-between p-3 rounded border transition-all duration-200
+            ${isActive 
+                ? 'bg-zinc-900/90 border-emerald-500/30 shadow-glow' 
+                : 'bg-background/50 border-transparent hover:border-zinc-800 hover:bg-zinc-900/30'
+            }
+            ${!isActive && isOverdue ? 'border-red-900/30 bg-red-950/10' : ''}
+        `}>
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+                
+                <button 
+                    onClick={() => isActive ? null : onStartSession(task.id)}
+                    className={`
+                        w-8 h-8 rounded flex items-center justify-center shrink-0 border transition-all
+                        ${isActive 
+                            ? 'bg-emerald-500 text-black border-emerald-400' 
+                            : 'bg-zinc-900 text-zinc-600 border-zinc-800 hover:text-emerald-500 hover:border-emerald-900'
+                        }
+                    `}
+                >
+                    {isActive ? <Pause size={12} fill="currentColor"/> : <Play size={12} fill="currentColor" className="ml-0.5"/>}
+                </button>
+
+                <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className={`text-sm truncate font-medium ${isActive ? 'text-white' : isOverdue ? 'text-red-200' : 'text-zinc-300'}`}>
+                            {task.title}
+                        </span>
+                        {task.impact === 'HIGH' && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        )}
+                    </div>
+                    {task.deadline && (
+                        <div className="flex items-center gap-1 text-[10px] font-mono mt-0.5">
+                            <Calendar size={10} className={isOverdue ? "text-red-500" : "text-zinc-600"} />
+                            <span className={isOverdue ? "text-red-400" : "text-zinc-500"}>
+                                {isOverdue ? "OVERDUE" : "DUE TODAY"}
+                            </span>
                         </div>
                     )}
                 </div>
-
             </div>
-
-            {/* BOTTOM GRID */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
-
-                {/* BRAIN DUMP (CHAT STYLE) */}
-                <div className="bg-surface/30 border border-border rounded-xl flex flex-col overflow-hidden backdrop-blur-sm">
-                    <div className="p-3 border-b border-border flex items-center justify-between bg-surface/50">
-                        <div className="text-xs font-bold font-mono text-zinc-400 flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                            QUICK LOG STRM
-                        </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {logs.length === 0 ? (
-                            <div className="h-full flex items-center justify-center text-xs text-zinc-700 font-mono">
-                                // No logs recorded
-                            </div>
-                        ) : (
-                            logs.map((log, i) => {
-                                const splitIndex = log.indexOf('] ');
-                                const ts = splitIndex > -1 ? log.substring(0, splitIndex + 1).replace('[', '').replace(']', '') : '';
-                                const msg = splitIndex > -1 ? log.substring(splitIndex + 2) : log;
-
-                                return (
-                                    <div key={i} className="flex gap-3 text-sm group animate-fade-in">
-                                        <span className="text-[10px] font-mono text-zinc-600 shrink-0 pt-1 w-10 text-right">{ts}</span>
-                                        <div className="text-zinc-300 font-mono leading-relaxed bg-zinc-900/50 px-2 py-1 rounded border border-transparent group-hover:border-zinc-800 transition-colors">
-                                            {msg}
-                                        </div>
-                                    </div>
-                                )
-                            })
-                        )}
-                        <div ref={logsEndRef} />
-                    </div>
-
-                    <form onSubmit={handleLogSubmit} className="p-3 border-t border-border bg-surface/80">
-                        <div className="relative flex gap-2">
-                            <input
-                                value={logInput}
-                                onChange={e => setLogInput(e.target.value)}
-                                placeholder=":: Enter log entry..."
-                                className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 outline-none font-mono"
-                            />
-                            <button type="submit" disabled={!logInput.trim()} className="px-3 py-2 bg-zinc-100 text-black rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed">
-                                <Send size={14} />
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                {/* EXECUTION PROTOCOL */}
-                <div className="lg:col-span-2 bg-surface/30 border border-border rounded-xl flex flex-col overflow-hidden backdrop-blur-sm">
-                    <div className="p-3 border-b border-border flex items-center justify-between bg-surface/50">
-                        <div className="flex items-center gap-3">
-                            <div className="text-xs font-bold font-mono text-zinc-400 flex items-center gap-2">
-                                <Flame size={14} className={overdueCount > 0 ? "text-red-500" : "text-zinc-400"} />
-                                EXECUTION PROTOCOL
-                            </div>
-                            {overdueCount > 0 && (
-                                <span className="text-[9px] font-mono bg-red-950/50 text-red-500 border border-red-900/50 px-1.5 py-0.5 rounded">
-                                    {overdueCount} OVERDUE
-                                </span>
-                            )}
-                        </div>
-                        <QuickInput onAdd={onTaskAdd} />
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-2">
-                        <div className="space-y-1">
-                            {sortedTasks.map(task => (
-                                <UnifiedTaskRow
-                                    key={task.id}
-                                    task={task}
-                                    activeTaskId={activeTaskId}
-                                    onUpdate={onTaskUpdate}
-                                    onStart={onStartSession}
-                                />
-                            ))}
-                            {sortedTasks.length === 0 && (
-                                <div className="h-40 flex flex-col items-center justify-center text-zinc-600 opacity-50">
-                                    <CheckCircle2 size={24} className="mb-2" />
-                                    <span className="text-xs font-mono">ALL DIRECTIVES CLEARED</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-    );
-};
-
-// --- SUB-COMPONENTS ---
-
-const UnifiedTaskRow: React.FC<{
-    task: Task;
-    activeTaskId: string | null;
-    onUpdate: (id: string, updates: Partial<Task>) => void;
-    onStart: (id: string) => void;
-}> = ({ task, activeTaskId, onUpdate, onStart }) => {
-    const isActive = activeTaskId === task.id;
-    return (
-        <div className={`
-            group flex items-center gap-3 p-2 rounded transition-all border
-            ${isActive
-                ? 'bg-zinc-800/50 border-zinc-700'
-                : 'bg-transparent border-transparent hover:bg-white/5 hover:border-white/5'}
-        `}>
-            <button
-                onClick={() => onUpdate(task.id, { status: TaskStatus.DONE })}
-                className="w-5 h-5 rounded border border-zinc-700 flex items-center justify-center hover:border-emerald-500 hover:text-emerald-500 text-transparent transition-all shrink-0"
-            >
-                <CheckCircle2 size={14} />
-            </button>
-
-            <div className="flex-1 min-w-0 flex flex-col">
-                <div className="flex items-center gap-2">
-                    <span className={`text-[9px] font-bold font-mono px-1 rounded-sm uppercase ${task.impact === 'HIGH' ? 'bg-red-950/30 text-red-500 border border-red-900/30' :
-                        task.impact === 'MED' ? 'bg-amber-950/30 text-amber-500 border border-amber-900/30' :
-                            'bg-zinc-800 text-zinc-500'
-                        }`}>{task.impact}</span>
-                    <span className={`text-sm font-medium truncate ${isActive ? 'text-white' : 'text-zinc-300'}`}>{task.title}</span>
-                </div>
-            </div>
-
-            {isActive ? (
-                <button onClick={() => onStart(task.id)} className="w-7 h-7 rounded flex items-center justify-center bg-zinc-800 text-amber-500 animate-pulse border border-amber-900/30 shrink-0">
-                    <Pause size={12} fill="currentColor" />
+            
+            <div className="flex items-center gap-2 pl-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                 <button 
+                    onClick={() => onUpdate(task.id, { status: TaskStatus.DONE })}
+                    className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                >
+                    COMPLETE
                 </button>
-            ) : (
-                <button onClick={() => onStart(task.id)} className="w-7 h-7 rounded flex items-center justify-center text-zinc-600 hover:bg-zinc-800 hover:text-zinc-200 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                    <Play size={12} fill="currentColor" />
-                </button>
-            )}
+            </div>
         </div>
-    );
-};
-
-const QuickInput: React.FC<{ onAdd: (t: string, c: Category, i: 'LOW' | 'MED' | 'HIGH') => void }> = ({ onAdd }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [title, setTitle] = useState('');
-    const [impact, setImpact] = useState<'LOW' | 'MED' | 'HIGH'>('MED');
-    const [cat, setCat] = useState<Category>(Category.ZOHO);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!title.trim()) return;
-        onAdd(title, cat, impact);
-        setTitle('');
-        setIsExpanded(false);
-    };
-
-    if (!isExpanded) {
-        return (
-            <button
-                onClick={() => setIsExpanded(true)}
-                className="flex items-center gap-1 text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors border border-zinc-800 hover:border-zinc-700 rounded px-2 py-1"
-            >
-                <Plus size={10} /> ADD DIRECTIVE
-            </button>
-        );
-    }
-
-    return (
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 animate-fade-in">
-            <input
-                autoFocus
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Directive title..."
-                className="bg-zinc-900/80 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-200 outline-none w-48 focus:border-emerald-500"
-            />
-            <select
-                value={impact}
-                onChange={e => setImpact(e.target.value as any)}
-                className="bg-zinc-900/80 border border-zinc-700 rounded px-1 py-1 text-[10px] text-zinc-300 outline-none"
-            >
-                <option value="LOW">LOW</option>
-                <option value="MED">MED</option>
-                <option value="HIGH">HIGH</option>
-            </select>
-            <button type="submit" className="p-1 bg-zinc-100 text-black rounded hover:bg-white hover:scale-105 transition-all">
-                <Plus size={12} />
-            </button>
-            <button type="button" onClick={() => setIsExpanded(false)} className="p-1 text-zinc-500 hover:text-zinc-300">
-                <X size={12} />
-            </button>
-        </form>
-    );
-};
+    )
+}
 
 export default DashboardView;

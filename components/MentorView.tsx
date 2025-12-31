@@ -1,17 +1,63 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { AppState, ChatMessage, TaskStatus } from '../types';
-import { Send, Bot, User, Zap } from 'lucide-react';
+import { Send, Bot, User, Zap, Settings, ChevronDown } from 'lucide-react';
+import { sendMessageToOpenRouter } from '../services/openRouterService';
 
 interface Props {
   state: AppState;
   onChatUpdate: (history: ChatMessage[]) => void;
 }
 
+type AgentType = 'PROTOCOL' | 'GENERAL' | 'CUSTOM';
+
+const AGENTS: Record<AgentType, { name: string; model: string; systemPrompt: (context: any) => string }> = {
+  PROTOCOL: {
+    name: 'Protocol Officer',
+    model: 'deepseek/deepseek-r1-0528:free',
+    systemPrompt: (context) => `
+      You are the 'Protocol' AI for Noeman. 
+      Noeman is a 24yo software engineer working 3 jobs (Zoho, Freelance, Agency).
+      He avoids sales/outreach for his Agency because of fear of rejection.
+      He distracts himself by 'building' or 'planning' instead of doing the work.
+      
+      YOUR RULES:
+      1. Be firm, concise, and direct. Do not be overly polite.
+      2. Call out his avoidance patterns immediately.
+      3. Check if he has done his prayers (Salah).
+      4. Remind him his goal is $1000 profit to quit the 9-5.
+      5. If he talks about 'planning' or 'refactoring', tell him to stop and go sell.
+      6. Use short sentences. "Linear" style communication.
+      
+      CURRENT CONTEXT JSON: ${JSON.stringify(context)}
+    `
+  },
+  GENERAL: {
+    name: 'General Agent',
+    model: 'deepseek/deepseek-r1-0528:free',
+    systemPrompt: (context) => `
+      You are a helpful, intelligent general assistant for Noeman.
+      You have access to his current context and tasks to provide better answers.
+      Be concise, professional, and helpful.
+      
+      CURRENT CONTEXT JSON: ${JSON.stringify(context)}
+    `
+  },
+  CUSTOM: {
+    name: 'Research Assistant',
+    model: 'deepseek/deepseek-r1-0528:free',
+    systemPrompt: () => `
+      You are a dedicated Research Assistant. 
+      Focus on providing deep, well-structured information, summaries, and code explanations.
+    `
+  }
+};
+
 const MentorView: React.FC<Props> = ({ state, onChatUpdate }) => {
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [activeAgent, setActiveAgent] = useState<AgentType>('PROTOCOL');
+  const [showAgentMenu, setShowAgentMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -37,13 +83,9 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate }) => {
     setIsThinking(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
       // Construct Context
-      // Construct Context - ENHANCED
       const context = {
         identity: "Noeman",
-        role: "Strict Accountability Mentor",
         current_time: new Date().toLocaleString(),
         tasks_pending: state.tasks
           .filter(t => t.status !== TaskStatus.DONE)
@@ -54,48 +96,21 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate }) => {
             deadline: t.deadline ? new Date(t.deadline).toLocaleDateString() : 'None',
             is_overdue: t.deadline ? t.deadline < Date.now() : false
           })),
-        brain_dump: state.notes.find(n => n.id === 'brain_dump')?.content || "Empty",
         metrics: state.metrics,
         prayers_logged: Object.keys(state.prayerLog).filter(k => k.includes(new Date().toISOString().split('T')[0])),
-        psychology: "Avoids sales. Works best with mono-focus. Needs external pressure.",
-        goal: "Hit $1000/mo from Agency to quit Zoho."
       };
 
-      const systemInstruction = `
-        You are the 'Protocol' AI for Noeman. 
-        Noeman is a 24yo software engineer working 3 jobs (Zoho, Freelance, Agency).
-        He avoids sales/outreach for his Agency because of fear of rejection.
-        He distracts himself by 'building' or 'planning' instead of doing the work.
-        
-        YOUR RULES:
-        1. Be firm, concise, and direct. Do not be overly polite.
-        2. Call out his avoidance patterns immediately.
-        3. Check if he has done his prayers (Salah).
-        4. Remind him his goal is $1000 profit to quit the 9-5.
-        5. If he talks about 'planning' or 'refactoring', tell him to stop and go sell.
-        6. Use short sentences. "Linear" style communication.
-        
-        CURRENT CONTEXT JSON: ${JSON.stringify(context)}
-      `;
+      const agent = AGENTS[activeAgent];
+      const systemPrompt = agent.systemPrompt(context);
 
       // Filter history for API to save tokens, keep last 10 turns
-      const apiHistory = newHistory.slice(-10).map(msg => ({
-        role: msg.role,
-        parts: [{ text: msg.text }]
-      }));
+      const apiHistory = newHistory.slice(-10);
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: apiHistory,
-        config: {
-          systemInstruction: systemInstruction,
-          temperature: 0.7,
-        }
-      });
+      const responseText = await sendMessageToOpenRouter(apiHistory, agent.model, systemPrompt);
 
       const modelMsg: ChatMessage = {
         role: 'model',
-        text: response.text || "Protocol error. Re-engage.",
+        text: responseText,
         timestamp: Date.now()
       };
 
@@ -104,7 +119,7 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate }) => {
       console.error(error);
       const errorMsg: ChatMessage = {
         role: 'model',
-        text: "Connection to Protocol server failed. Check network.",
+        text: "Connection to Neural Link failed. Check API configuration.",
         timestamp: Date.now()
       };
       onChatUpdate([...newHistory, errorMsg]);
@@ -114,16 +129,39 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate }) => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-background animate-fade-in">
+    <div className="h-full flex flex-col bg-background animate-fade-in relative">
 
       {/* HEADER */}
       <div className="h-12 border-b border-border bg-surface flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-2 text-zinc-300 text-sm font-mono">
-          <Zap size={14} className="text-amber-500" />
-          <span>PROTOCOL // ACTIVE</span>
+          <Zap size={14} className={activeAgent === 'PROTOCOL' ? "text-amber-500" : "text-blue-500"} />
+          <div className="relative">
+            <button
+              onClick={() => setShowAgentMenu(!showAgentMenu)}
+              className="flex items-center gap-2 hover:text-white transition-colors uppercase tracking-wider"
+            >
+              {AGENTS[activeAgent].name}
+              <ChevronDown size={12} />
+            </button>
+
+            {showAgentMenu && (
+              <div className="absolute top-full left-0 mt-2 w-48 bg-surface border border-border rounded-md shadow-xl z-50 py-1">
+                {(Object.keys(AGENTS) as AgentType[]).map(key => (
+                  <button
+                    key={key}
+                    onClick={() => { setActiveAgent(key); setShowAgentMenu(false); }}
+                    className={`w-full text-left px-4 py-2 text-xs font-mono hover:bg-zinc-800 transition-colors ${activeAgent === key ? 'text-white bg-zinc-800' : 'text-zinc-400'}`}
+                  >
+                    {AGENTS[key].name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="text-[10px] font-mono text-zinc-500">
-          AI_MODEL: GEMINI-2.5-FLASH
+        <div className="text-[10px] font-mono text-zinc-500 flex items-center gap-2">
+          <span>MODEL: {AGENTS[activeAgent].model.split('/')[1]}</span>
+          {isThinking && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>}
         </div>
       </div>
 
@@ -157,7 +195,7 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate }) => {
               <Bot size={16} />
             </div>
             <div className="flex items-center text-xs font-mono text-zinc-600">
-              Protocol computing...
+              {activeAgent} computing...
             </div>
           </div>
         )}
@@ -171,7 +209,7 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate }) => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder="Report status or ask for directives..."
+            placeholder={`Message ${AGENTS[activeAgent].name}...`}
             className="w-full bg-surface border border-border rounded-md py-3 pl-4 pr-12 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 outline-none transition-colors font-mono"
             disabled={isThinking}
           />
@@ -182,9 +220,6 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate }) => {
           >
             <Send size={16} />
           </button>
-        </div>
-        <div className="text-center mt-2 text-[10px] text-zinc-600 font-mono">
-          Honesty is required for system optimization.
         </div>
       </div>
 

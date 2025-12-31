@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal } from './types';
 import { loadState, saveState, subscribeToState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
@@ -36,6 +36,7 @@ import NotesView from './components/NotesView';
 import ResourcesView from './components/ResourcesView';
 import MarketingView from './components/MarketingView';
 import ActivitiesView from './components/ActivitiesView';
+import WeeklyPlannerView from './components/WeeklyPlannerView';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
@@ -241,10 +242,29 @@ const App: React.FC = () => {
     }
   };
 
+  const handleHorizonGoalAdd = (title: string) => {
+    const newGoal: HorizonGoal = { id: generateId(), title, progress: 0 };
+    setState(prev => prev ? ({ ...prev, horizonGoals: [...prev.horizonGoals, newGoal] }) : null);
+  };
+
+  const handleHorizonGoalUpdate = (id: string, updates: Partial<HorizonGoal>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      horizonGoals: prev.horizonGoals.map(g => g.id === id ? { ...g, ...updates } : g)
+    }) : null);
+  };
+
   const stopSession = () => {
     setState(prev => prev ? ({
       ...prev,
       activeSession: { taskId: null, startTime: null }
+    }) : null);
+  };
+
+  const handleTaskDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      tasks: prev.tasks.filter(t => t.id !== id)
     }) : null);
   };
 
@@ -270,6 +290,16 @@ const App: React.FC = () => {
           onNoteAdd={handleNoteAdd}
           onNoteUpdate={handleNoteUpdate}
         />;
+      case Page.WEEKLY:
+        return (
+          <WeeklyPlannerView
+            state={state}
+            onUpdate={handleTaskUpdate}
+            onStartSession={startSession}
+            activeTaskId={state.activeSession.taskId}
+            onAdd={handleTaskAdd}
+          />
+        );
       // Page.GRID is removed, Page.GRID2 is now the main task view
       case Page.GRID: // Fallback or legacy (redirect logic could go here, but let's just show Grid 2)
       case Page.GRID2:
@@ -278,6 +308,9 @@ const App: React.FC = () => {
             state={state}
             onAdd={handleTaskAdd}
             onUpdate={handleTaskUpdate}
+            onDelete={handleTaskDelete}
+            onAddHorizonGoal={handleHorizonGoalAdd}
+            onUpdateHorizonGoal={handleHorizonGoalUpdate}
           />
         );
       case Page.NETWORK:
@@ -360,6 +393,13 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.MENTOR)}
             icon={<MessageSquare size={18} />}
             label="Protocol"
+            setHover={setHoveredNav}
+          />
+          <NavIcon
+            active={state.currentPage === Page.WEEKLY}
+            onClick={() => handleNavigate(Page.WEEKLY)}
+            icon={<Layers size={18} />}
+            label="Weekly"
             setHover={setHoveredNav}
           />
           <NavIcon

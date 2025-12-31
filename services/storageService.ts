@@ -1,5 +1,3 @@
-
-
 import { AppState, Category, TaskStatus, Page } from '../types';
 import { db } from './firebase';
 import { doc, getDoc, setDoc, onSnapshot, Unsubscribe } from 'firebase/firestore';
@@ -258,18 +256,23 @@ const INITIAL_STATE: AppState = {
     outreachCount: 3
   },
   prayerLog: {},
+  adhkarLog: {},
   chatHistory: [
     {
       role: 'model',
       text: "Salam Noeman. Protocol Active. Database connection standing by.",
       timestamp: Date.now()
     }
+  ],
+  horizonGoals: [
+    { id: '1', title: 'Surah Al-Kahf', progress: 40 },
+    { id: '2', title: 'Project Beta', progress: 75 },
+    { id: '3', title: 'Q4 Hiring', progress: 10 }
   ]
 };
 
 // --- DATA LAYER ---
 
-// 1. LOAD
 // 1. LOAD
 export const loadState = async (): Promise<AppState> => {
   let localData: AppState | null = null;

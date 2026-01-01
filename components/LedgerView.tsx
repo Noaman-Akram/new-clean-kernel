@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AppState, Transaction, Category, Account, AccountType } from '../types';
 import { generateId } from '../utils';
-import { Plus, TrendingUp, TrendingDown, Wallet, X, Edit2, Check } from 'lucide-react';
+import { Plus, CreditCard, TrendingUp, TrendingDown, Wallet, Edit2, Check, X, Trash2 } from 'lucide-react';
 
 interface Props {
   state: AppState;
@@ -53,155 +53,146 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
     const expense = Math.abs(state.transactions.filter(t => t.type === 'EXPENSE').reduce((a,b) => a+b.amount, 0));
 
     return (
-        <div className="h-full flex flex-col animate-fade-in bg-background overflow-hidden">
+        <div className="h-full flex flex-col animate-fade-in bg-background">
 
-            {/* COMPACT HEADER */}
-            <div className="border-b border-border bg-surface/30 p-6 shrink-0">
-                 <div className="max-w-5xl mx-auto">
-                    <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <h1 className="text-sm font-medium text-zinc-300">Financial Ledger</h1>
-                            <p className="text-xs text-zinc-600 mt-1">Track accounts and transactions</p>
+            {/* HEADER SUMMARY - COMPACT */}
+            <div className="border-b border-border bg-surface/20 p-6">
+                 <div className="flex items-end justify-between mb-6">
+                    <div>
+                        <div className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <CreditCard size={14} /> Net Position
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setIsManagingAccounts(!isManagingAccounts)}
-                                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-md text-xs font-bold hover:bg-zinc-800 transition-colors"
-                            >
-                                <Wallet size={14} />
-                                {isManagingAccounts ? 'Done' : 'Manage Accounts'}
-                            </button>
-                            <button
-                                onClick={() => setIsAdding(!isAdding)}
-                                className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-md text-xs font-bold hover:bg-zinc-200 transition-colors"
-                            >
-                                <Plus size={14} />
-                                {isAdding ? 'Cancel' : 'New Transaction'}
-                            </button>
+                        <div className="text-4xl font-medium text-white tracking-tight font-mono">${net.toLocaleString()}</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsManagingAccounts(!isManagingAccounts)}
+                            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-zinc-300 border border-zinc-800 rounded-md text-xs font-bold hover:bg-zinc-800 transition-colors"
+                        >
+                            <Wallet size={14} />
+                            <span>{isManagingAccounts ? 'Done' : 'Manage'}</span>
+                        </button>
+                        <button
+                            onClick={() => setIsAdding(!isAdding)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-md text-xs font-semibold hover:bg-zinc-200 transition-colors"
+                        >
+                            <Plus size={14} />
+                            <span>New Transaction</span>
+                        </button>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-3 max-w-md">
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded p-3">
+                        <div className="text-[10px] text-zinc-500 uppercase mb-1 flex items-center gap-1"><TrendingUp size={12}/> Income</div>
+                        <div className="text-xl text-emerald-500 font-mono font-medium">
+                            +${income.toLocaleString()}
                         </div>
                     </div>
-
-                    {/* Compact Stats Row */}
-                    <div className="grid grid-cols-3 gap-3">
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded p-3">
-                            <div className="text-[10px] text-zinc-600 font-mono uppercase mb-1">Net</div>
-                            <div className="text-xl text-white font-mono font-medium">${net.toLocaleString()}</div>
-                        </div>
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded p-3">
-                            <div className="flex items-center gap-1 text-[10px] text-zinc-600 font-mono uppercase mb-1">
-                                <TrendingUp size={10} /> Income
-                            </div>
-                            <div className="text-xl text-emerald-500 font-mono font-medium">+${income.toLocaleString()}</div>
-                        </div>
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded p-3">
-                            <div className="flex items-center gap-1 text-[10px] text-zinc-600 font-mono uppercase mb-1">
-                                <TrendingDown size={10} /> Expenses
-                            </div>
-                            <div className="text-xl text-zinc-400 font-mono font-medium">${expense.toLocaleString()}</div>
+                    <div className="bg-zinc-900/50 border border-zinc-800 rounded p-3">
+                        <div className="text-[10px] text-zinc-500 uppercase mb-1 flex items-center gap-1"><TrendingDown size={12}/> Expenses</div>
+                        <div className="text-xl text-zinc-400 font-mono font-medium">
+                            ${expense.toLocaleString()}
                         </div>
                     </div>
                  </div>
             </div>
 
-             {/* ADD TRANSACTION FORM */}
+             {/* ADD ROW */}
              {isAdding && (
-                <div className="border-b border-border p-4 bg-surface shrink-0 animate-fade-in">
-                    <div className="max-w-5xl mx-auto flex items-center gap-3">
-                         <input
-                            value={desc}
-                            onChange={e => setDesc(e.target.value)}
-                            placeholder="Description..."
-                            className="flex-1 bg-background border border-zinc-800 rounded px-4 py-2 text-sm text-white focus:border-zinc-600 outline-none"
-                            autoFocus
-                        />
-                        <select
-                            value={accountId}
-                            onChange={e => setAccountId(e.target.value)}
-                            className="bg-background border border-zinc-800 rounded px-3 py-2 text-sm text-white focus:border-zinc-600 outline-none"
-                        >
-                            {state.accounts.map(acc => (
-                                <option key={acc.id} value={acc.id}>{acc.name}</option>
-                            ))}
-                        </select>
-                        <input
-                            value={amount}
-                            onChange={e => setAmount(e.target.value)}
-                            placeholder="0.00"
-                            type="number"
-                            className="w-32 bg-background border border-zinc-800 rounded px-4 py-2 text-sm text-white focus:border-zinc-600 outline-none font-mono"
-                        />
-                        <button onClick={() => handleAdd('INCOME')} className="px-4 py-2 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-500">INCOME</button>
-                        <button onClick={() => handleAdd('EXPENSE')} className="px-4 py-2 bg-zinc-700 text-zinc-200 rounded text-xs font-bold hover:bg-zinc-600">EXPENSE</button>
-                    </div>
+                <div className="border-b border-border p-4 bg-surface flex items-center justify-center gap-3 animate-fade-in">
+                     <input
+                        value={desc}
+                        onChange={e => setDesc(e.target.value)}
+                        placeholder="Description..."
+                        className="bg-background border border-border rounded-md px-4 py-2 text-sm text-white focus:border-zinc-500 outline-none w-80"
+                        autoFocus
+                    />
+                    <select
+                        value={accountId}
+                        onChange={e => setAccountId(e.target.value)}
+                        className="bg-background border border-border rounded-md px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
+                    >
+                        {state.accounts.map(acc => (
+                            <option key={acc.id} value={acc.id}>{acc.name} · {acc.type}</option>
+                        ))}
+                    </select>
+                    <input
+                        value={amount}
+                        onChange={e => setAmount(e.target.value)}
+                        placeholder="0.00"
+                        type="number"
+                        className="bg-background border border-border rounded-md px-4 py-2 text-sm text-white focus:border-zinc-500 outline-none font-mono w-40"
+                    />
+                    <button onClick={() => handleAdd('INCOME')} className="px-4 py-2 bg-emerald-600 text-white rounded-md text-xs font-bold hover:bg-emerald-500">INCOME</button>
+                    <button onClick={() => handleAdd('EXPENSE')} className="px-4 py-2 bg-zinc-700 text-zinc-200 rounded-md text-xs font-bold hover:bg-zinc-600">EXPENSE</button>
                 </div>
             )}
 
-            {/* CONTENT AREA */}
-            <div className="flex-1 overflow-y-auto p-6">
-                <div className="max-w-5xl mx-auto space-y-6">
+            {/* CONTENT */}
+            <div className="flex-1 overflow-auto px-6 py-6 space-y-6">
 
-                    {/* ACCOUNTS SECTION */}
-                    <div>
-                        <div className="flex items-center justify-between mb-3">
-                            <div className="text-xs font-mono text-zinc-600 uppercase">Accounts</div>
-                            {isManagingAccounts && onAddAccount && (
-                                <AddAccountForm onAdd={onAddAccount} />
-                            )}
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                            {byAccount.map(item => (
-                                isManagingAccounts ? (
-                                    <AccountCardEditable
-                                        key={item.account.id}
-                                        account={item.account}
-                                        balance={item.balance}
-                                        isEditing={editingAccountId === item.account.id}
-                                        onEdit={() => setEditingAccountId(item.account.id)}
-                                        onCancelEdit={() => setEditingAccountId(null)}
-                                        onUpdate={onUpdateAccount}
-                                        onDelete={onDeleteAccount}
-                                    />
-                                ) : (
-                                    <AccountCard
-                                        key={item.account.id}
-                                        account={item.account}
-                                        balance={item.balance}
-                                    />
-                                )
-                            ))}
-                        </div>
+                {/* ACCOUNTS SECTION */}
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="text-[10px] font-mono text-zinc-600 uppercase">Accounts</div>
+                        {isManagingAccounts && onAddAccount && (
+                            <AddAccountForm onAdd={onAddAccount} />
+                        )}
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                        {byAccount.map(item => (
+                            isManagingAccounts ? (
+                                <AccountCardEditable
+                                    key={item.account.id}
+                                    account={item.account}
+                                    balance={item.balance}
+                                    isEditing={editingAccountId === item.account.id}
+                                    onEdit={() => setEditingAccountId(item.account.id)}
+                                    onCancelEdit={() => setEditingAccountId(null)}
+                                    onUpdate={onUpdateAccount}
+                                    onDelete={onDeleteAccount}
+                                />
+                            ) : (
+                                <AccountCard
+                                    key={item.account.id}
+                                    account={item.account}
+                                    balance={item.balance}
+                                />
+                            )
+                        ))}
+                    </div>
+                </div>
 
-                    {/* TRANSACTIONS SECTION */}
-                    <div>
-                        <div className="text-xs font-mono text-zinc-600 uppercase mb-3">Recent Activity</div>
-                        <div className="border-t border-border">
-                            <table className="w-full text-left border-collapse">
-                                <tbody className="divide-y divide-zinc-800">
-                                    {state.transactions.map(tx => (
-                                        <tr key={tx.id} className="group hover:bg-zinc-900/30 transition-colors">
-                                            <td className="py-4 text-xs text-zinc-500 font-mono w-32">
-                                                {new Date(tx.date).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year:'2-digit'})}
-                                            </td>
-                                            <td className="py-4 text-sm text-zinc-300 font-medium">
-                                                {tx.description}
-                                            </td>
-                                            <td className="py-4 text-right">
-                                                <span className="text-[10px] font-mono text-zinc-600 px-2 py-1 rounded bg-zinc-900 uppercase border border-zinc-800">
-                                                    {tx.category}
-                                                </span>
-                                            </td>
-                                            <td className={`py-4 px-6 text-sm font-mono text-right w-32 ${tx.type === 'INCOME' ? 'text-emerald-500' : 'text-zinc-400'}`}>
-                                                {tx.type === 'INCOME' ? '+' : ''}{tx.amount.toLocaleString()}
-                                            </td>
-                                            <td className="py-4 text-right text-[11px] text-zinc-500 font-mono w-32">
-                                                {state.accounts.find(a => a.id === tx.accountId)?.name || '—'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                {/* TRANSACTIONS TABLE */}
+                <div>
+                    <div className="text-[10px] font-mono text-zinc-600 uppercase mb-3">Recent Activity</div>
+                    <div className="border-t border-border">
+                        <table className="w-full text-left border-collapse">
+                            <tbody className="divide-y divide-zinc-800">
+                                {state.transactions.map(tx => (
+                                    <tr key={tx.id} className="group hover:bg-zinc-900/30 transition-colors">
+                                        <td className="py-4 text-xs text-zinc-500 font-mono w-32">
+                                            {new Date(tx.date).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year:'2-digit'})}
+                                        </td>
+                                        <td className="py-4 text-sm text-zinc-300 font-medium">
+                                            {tx.description}
+                                        </td>
+                                        <td className="py-4 text-right">
+                                            <span className="text-[10px] font-mono text-zinc-600 px-2 py-1 rounded bg-zinc-900 uppercase border border-zinc-800">
+                                                {tx.category}
+                                            </span>
+                                        </td>
+                                        <td className={`py-4 px-6 text-sm font-mono text-right w-32 ${tx.type === 'INCOME' ? 'text-emerald-500' : 'text-zinc-400'}`}>
+                                            {tx.type === 'INCOME' ? '+' : ''}{tx.amount.toLocaleString()}
+                                        </td>
+                                        <td className="py-4 text-right text-[11px] text-zinc-500 font-mono w-32">
+                                            {state.accounts.find(a => a.id === tx.accountId)?.name || '—'}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -211,15 +202,19 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
 
 // Simple Account Card (Read-only)
 const AccountCard: React.FC<{ account: Account; balance: number }> = ({ account, balance }) => (
-    <div className="bg-surface/40 border border-border rounded-lg p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-white">
-            <Wallet size={14} className="text-zinc-500" />
-            <div className="flex flex-col">
-                <span className="font-semibold">{account.name}</span>
-                <span className="text-[10px] font-mono text-zinc-500 uppercase">{account.type}</span>
+    <div className="bg-gradient-to-br from-surface/60 to-surface/30 border border-border rounded-xl p-4 hover:shadow-lg transition-all">
+        <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2">
+                <div className="p-2 bg-zinc-900/50 rounded-lg border border-zinc-800">
+                    <Wallet size={16} className="text-zinc-500" />
+                </div>
+                <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-white">{account.name}</span>
+                    <span className="text-[10px] font-mono text-zinc-500 uppercase">{account.type}</span>
+                </div>
             </div>
         </div>
-        <div className="text-sm font-mono text-emerald-400">${balance.toLocaleString()}</div>
+        <div className="text-2xl font-mono font-bold text-emerald-400">${balance.toLocaleString()}</div>
     </div>
 );
 
@@ -247,28 +242,29 @@ const AccountCardEditable: React.FC<{
 
     if (isEditing) {
         return (
-            <div className="bg-surface border border-zinc-800 rounded-lg p-3 space-y-2">
+            <div className="bg-surface border border-zinc-700 rounded-xl p-4 space-y-3">
                 <input
                     value={editForm.name}
                     onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-background border border-zinc-800 rounded px-2 py-1 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
+                    className="w-full bg-background border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
+                    placeholder="Account name"
                 />
                 <select
                     value={editForm.type}
                     onChange={e => setEditForm(prev => ({ ...prev, type: e.target.value as AccountType }))}
-                    className="w-full bg-background border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 focus:border-zinc-600 outline-none"
+                    className="w-full bg-background border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
                 >
                     <option value="CASH">Cash</option>
                     <option value="BANK">Bank</option>
                     <option value="CRYPTO">Crypto</option>
                     <option value="ASSET">Asset</option>
                 </select>
-                <div className="flex gap-1.5">
+                <div className="flex gap-2">
                     <button
                         onClick={handleSave}
-                        className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-bold rounded transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded transition-colors"
                     >
-                        <Check size={10} /> Save
+                        <Check size={12} /> Save
                     </button>
                     {onDelete && (
                         <button
@@ -278,16 +274,16 @@ const AccountCardEditable: React.FC<{
                                     onCancelEdit();
                                 }
                             }}
-                            className="px-2 py-1 bg-red-900/30 hover:bg-red-900/50 text-red-400 text-[10px] rounded transition-colors"
+                            className="px-3 py-2 bg-red-900/30 hover:bg-red-900/50 border border-red-900/50 text-red-400 text-xs rounded transition-colors"
                         >
-                            <X size={10} />
+                            <Trash2 size={12} />
                         </button>
                     )}
                     <button
                         onClick={onCancelEdit}
-                        className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] rounded transition-colors"
+                        className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs rounded transition-colors"
                     >
-                        <X size={10} />
+                        <X size={12} />
                     </button>
                 </div>
             </div>
@@ -295,23 +291,25 @@ const AccountCardEditable: React.FC<{
     }
 
     return (
-        <div className="group bg-surface/40 border border-border hover:border-zinc-700 rounded-lg p-3 flex items-center justify-between transition-all">
-            <div className="flex items-center gap-2 text-sm text-white">
-                <Wallet size={14} className="text-zinc-500" />
-                <div className="flex flex-col">
-                    <span className="font-semibold">{account.name}</span>
-                    <span className="text-[10px] font-mono text-zinc-500 uppercase">{account.type}</span>
+        <div className="group bg-gradient-to-br from-surface/60 to-surface/30 border border-border hover:border-zinc-700 rounded-xl p-4 transition-all">
+            <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <div className="p-2 bg-zinc-900/50 rounded-lg border border-zinc-800">
+                        <Wallet size={16} className="text-zinc-500" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-white">{account.name}</span>
+                        <span className="text-[10px] font-mono text-zinc-500 uppercase">{account.type}</span>
+                    </div>
                 </div>
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="text-sm font-mono text-emerald-400">${balance.toLocaleString()}</div>
                 <button
                     onClick={onEdit}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-zinc-300 transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-600 hover:text-zinc-300 transition-all"
                 >
-                    <Edit2 size={12} />
+                    <Edit2 size={14} />
                 </button>
             </div>
+            <div className="text-2xl font-mono font-bold text-emerald-400">${balance.toLocaleString()}</div>
         </div>
     );
 };
@@ -343,7 +341,7 @@ const AddAccountForm: React.FC<{ onAdd: (account: Account) => void }> = ({ onAdd
         return (
             <button
                 onClick={() => setIsAdding(true)}
-                className="flex items-center gap-1 px-3 py-1 bg-zinc-900 text-zinc-400 border border-zinc-800 rounded text-xs font-mono hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-zinc-400 border border-zinc-800 rounded-md text-xs font-mono hover:bg-zinc-800 hover:text-zinc-300 transition-colors"
             >
                 <Plus size={12} /> Add Account
             </button>
@@ -356,13 +354,13 @@ const AddAccountForm: React.FC<{ onAdd: (account: Account) => void }> = ({ onAdd
                 value={form.name}
                 onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Account name"
-                className="bg-background border border-zinc-800 rounded px-3 py-1 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
+                className="bg-background border border-zinc-800 rounded px-3 py-1.5 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
                 autoFocus
             />
             <select
                 value={form.type}
                 onChange={e => setForm(prev => ({ ...prev, type: e.target.value as AccountType }))}
-                className="bg-background border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 focus:border-zinc-600 outline-none"
+                className="bg-background border border-zinc-800 rounded px-2 py-1.5 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
             >
                 <option value="CASH">Cash</option>
                 <option value="BANK">Bank</option>
@@ -372,14 +370,14 @@ const AddAccountForm: React.FC<{ onAdd: (account: Account) => void }> = ({ onAdd
             <button
                 type="submit"
                 disabled={!form.name.trim()}
-                className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded transition-colors disabled:opacity-50"
+                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded transition-colors disabled:opacity-50"
             >
                 Add
             </button>
             <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs rounded transition-colors"
+                className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs rounded transition-colors"
             >
                 <X size={12} />
             </button>

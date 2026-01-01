@@ -926,9 +926,17 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
                   <div className="ml-3">
                     {showDockPicker && backlogTasks.length > 0 ? (
                       <div className="p-3 bg-zinc-900/80 border border-zinc-700 rounded space-y-2">
-                        <div className="text-xs text-zinc-500">From backlog:</div>
-                        <div className="max-h-32 overflow-y-auto space-y-1.5">
-                          {backlogTasks.slice(0, 5).map(task => (
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-zinc-500">From backlog:</div>
+                          <button
+                            onClick={() => setShowDockPicker(false)}
+                            className="text-xs text-zinc-600 hover:text-zinc-400"
+                          >
+                            Close
+                          </button>
+                        </div>
+                        <div className="max-h-40 overflow-y-auto space-y-1.5">
+                          {backlogTasks.map(task => (
                             <button
                               key={task.id}
                               onClick={() => handleScheduleDockTask(task, slot.hour)}

@@ -1,12 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
-import { AppState, TaskStatus, Category, Task } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { AppState, TaskStatus, Category, Task, Page } from '../types';
 import { getNextPrayer } from '../utils';
 import {
     Target,
     ArrowUpRight,
     Zap,
-    Timer,
     Plus,
     Play,
     Pause,
@@ -14,11 +13,18 @@ import {
     Flame,
     AlertTriangle,
     Calendar,
-    CalendarDays,
+    Layers,
+    MessageSquare,
+    MapPin,
     Users,
-    Send,
-    DollarSign,
-    Activity
+    Megaphone,
+    CreditCard,
+    BookOpen,
+    StickyNote,
+    Container,
+    TrendingUp,
+    TrendingDown,
+    Clock
 } from 'lucide-react';
 
 interface Props {
@@ -28,7 +34,7 @@ interface Props {
   onPrayerToggle: (key: string) => void;
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: Page) => void;
 }
 
 const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPrayerToggle, onStartSession, activeTaskId, onNavigate }) => {
@@ -53,7 +59,7 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
     .filter(t => {
         if (t.status === TaskStatus.DONE) return false;
         if (t.status === TaskStatus.IN_PROGRESS) return true; // Always show active
-        
+
         if (t.deadline) {
             // Show if deadline is today or in the past (overdue)
             return t.deadline <= endOfToday.getTime();
@@ -65,7 +71,7 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
         const aDue = a.deadline || 0;
         const bDue = b.deadline || 0;
         if (aDue !== bDue) return aDue - bDue; // Earliest deadline first
-        
+
         const impactScore = { 'HIGH': 3, 'MED': 2, 'LOW': 1 };
         return impactScore[b.impact] - impactScore[a.impact];
     });
@@ -74,50 +80,85 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
   const completedToday = state.tasks.filter(t => t.status === TaskStatus.DONE && new Date(t.createdAt).getDate() === new Date().getDate());
   const progress = Math.min((state.metrics.revenue / state.metrics.target) * 100, 100);
 
+  // Smart Insights
+  const insights = useMemo(() => {
+    const totalTasks = state.tasks.filter(t => t.status !== TaskStatus.DONE).length;
+    const highPriorityTasks = state.tasks.filter(t => t.status !== TaskStatus.DONE && t.impact === 'HIGH').length;
+    const scheduledToday = state.tasks.filter(t => {
+      if (!t.scheduledTime) return false;
+      const taskDate = new Date(t.scheduledTime);
+      taskDate.setHours(0, 0, 0, 0);
+      return taskDate.getTime() === startOfToday.getTime();
+    }).length;
+
+    const recentContacts = state.clients.filter(c => {
+      const daysSince = Math.floor((Date.now() - c.lastInteraction) / (1000 * 60 * 60 * 24));
+      return daysSince > 14;
+    }).length;
+
+    const net = state.transactions.reduce((a,b) => a + b.amount, 0);
+    const income = state.transactions.filter(t => t.type === 'INCOME').reduce((a,b) => a+b.amount, 0);
+    const expense = Math.abs(state.transactions.filter(t => t.type === 'EXPENSE').reduce((a,b) => a+b.amount, 0));
+
+    return {
+      totalTasks,
+      highPriorityTasks,
+      scheduledToday,
+      recentContacts,
+      financials: { net, income, expense }
+    };
+  }, [state.tasks, state.clients, state.transactions]);
+
   return (
     <div className="h-full overflow-y-auto p-6 animate-fade-in bg-background">
       <div className="max-w-[1200px] mx-auto flex flex-col gap-8 h-full">
 
         {/* --- QUICK NAVIGATION --- */}
         {onNavigate && (
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => onNavigate('WEEKLY')}
-              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
-            >
-              <CalendarDays size={14} />
-              <span>Weekly</span>
-            </button>
-            <button
-              onClick={() => onNavigate('NETWORK')}
-              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
-            >
-              <Users size={14} />
-              <span>Network</span>
-            </button>
-            <button
-              onClick={() => onNavigate('MARKETING')}
-              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
-            >
-              <Send size={14} />
-              <span>Marketing</span>
-            </button>
-            <button
-              onClick={() => onNavigate('LEDGER')}
-              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
-            >
-              <DollarSign size={14} />
-              <span>Ledger</span>
-            </button>
-            <button
-              onClick={() => onNavigate('ACTIVITIES')}
-              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
-            >
-              <Activity size={14} />
-              <span>Activities</span>
-            </button>
+          <div className="grid grid-cols-5 gap-3 shrink-0">
+            <NavCard icon={<Layers size={16} />} label="Weekly" onClick={() => onNavigate(Page.WEEKLY)} />
+            <NavCard icon={<MessageSquare size={16} />} label="Protocol" onClick={() => onNavigate(Page.MENTOR)} />
+            <NavCard icon={<MapPin size={16} />} label="Activities" onClick={() => onNavigate(Page.ACTIVITIES)} />
+            <NavCard icon={<Users size={16} />} label="Network" onClick={() => onNavigate(Page.NETWORK)} />
+            <NavCard icon={<Megaphone size={16} />} label="Marketing" onClick={() => onNavigate(Page.MARKETING)} />
+            <NavCard icon={<CreditCard size={16} />} label="Ledger" onClick={() => onNavigate(Page.LEDGER)} />
+            <NavCard icon={<BookOpen size={16} />} label="Sanctuary" onClick={() => onNavigate(Page.SUPPLICATIONS)} />
+            <NavCard icon={<StickyNote size={16} />} label="Intel" onClick={() => onNavigate(Page.INTEL)} />
+            <NavCard icon={<Container size={16} />} label="Arsenal" onClick={() => onNavigate(Page.ARSENAL)} />
           </div>
         )}
+
+        {/* --- INSIGHTS STRIP --- */}
+        <div className="grid grid-cols-4 gap-4 shrink-0">
+          <InsightCard
+            icon={<Flame size={14} />}
+            label="High Priority"
+            value={insights.highPriorityTasks}
+            subtext="urgent tasks"
+            color="text-amber-400"
+          />
+          <InsightCard
+            icon={<Calendar size={14} />}
+            label="Today"
+            value={insights.scheduledToday}
+            subtext="scheduled"
+            color="text-emerald-400"
+          />
+          <InsightCard
+            icon={<Users size={14} />}
+            label="Contacts"
+            value={insights.recentContacts}
+            subtext="need followup"
+            color="text-blue-400"
+          />
+          <InsightCard
+            icon={<TrendingUp size={14} />}
+            label="Net Balance"
+            value={`$${insights.financials.net}`}
+            subtext="current"
+            color={insights.financials.net >= 0 ? "text-emerald-500" : "text-red-400"}
+          />
+        </div>
 
         {/* --- TOP KPI STRIP --- */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
@@ -193,7 +234,7 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
 
         {/* --- FLIGHT PLAN --- */}
         <div className="flex-1 flex flex-col min-h-0 bg-surface/30 border border-border rounded-lg overflow-hidden backdrop-blur-sm">
-            
+
             <div className="p-5 border-b border-border bg-surface/80">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -224,11 +265,11 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
                 ) : (
                     <div className="space-y-1">
                         {sortedTasks.map(task => (
-                            <UnifiedTaskRow 
-                                key={task.id} 
-                                task={task} 
-                                onUpdate={onTaskUpdate} 
-                                onStartSession={onStartSession} 
+                            <UnifiedTaskRow
+                                key={task.id}
+                                task={task}
+                                onUpdate={onTaskUpdate}
+                                onStartSession={onStartSession}
                                 isActive={task.id === activeTaskId}
                             />
                         ))}
@@ -242,13 +283,40 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
   );
 };
 
+const NavCard: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void }> = ({ icon, label, onClick }) => (
+  <button
+    onClick={onClick}
+    className="flex flex-col items-center justify-center gap-2 p-4 bg-surface/50 border border-border rounded-lg text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 hover:bg-surface transition-all group"
+  >
+    <div className="text-zinc-500 group-hover:text-emerald-400 transition-colors">{icon}</div>
+    <span className="text-[10px]">{label}</span>
+  </button>
+);
+
+const InsightCard: React.FC<{
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  subtext: string;
+  color?: string;
+}> = ({ icon, label, value, subtext, color = "text-zinc-200" }) => (
+  <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3">
+    <div className="flex items-center gap-2 mb-2">
+      <div className="text-zinc-600">{icon}</div>
+      <div className="text-[10px] font-mono text-zinc-600 uppercase">{label}</div>
+    </div>
+    <div className={`text-2xl font-bold ${color} mb-1`}>{value}</div>
+    <div className="text-[10px] text-zinc-600">{subtext}</div>
+  </div>
+);
+
 const QuickInput: React.FC<{ onAdd: any }> = ({ onAdd }) => {
     const [val, setVal] = useState('');
-    
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if(!val.trim()) return;
-        
+
         const isHigh = val.includes('!');
         // Auto-assign today's deadline if added from Cockpit
         onAdd(val.replace('!', '').trim(), Category.AGENCY, isHigh ? 'HIGH' : 'MED');
@@ -256,7 +324,7 @@ const QuickInput: React.FC<{ onAdd: any }> = ({ onAdd }) => {
     }
     return (
         <form onSubmit={handleSubmit} className="relative">
-            <input 
+            <input
                 className="w-full bg-background border border-zinc-800 rounded-md px-4 py-3 pl-10 text-sm text-zinc-200 focus:border-zinc-600 outline-none placeholder:text-zinc-700 font-mono transition-colors"
                 placeholder=":: Add directive for today..."
                 value={val}
@@ -267,31 +335,31 @@ const QuickInput: React.FC<{ onAdd: any }> = ({ onAdd }) => {
     )
 }
 
-const UnifiedTaskRow: React.FC<{ 
-    task: Task; 
-    onUpdate: (id: string, updates: Partial<Task>) => void; 
-    onStartSession: (id: string) => void; 
-    isActive: boolean; 
+const UnifiedTaskRow: React.FC<{
+    task: Task;
+    onUpdate: (id: string, updates: Partial<Task>) => void;
+    onStartSession: (id: string) => void;
+    isActive: boolean;
 }> = ({ task, onUpdate, onStartSession, isActive }) => {
     const isOverdue = task.deadline && task.deadline < new Date().setHours(0,0,0,0);
-    
+
     return (
         <div className={`
             group flex items-center justify-between p-3 rounded border transition-all duration-200
-            ${isActive 
-                ? 'bg-zinc-900/90 border-emerald-500/30 shadow-glow' 
+            ${isActive
+                ? 'bg-zinc-900/90 border-emerald-500/30 shadow-glow'
                 : 'bg-background/50 border-transparent hover:border-zinc-800 hover:bg-zinc-900/30'
             }
             ${!isActive && isOverdue ? 'border-red-900/30 bg-red-950/10' : ''}
         `}>
             <div className="flex items-center gap-4 min-w-0 flex-1">
-                
-                <button 
+
+                <button
                     onClick={() => isActive ? null : onStartSession(task.id)}
                     className={`
                         w-8 h-8 rounded flex items-center justify-center shrink-0 border transition-all
-                        ${isActive 
-                            ? 'bg-emerald-500 text-black border-emerald-400' 
+                        ${isActive
+                            ? 'bg-emerald-500 text-black border-emerald-400'
                             : 'bg-zinc-900 text-zinc-600 border-zinc-800 hover:text-emerald-500 hover:border-emerald-900'
                         }
                     `}
@@ -318,9 +386,9 @@ const UnifiedTaskRow: React.FC<{
                     )}
                 </div>
             </div>
-            
+
             <div className="flex items-center gap-2 pl-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                 <button 
+                 <button
                     onClick={() => onUpdate(task.id, { status: TaskStatus.DONE })}
                     className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
                 >

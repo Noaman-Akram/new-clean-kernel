@@ -21,6 +21,7 @@ import {
   AlignLeft,
   LayoutGrid,
   Trash2,
+  StickyNote,
 } from 'lucide-react';
 import { getPrayerTimesForDate, formatTime, formatTimeAMPM, PRAYER_ICONS } from '../utils/prayerTimes';
 import { generateId } from '../utils';
@@ -32,6 +33,7 @@ interface Props {
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
   onDelete: (id: string) => void;
+  onStickyNoteUpdate: (dateKey: string, content: string) => void;
 }
 
 interface WeekDay {
@@ -54,7 +56,7 @@ const getPrayerIcon = (iconName: string) => {
   return iconMap[iconName] || <Sun size={12} />;
 };
 
-const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete }) => {
+const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate }) => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [backlogCollapsed, setBacklogCollapsed] = useState(false);
@@ -233,8 +235,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               <button
                 onClick={() => setViewMode('stacked')}
                 className={`p-1.5 rounded transition-colors ${viewMode === 'stacked'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'text-zinc-600 hover:text-zinc-400'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-zinc-600 hover:text-zinc-400'
                   }`}
                 title="Stacked View"
               >
@@ -243,8 +245,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               <button
                 onClick={() => setViewMode('inline')}
                 className={`p-1.5 rounded transition-colors ${viewMode === 'inline'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'text-zinc-600 hover:text-zinc-400'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-zinc-600 hover:text-zinc-400'
                   }`}
                 title="Inline View"
               >
@@ -283,6 +285,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               editingTaskId={editingTaskId}
               onEditingChange={setEditingTaskId}
               viewMode={viewMode}
+              onStickyNoteUpdate={onStickyNoteUpdate}
+              stickyNoteContent={state.stickyNotes?.[day.dateStr] || ''}
               ref={(el) => (dayRefs.current[day.dateStr] = el)}
             />
           ))}
@@ -468,10 +472,10 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
                       key={day.dateStr}
                       onClick={() => setScheduleDay(idx)}
                       className={`py-2 rounded text-[10px] font-medium transition-colors ${scheduleDay === idx
-                          ? day.isToday
-                            ? 'bg-emerald-500 text-black'
-                            : 'bg-zinc-100 text-black'
-                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                        ? day.isToday
+                          ? 'bg-emerald-500 text-black'
+                          : 'bg-zinc-100 text-black'
+                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                         }`}
                     >
                       <div>{day.dayName.slice(0, 1)}</div>
@@ -528,6 +532,8 @@ interface DayColumnProps {
   editingTaskId: string | null;
   onEditingChange: (id: string | null) => void;
   viewMode: 'inline' | 'stacked';
+  onStickyNoteUpdate: (dateKey: string, content: string) => void;
+  stickyNoteContent: string;
 }
 
 const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
@@ -550,12 +556,15 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
   editingTaskId,
   onEditingChange,
   viewMode,
+  onStickyNoteUpdate,
+  stickyNoteContent,
 }, ref) => {
   const [hoveredTimeSlot, setHoveredTimeSlot] = useState<string | null>(null);
   const [quickAddTime, setQuickAddTime] = useState<string | null>(null);
   const [quickAddText, setQuickAddText] = useState('');
   const [showDockPicker, setShowDockPicker] = useState(false);
   const [draggingOver, setDraggingOver] = useState<number | null>(null);
+  const [isStickyOpen, setIsStickyOpen] = useState(false);
   const pendingScheduleRef = useRef<{ hour: number; title: string; notes?: string } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -746,16 +755,42 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
         }`}
     >
       <div
-        className={`h-16 border-b shrink-0 flex flex-col items-center justify-center ${isCurrentDay ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-border'
+        className={`relative h-16 border-b shrink-0 flex flex-col items-center justify-center group ${isCurrentDay ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-border'
           }`}
       >
         <div className="text-[10px] font-mono uppercase text-zinc-600 mb-1">{day.dayName}</div>
         <div className={`text-lg font-medium ${isCurrentDay ? 'text-emerald-400' : 'text-zinc-300'}`}>
           {day.dayNum}
         </div>
+
+        {/* Sticky Note Toggle */}
+        <button
+          onClick={() => setIsStickyOpen(!isStickyOpen)}
+          className={`absolute top-2 right-2 p-1.5 rounded transition-all opacity-0 group-hover:opacity-100 ${isStickyOpen || stickyNoteContent
+            ? 'text-zinc-100 opacity-100' // Calmer: White when active
+            : 'text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800'
+            }`}
+          title="Daily Sticky Note"
+        >
+          <StickyNote size={14} fill={stickyNoteContent ? "currentColor" : "none"} />
+        </button>
+
+        {/* Sticky Note Content */}
+        {isStickyOpen && (
+          <div className="absolute top-16 left-0 right-0 z-20 px-2 py-1 bg-background/95 backdrop-blur shadow-xl border-b border-zinc-800 animate-in slide-in-from-top-2">
+            <textarea
+              className="w-full h-32 bg-zinc-900/50 border border-zinc-700/50 rounded p-2 text-xs text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-600 resize-none font-sans leading-relaxed"
+              placeholder={`Notes for ${day.dayName}...`}
+              value={stickyNoteContent}
+              onChange={(e) => onStickyNoteUpdate(day.dateStr, e.target.value)}
+              autoFocus
+              onBlur={() => setIsStickyOpen(false)} // Auto-close on blur to keep UI clean
+            />
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 relative group">
         {timeSlots.map((slot) => {
           const tasksAtTime = getTasksAtTime(slot.hour);
           const prayer = getPrayerAtHour(slot.hour);

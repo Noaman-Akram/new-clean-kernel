@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 // 1. Replace these with your keys from the Firebase Console -> Project Settings
 // 2. Or create a .env file with VITE_FIREBASE_API_KEY, etc.
@@ -20,7 +20,17 @@ try {
     if (firebaseConfig.apiKey) {
         const app = initializeApp(firebaseConfig);
         db = getFirestore(app);
-        console.log("🔥 Firebase initialized");
+
+        // Enable Offline Persistence
+        enableIndexedDbPersistence(db).catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.log('Persistence failed: Multiple tabs open');
+            } else if (err.code == 'unimplemented') {
+                console.log('Persistence not supported');
+            }
+        });
+
+        console.log("🔥 Firebase initialized with Offline Support");
     } else {
         console.log("⚠️ No Firebase keys found. Running in Offline Mode.");
     }

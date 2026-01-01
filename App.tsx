@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account } from './types';
 import { loadState, saveState, subscribeToState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
@@ -142,6 +142,24 @@ const App: React.FC = () => {
     setState(prev => prev ? ({ ...prev, transactions: [tx, ...prev.transactions] }) : null);
   }
 
+  const handleAccountAdd = (account: Account) => {
+    setState(prev => prev ? ({ ...prev, accounts: [...prev.accounts, account] }) : null);
+  }
+
+  const handleAccountUpdate = (id: string, updates: Partial<Account>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      accounts: prev.accounts.map(a => a.id === id ? { ...a, ...updates } : a)
+    }) : null);
+  }
+
+  const handleAccountDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      accounts: prev.accounts.filter(a => a.id !== id)
+    }) : null);
+  }
+
   const handleNoteUpdate = (id: string, updates: Partial<Note>) => {
     setState(prev => prev ? ({
       ...prev,
@@ -273,6 +291,13 @@ const App: React.FC = () => {
     }) : null);
   };
 
+  const handleStickyNoteUpdate = (dateKey: string, content: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      stickyNotes: { ...(prev.stickyNotes || {}), [dateKey]: content }
+    }) : null);
+  };
+
   // --- RENDER ---
 
   const renderView = () => {
@@ -305,16 +330,28 @@ const App: React.FC = () => {
             activeTaskId={state.activeSession.taskId}
             onAdd={handleTaskAdd}
             onDelete={handleTaskDelete}
+            onStickyNoteUpdate={handleStickyNoteUpdate}
           />
         );
       case Page.NETWORK:
         return <NetworkView state={state} onUpdate={handleClientUpdate} onAdd={handleClientAdd} onAddTransaction={handleTransactionAdd} />;
       case Page.LEDGER:
-        return <LedgerView state={state} onAdd={handleTransactionAdd} />;
+        return <LedgerView
+          state={state}
+          onAdd={handleTransactionAdd}
+          onAddAccount={handleAccountAdd}
+          onUpdateAccount={handleAccountUpdate}
+          onDeleteAccount={handleAccountDelete}
+        />;
       case Page.MARKETING:
         return <MarketingView state={state} onAdd={handleMarketingAdd} onUpdate={handleMarketingUpdate} onDelete={handleMarketingDelete} />;
       case Page.MENTOR:
-        return <MentorView state={state} onChatUpdate={handleChatUpdate} />;
+        return <MentorView
+          state={state}
+          onChatUpdate={handleChatUpdate}
+          onAddGoal={handleHorizonGoalAdd}
+          onUpdateGoal={handleHorizonGoalUpdate}
+        />;
       case Page.SUPPLICATIONS:
         return <SupplicationsView state={state} onPrayerToggle={handlePrayerToggle} onAdhkarToggle={handleAdhkarToggle} />;
       case Page.INTEL:

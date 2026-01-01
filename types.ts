@@ -213,4 +213,5 @@ export interface AppState {
   chatHistory: ChatMessage[];
   activeSession: ActiveSession;
   horizonGoals: HorizonGoal[];
+  stickyNotes: Record<string, string>; // format: YYYY-MM-DD -> content
 }

@@ -1,32 +1,27 @@
-import React, { useState, useMemo, useEffect } from 'react';
+
+
+import React, { useState } from 'react';
 import { AppState, Client, EntityContext, EntityType, Transaction, Category, PersonalCircle } from '../types';
 import { generateId } from '../utils';
-import {
+import { 
     Plus,
-    Building2,
-    User as UserIcon,
-    Search,
-    Filter,
-    Clock3,
-    CalendarClock,
-    Check,
-    NotebookPen,
-    DollarSign,
-    Wallet,
-    ArrowUpRight,
-    ArrowDownLeft,
-    X,
-    Hash,
-    Heart,
+    MoreHorizontal,
     Users,
     Briefcase,
     Star,
-    Coffee,
-    Handshake,
-    LayoutGrid,
-    List as ListIcon,
-    Edit3,
-    Rows
+    Building2,
+    Wallet,
+    DollarSign,
+    User,
+    ArrowUpRight,
+    ArrowDownLeft,
+    Search,
+    X,
+    Tag,
+    Hash,
+    Heart,
+    Zap,
+    Coffee
 } from 'lucide-react';
 
 interface Props {
@@ -36,139 +31,30 @@ interface Props {
   onAddTransaction: (tx: Transaction) => void;
 }
 
-const statusFilters = ['ALL', 'ACTIVE', 'PAUSED', 'OFFBOARDING', 'LEAD', 'INTERVIEWING', 'SOURCED', 'HOLD', 'WARM', 'COLD'];
-const circleLabels: Record<PersonalCircle, string> = {
-    FRIEND: 'Friend',
-    FAMILY: 'Family',
-    MENTOR: 'Mentor',
-    ALLY: 'High-Value Ally',
-    NONE: 'Unsorted'
-};
-
-const followUpThreshold = {
-    NEMO: 1000 * 60 * 60 * 24 * 3, // 3 days
-    PERSONAL: 1000 * 60 * 60 * 24 * 7 // 7 days
-};
-
-const teamRoleOptions = [
-    'Frontend Engineer',
-    'Backend Engineer',
-    'Full-stack',
-    'Product Designer',
-    'Product Manager',
-    'Data Engineer',
-    'Operations',
-    'Marketing',
-    'Growth',
-    'Sales',
-    'Success',
-    'Biz Ops',
-    'QA',
-    'Copywriter',
-    'Video'
-];
-const teamStatusOptions = ['ACTIVE', 'PAUSED', 'OFFBOARDING'];
-const candidateStatusOptions = ['SOURCED', 'INTERVIEWING', 'HOLD'];
-const clientStageOptions: Array<Client['stage']> = ['LEAD', 'DISCOVERY', 'PROPOSAL', 'CLOSED', 'LOST'];
-const partnerFocusOptions = ['Development', 'Design', 'Marketing', 'Automation'];
-const personalRelationOptions: PersonalCircle[] = ['FRIEND', 'FAMILY', 'MENTOR', 'ALLY'];
-const personalCategoryLabels: Record<PersonalCircle, string> = {
-    FRIEND: 'Friend',
-    FAMILY: 'Family',
-    MENTOR: 'Mentor',
-    ALLY: 'High value'
-};
-
 const NetworkView: React.FC<Props> = ({ state, onUpdate, onAdd, onAddTransaction }) => {
-    const [context, setContext] = useState<EntityContext>('NEMO');
-    const [activeTab, setActiveTab] = useState<EntityType>('TEAM');
+    // --- STATE ---
+    const [context, setContext] = useState<EntityContext>('NEMO'); // NEMO vs PERSONAL
+    const [activeTab, setActiveTab] = useState<EntityType>('TEAM'); // Default tab for NEMO
+    
+    // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
+    
+    // Financial Action State
     const [finAction, setFinAction] = useState<{ entityId: string, type: 'PAY' | 'INVOICE', name: string } | null>(null);
     const [finAmount, setFinAmount] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('ALL');
-    const [clientView, setClientView] = useState<'LIST' | 'BOARD' | 'CARDS'>('LIST');
-    const [showQuickAdd, setShowQuickAdd] = useState(false);
 
-    const isClientContext = context === 'NEMO' && activeTab === 'CLIENT';
+    // --- LOGIC ---
 
-    const filteredList = useMemo(() => {
-        const base = state.clients.filter(c => {
-            if (c.context !== context) return false;
-            if (context === 'NEMO') {
-                return c.type === activeTab;
-            }
-            return true;
-        });
+    // Filter Logic
+    const filteredList = state.clients.filter(c => {
+        if (c.context !== context) return false;
+        // If NEMO, show tabs. If PERSONAL, show generic list (filtered by types if we add tabs later)
+        if (context === 'NEMO') return c.type === activeTab;
+        if (context === 'PERSONAL') return true; 
+        return true;
+    });
 
-        return base.filter(c => {
-            if (statusFilter !== 'ALL' && c.status !== statusFilter) return false;
-            if (!searchTerm.trim()) return true;
-            const search = searchTerm.toLowerCase();
-            return (
-                (c.name || '').toLowerCase().includes(search) ||
-                (c.role || '').toLowerCase().includes(search) ||
-                (c.company || '').toLowerCase().includes(search) ||
-                (c.tags || []).some(tag => tag.toLowerCase().includes(search))
-            );
-        });
-    }, [state.clients, context, activeTab, statusFilter, searchTerm]);
-
-    const overdueCount = useMemo(() => filteredList.filter(needsFollowUp).length, [filteredList]);
-
-    const totalContextCount = useMemo(() => state.clients.filter(c => c.context === context).length, [state.clients, context]);
-
-    useEffect(() => {
-        if (!isClientContext) {
-            setClientView('LIST');
-        }
-    }, [isClientContext]);
-
-    const clientStageGroups = useMemo(() => {
-        if (!isClientContext) return null;
-        const groups: Record<Client['stage'], Client[]> = {
-            LEAD: [],
-            DISCOVERY: [],
-            PROPOSAL: [],
-            CLOSED: [],
-            LOST: []
-        };
-        filteredList.forEach(entity => {
-            const stage = entity.stage || 'LEAD';
-            groups[stage].push(entity);
-        });
-        return groups;
-    }, [filteredList, isClientContext]);
-
-    const handleQuickAdd = (entry: Client) => {
-        onAdd(entry);
-    };
-
-    const handleLogTouch = (id: string) => {
-        onUpdate(id, { lastInteraction: Date.now() });
-    };
-
-    const handleSetNextAction = (entity: Client) => {
-        const next = window.prompt('Next step for this contact', entity.nextAction || '');
-        if (next !== null) {
-            const cleaned = next.trim();
-            if (cleaned.length > 0) {
-                onUpdate(entity.id, { nextAction: cleaned });
-            }
-        }
-    };
-
-    const handleClientStageChange = (entityId: string, stage: Client['stage']) => {
-        onUpdate(entityId, { stage });
-    };
-
-    const handleClientQuickEdit = (entity: Client) => {
-        const next = window.prompt('Update notes or needs', entity.needs || entity.nextAction || '');
-        if (next !== null) {
-            onUpdate(entity.id, { needs: next, nextAction: next });
-        }
-    };
-
+    // Helper: Get Financial Stats from Ledger
     const getFinancials = (entityId: string) => {
         const txs = state.transactions.filter(t => t.relatedEntityId === entityId);
         const total = txs.reduce((sum, t) => sum + t.amount, 0);
@@ -177,19 +63,20 @@ const NetworkView: React.FC<Props> = ({ state, onUpdate, onAdd, onAddTransaction
 
     const handleFinancialSubmit = () => {
         if(!finAction || !finAmount) return;
+        
         const amount = parseFloat(finAmount);
         if(!amount) return;
 
-        const isPay = finAction.type === 'PAY';
+        const isPay = finAction.type === 'PAY'; // Expense
         const category = context === 'NEMO' ? Category.AGENCY : Category.FREELANCE;
 
         onAddTransaction({
             id: generateId(),
-            amount,
+            amount: amount, 
             date: Date.now(),
             description: `${isPay ? 'Payment to' : 'Invoice from'} ${finAction.name}`,
             type: isPay ? 'EXPENSE' : 'INCOME',
-            category,
+            category: category,
             relatedEntityId: finAction.entityId
         });
 
@@ -199,153 +86,88 @@ const NetworkView: React.FC<Props> = ({ state, onUpdate, onAdd, onAddTransaction
 
     return (
         <div className="h-full flex flex-col animate-fade-in bg-background relative">
-            <div className="h-16 border-b border-border bg-surface flex items-center justify-between px-6 shrink-0 z-20">
-                <div className="flex items-center gap-6">
-                    <button 
-                        onClick={() => { setContext('NEMO'); setActiveTab('TEAM'); setStatusFilter('ALL'); }}
-                        className={`flex items-center gap-2 text-sm font-bold tracking-wide transition-colors ${context === 'NEMO' ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+             
+             {/* --- TOP HEADER: CONTEXT SWITCHER --- */}
+             <div className="h-20 border-b border-border bg-surface/50 backdrop-blur-sm flex items-center justify-between px-8 shrink-0 z-20">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => { setContext('NEMO'); setActiveTab('TEAM'); }}
+                        className={`
+                            flex items-center gap-3 px-6 py-3 rounded-lg text-sm font-bold tracking-wide transition-all border
+                            ${context === 'NEMO'
+                                ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/30 shadow-sm'
+                                : 'bg-transparent text-zinc-600 border-transparent hover:text-zinc-400 hover:bg-zinc-900/30'}
+                        `}
                     >
-                        <Building2 size={16} /> NEMO (Agency)
+                        <Building2 size={18} />
+                        <div className="flex flex-col items-start">
+                            <span>AGENCY</span>
+                            <span className="text-[9px] text-zinc-600 font-normal">CRM & Business</span>
+                        </div>
                     </button>
-                    <div className="h-4 w-px bg-zinc-800"></div>
-                    <button 
-                        onClick={() => { setContext('PERSONAL'); setActiveTab('NETWORK'); setStatusFilter('ALL'); }}
-                        className={`flex items-center gap-2 text-sm font-bold tracking-wide transition-colors ${context === 'PERSONAL' ? 'text-white' : 'text-zinc-600 hover:text-zinc-400'}`}
+                    <button
+                        onClick={() => { setContext('PERSONAL'); setActiveTab('NETWORK'); }}
+                        className={`
+                            flex items-center gap-3 px-6 py-3 rounded-lg text-sm font-bold tracking-wide transition-all border
+                            ${context === 'PERSONAL'
+                                ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/30 shadow-sm'
+                                : 'bg-transparent text-zinc-600 border-transparent hover:text-zinc-400 hover:bg-zinc-900/30'}
+                        `}
                     >
-                        <UserIcon size={16} /> Personal Circle
+                        <User size={18} />
+                        <div className="flex flex-col items-start">
+                            <span>PERSONAL</span>
+                            <span className="text-[9px] text-zinc-600 font-normal">Circle & Connections</span>
+                        </div>
                     </button>
                 </div>
 
-                <button 
+                <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-zinc-100 text-black rounded-md text-xs font-bold hover:bg-zinc-200 transition-colors"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-lg text-xs font-bold hover:bg-zinc-100 transition-colors shadow-sm"
                 >
-                    <Plus size={14} />
-                    <span>Detailed Entry</span>
+                    <Plus size={16} />
+                    <span>ADD CONTACT</span>
                 </button>
             </div>
 
+            {/* --- SUB TABS (AGENCY ONLY) --- */}
             {context === 'NEMO' && (
                 <div className="px-6 border-b border-border bg-background/50 backdrop-blur-sm flex gap-6">
-                    <TabItem active={activeTab === 'TEAM'} onClick={() => setActiveTab('TEAM')} label="Team & Ops" icon={<Users size={14}/>} />
-                    <TabItem active={activeTab === 'CANDIDATE'} onClick={() => setActiveTab('CANDIDATE')} label="Talent Bench" icon={<Star size={14}/>} />
-                    <TabItem active={activeTab === 'CLIENT'} onClick={() => setActiveTab('CLIENT')} label="Clients & Deals" icon={<Briefcase size={14}/>} />
-                    <TabItem active={activeTab === 'PARTNER'} onClick={() => setActiveTab('PARTNER')} label="Partners" icon={<Handshake size={14}/>} />
+                    <TabItem active={activeTab === 'TEAM'} onClick={() => setActiveTab('TEAM')} label="TEAM & HR" icon={<Users size={14}/>} />
+                    <TabItem active={activeTab === 'CANDIDATE'} onClick={() => setActiveTab('CANDIDATE')} label="RECRUITMENT" icon={<Star size={14}/>} />
+                    <TabItem active={activeTab === 'CLIENT'} onClick={() => setActiveTab('CLIENT')} label="CLIENTS & CRM" icon={<Briefcase size={14}/>} />
                 </div>
             )}
 
-            <div className="border-b border-border bg-background/70 px-6 py-3 space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                    <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">
-                        Quick Log
-                    </div>
-                    <button
-                        onClick={() => setShowQuickAdd(prev => !prev)}
-                        className="text-xs font-semibold px-3 py-1.5 border border-zinc-700 rounded-md text-zinc-200 hover:text-white hover:border-zinc-500 transition-colors"
-                    >
-                        {showQuickAdd ? 'Hide form' : 'Capture entry'}
-                    </button>
-                </div>
-                {showQuickAdd && (
-                    <div className="max-h-72 overflow-y-auto pr-1">
-                        <QuickAddPanel 
-                            context={context} 
-                            activeTab={activeTab} 
-                            onQuickAdd={handleQuickAdd}
-                        />
-                    </div>
-                )}
-            </div>
-
-            <div className="border-b border-border bg-background/70 px-6 py-3 flex flex-wrap gap-4 items-center">
-                <div className="flex items-center gap-2 flex-1 min-w-[220px]">
-                    <div className="relative w-full">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
-                        <input 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Search name, tag, company..."
-                            className="w-full bg-black border border-zinc-800 rounded-md py-2 pl-10 pr-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-500 outline-none"
-                        />
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-zinc-500">
-                    <Filter size={12} />
-                    <select 
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="bg-black border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-300 focus:border-zinc-500 outline-none"
-                    >
-                        {statusFilters.map(option => (
-                            <option key={option} value={option}>{option}</option>
-                        ))}
-                    </select>
-                </div>
-                <div className="flex items-center gap-4 text-[11px] font-mono text-zinc-500">
-                    <span>{filteredList.length} VISIBLE</span>
-                    <span className={overdueCount > 0 ? 'text-amber-400' : ''}>{overdueCount} NEED TOUCH</span>
-                    <span className="text-zinc-600">{totalContextCount} TOTAL</span>
-                </div>
-                {isClientContext && (
-                    <div className="flex items-center gap-2 text-xs font-mono flex-wrap">
-                        <button
-                            type="button"
-                            onClick={() => setClientView('LIST')}
-                            className={`px-2.5 py-1.5 border rounded flex items-center gap-1 ${clientView === 'LIST' ? 'border-white text-white' : 'border-zinc-800 text-zinc-500'}`}
-                        >
-                            <ListIcon size={12} /> Table
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setClientView('BOARD')}
-                            className={`px-2.5 py-1.5 border rounded flex items-center gap-1 ${clientView === 'BOARD' ? 'border-white text-white' : 'border-zinc-800 text-zinc-500'}`}
-                        >
-                            <LayoutGrid size={12} /> Kanban
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setClientView('CARDS')}
-                            className={`px-2.5 py-1.5 border rounded flex items-center gap-1 ${clientView === 'CARDS' ? 'border-white text-white' : 'border-zinc-800 text-zinc-500'}`}
-                        >
-                            <Rows size={12} /> Cards
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-                {isClientContext && clientView === 'BOARD' && clientStageGroups ? (
-                    <ClientBoard 
-                        groups={clientStageGroups}
-                        onStageChange={handleClientStageChange}
-                        onEdit={handleClientQuickEdit}
-                    />
-                ) : isClientContext && clientView === 'CARDS' ? (
-                    <ClientCardGrid 
-                        entities={filteredList}
-                        onStageChange={handleClientStageChange}
-                        onUpdate={onUpdate}
-                    />
-                ) : filteredList.length > 0 ? (
-                    <div className="space-y-2">
-                        {filteredList.map(entity => (
-                            <EntityRow 
-                                key={entity.id}
-                                entity={entity}
-                                stats={entity.context === 'PERSONAL' ? { total: 0, count: 0 } : getFinancials(entity.id)}
-                                onLogTouch={() => handleLogTouch(entity.id)}
-                                onNextAction={() => handleSetNextAction(entity)}
-                                onInvoice={entity.context === 'NEMO' && entity.type === 'CLIENT' ? () => setFinAction({ entityId: entity.id, type: 'INVOICE', name: entity.name }) : undefined}
-                                onPay={entity.context === 'NEMO' && entity.type !== 'CLIENT' ? () => setFinAction({ entityId: entity.id, type: 'PAY', name: entity.name }) : undefined}
-                                needsAttention={needsFollowUp(entity)}
+            {/* --- CONTENT AREA --- */}
+            <div className="flex-1 overflow-y-auto p-6 relative">
+                
+                {/* GRID LIST */}
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {filteredList.map(entity => {
+                        const stats = getFinancials(entity.id);
+                        return (
+                            <EntityCard 
+                                key={entity.id} 
+                                entity={entity} 
+                                stats={stats} 
+                                onPay={() => setFinAction({ entityId: entity.id, type: 'PAY', name: entity.name })}
+                                onInvoice={() => setFinAction({ entityId: entity.id, type: 'INVOICE', name: entity.name })}
+                                onUpdate={onUpdate}
                             />
-                        ))}
-                    </div>
-                ) : (
-                    <EmptyState label={context === 'PERSONAL' ? 'Personal circle empty' : 'No records in this view'} />
-                )}
+                        );
+                    })}
+                    {filteredList.length === 0 && (
+                        <div className="col-span-full py-12 flex flex-col items-center justify-center text-zinc-600 opacity-50">
+                            <Search size={32} strokeWidth={1} className="mb-2"/>
+                            <div className="text-sm font-mono">NO RECORDS FOUND</div>
+                        </div>
+                    )}
+                </div>
             </div>
 
+            {/* --- ADD ENTITY MODAL --- */}
             {isModalOpen && (
                 <AddEntityModal 
                     initialContext={context}
@@ -357,6 +179,7 @@ const NetworkView: React.FC<Props> = ({ state, onUpdate, onAdd, onAddTransaction
                 />
             )}
 
+            {/* --- FINANCIAL ACTION MODAL --- */}
             {finAction && (
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in p-4">
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 w-full max-w-sm shadow-2xl">
@@ -398,6 +221,8 @@ const NetworkView: React.FC<Props> = ({ state, onUpdate, onAdd, onAddTransaction
     );
 };
 
+// --- SUB-COMPONENTS ---
+
 const TabItem = ({ active, onClick, label, icon }: any) => (
     <button 
         onClick={onClick}
@@ -413,669 +238,52 @@ const TabItem = ({ active, onClick, label, icon }: any) => (
     </button>
 );
 
-type QuickFormState = {
-    name: string;
-    role: string;
-    customRole: string;
-    status: string;
-    stage: Client['stage'];
-    rate: string;
-    company: string;
-    needs: string;
-    note: string;
-    focusArea: string;
-    contactHandle: string;
-    profileUrl: string;
-    followUp: string;
-    dealValue: string;
-    personalTags: PersonalCircle[];
-};
-
-const createInitialQuickState = (context: EntityContext, tab: EntityType): QuickFormState => ({
-    name: '',
-    role: '',
-    customRole: '',
-    status: context === 'PERSONAL'
-        ? 'WARM'
-        : tab === 'CANDIDATE'
-            ? 'SOURCED'
-            : tab === 'CLIENT'
-                ? 'LEAD'
-                : 'ACTIVE',
-    stage: 'LEAD',
-    rate: '',
-    company: '',
-    needs: '',
-    note: '',
-    focusArea: '',
-    contactHandle: '',
-    profileUrl: '',
-    followUp: '',
-    dealValue: '',
-    personalTags: []
-});
-
-const QuickAddPanel: React.FC<{ context: EntityContext; activeTab: EntityType; onQuickAdd: (client: Client) => void; }> = ({ context, activeTab, onQuickAdd }) => {
-    const initialState = useMemo(() => createInitialQuickState(context, activeTab), [context, activeTab]);
-    const [form, setForm] = useState<QuickFormState>(initialState);
-
-    useEffect(() => {
-        setForm(initialState);
-    }, [initialState]);
-
-    const update = (key: keyof QuickFormState, value: string) => {
-        setForm(prev => ({ ...prev, [key]: value }));
-    };
-
-    const togglePersonalTag = (tag: PersonalCircle) => {
-        setForm(prev => {
-            const exists = prev.personalTags.includes(tag);
-            const tags = exists ? prev.personalTags.filter(t => t !== tag) : [...prev.personalTags, tag];
-            return { ...prev, personalTags: tags };
-        });
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!form.name.trim()) return;
-
-        if (context === 'PERSONAL') {
-            const primary = form.personalTags[0] || 'NONE';
-            onQuickAdd({
-                id: generateId(),
-                name: form.name.trim(),
-                role: primary === 'NONE' ? 'Contact' : circleLabels[primary],
-                company: '',
-                context: 'PERSONAL',
-                type: 'NETWORK',
-                status: form.status,
-                tags: form.personalTags,
-                circle: primary,
-                rate: 0,
-                rateType: 'NONE',
-                currency: 'USD',
-                lastInteraction: Date.now(),
-                nextAction: form.note || 'Stay in touch',
-                contactHandle: form.contactHandle || undefined
-            });
-            setForm(initialState);
-            return;
-        }
-
-        const companyName = (activeTab === 'CLIENT' || activeTab === 'PARTNER')
-            ? form.company.trim()
-            : 'Nemo';
-        const rateValue = activeTab === 'CLIENT'
-            ? parseFloat(form.dealValue) || 0
-            : parseFloat(form.rate) || 0;
-
-        const base: Client = {
-            id: generateId(),
-            name: form.name.trim(),
-            role: '',
-            company: companyName,
-            context: 'NEMO',
-            type: activeTab,
-            status: form.status,
-            tags: [],
-            rate: rateValue,
-            rateType: activeTab === 'CLIENT' ? 'FIXED' : activeTab === 'TEAM' ? 'MONTHLY' : 'HOURLY',
-            currency: 'USD',
-            lastInteraction: Date.now(),
-            nextAction: form.followUp || 'Follow up',
-            profileUrl: form.profileUrl || undefined,
-            contactHandle: form.contactHandle || undefined,
-            needs: activeTab === 'CLIENT' ? form.needs || undefined : undefined,
-            stage: activeTab === 'CLIENT' ? form.stage : undefined,
-            focusArea: activeTab === 'PARTNER' ? form.focusArea || undefined : undefined
-        };
-
-        if (activeTab === 'TEAM') {
-            base.role = form.role === 'custom' ? form.customRole : form.role || 'Contributor';
-        } else if (activeTab === 'CANDIDATE') {
-            base.role = form.role || 'Candidate';
-        } else if (activeTab === 'CLIENT') {
-            base.role = form.role || 'Client';
-        } else if (activeTab === 'PARTNER') {
-            base.role = 'Partner';
-            base.rate = 0;
-            base.rateType = 'NONE';
-        }
-
-        onQuickAdd(base);
-        setForm(initialState);
-    };
-
-    const renderTeamFields = () => (
-        <>
-            <InputField label="Name" value={form.name} onChange={v => update('name', v)} placeholder="Team member name" />
-            <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-mono text-zinc-500 uppercase">Role</label>
-                <select
-                    value={form.role}
-                    onChange={e => update('role', e.target.value)}
-                    className="bg-black border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
-                >
-                    <option value="">Select role</option>
-                    {teamRoleOptions.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                    ))}
-                    <option value="custom">Other</option>
-                </select>
-                {form.role === 'custom' && (
-                    <input
-                        value={form.customRole}
-                        onChange={e => update('customRole', e.target.value)}
-                        className="w-full bg-black border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
-                        placeholder="Title"
-                    />
-                )}
-            </div>
-            <SelectField label="Status" value={form.status} options={teamStatusOptions} onChange={v => update('status', v)} />
-            <InputField label="Monthly rate" value={form.rate} onChange={v => update('rate', v)} placeholder="USD" type="number" />
-            <InputField label="Contact" value={form.contactHandle} onChange={v => update('contactHandle', v)} placeholder="@handle or email" />
-        </>
-    );
-
-    const renderCandidateFields = () => (
-        <>
-            <InputField label="Name" value={form.name} onChange={v => update('name', v)} placeholder="Candidate name" />
-            <InputField label="Specialty" value={form.role} onChange={v => update('role', v)} placeholder="React Native · Shopify · etc." />
-            <SelectField label="Status" value={form.status} options={candidateStatusOptions} onChange={v => update('status', v)} />
-            <InputField label="Hourly rate" value={form.rate} onChange={v => update('rate', v)} placeholder="USD" type="number" />
-            <InputField label="Profile URL" value={form.profileUrl} onChange={v => update('profileUrl', v)} placeholder="Portfolio link" />
-            <InputField label="Contact" value={form.contactHandle} onChange={v => update('contactHandle', v)} placeholder="@telegram / email" />
-        </>
-    );
-
-    const renderClientFields = () => (
-        <>
-            <InputField label="Company / Project" value={form.company} onChange={v => update('company', v)} placeholder="Client org" />
-            <InputField label="Contact name" value={form.name} onChange={v => update('name', v)} placeholder="Primary contact" />
-            <SelectField label="Stage" value={form.stage} options={clientStageOptions} onChange={v => update('stage', v as Client['stage'])} />
-            <InputField label="Deal value" value={form.dealValue} onChange={v => update('dealValue', v)} placeholder="USD" type="number" />
-            <InputField label="Needs / Scope" value={form.needs} onChange={v => update('needs', v)} placeholder="What they asked for" />
-            <InputField label="Next follow-up" value={form.followUp} onChange={v => update('followUp', v)} placeholder="E.g. Demo Tuesday" />
-        </>
-    );
-
-    const renderPartnerFields = () => (
-        <>
-            <InputField label="Partner name" value={form.company} onChange={v => update('company', v)} placeholder="Studio / vendor" />
-            <InputField label="Contact" value={form.name} onChange={v => update('name', v)} placeholder="Point of contact" />
-            <SelectField label="Focus" value={form.focusArea} options={partnerFocusOptions} onChange={v => update('focusArea', v)} />
-            <InputField label="Handle / Email" value={form.contactHandle} onChange={v => update('contactHandle', v)} placeholder="@whatsapp / mail" />
-        </>
-    );
-
-    const renderPersonalFields = () => (
-        <>
-            <InputField label="Name" value={form.name} onChange={v => update('name', v)} placeholder="Friend / mentor" />
-            <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-mono text-zinc-500 uppercase">Categories</label>
-                <div className="flex flex-wrap gap-2">
-                    {personalRelationOptions.map(tag => (
-                        <button
-                            key={tag}
-                            type="button"
-                            onClick={() => togglePersonalTag(tag)}
-                            className={`px-2 py-1 border rounded text-[11px] ${form.personalTags.includes(tag) ? 'border-white text-white' : 'border-zinc-800 text-zinc-500'}`}
-                        >
-                            {personalCategoryLabels[tag]}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            <InputField label="Reminder / Note" value={form.note} onChange={v => update('note', v)} placeholder="Check-in monthly" />
-            <InputField label="Contact" value={form.contactHandle} onChange={v => update('contactHandle', v)} placeholder="@ig / phone" />
-        </>
-    );
-
-    const renderFields = () => {
-        if (context === 'PERSONAL') return renderPersonalFields();
-        switch (activeTab) {
-            case 'TEAM':
-                return renderTeamFields();
-            case 'CANDIDATE':
-                return renderCandidateFields();
-            case 'CLIENT':
-                return renderClientFields();
-            case 'PARTNER':
-                return renderPartnerFields();
-            default:
-                return null;
-        }
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="grid md:grid-cols-5 gap-3 items-end">
-            <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-                {renderFields()}
-            </div>
-            <button type="submit" className="w-full md:w-auto px-4 py-3 bg-white text-black text-xs font-semibold rounded hover:bg-zinc-100">
-                Log
-            </button>
-        </form>
-    );
-};
-
-const InputField = ({ label, value, onChange, placeholder, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) => (
-    <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-mono text-zinc-500 uppercase">{label}</label>
-        <input
-            type={type}
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            placeholder={placeholder}
-            className="w-full bg-black border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
-        />
-    </div>
-);
-
-const SelectField = ({ label, value, options, onChange }: { label: string; value: string; options: Array<string | undefined>; onChange: (v: string) => void }) => (
-    <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-mono text-zinc-500 uppercase">{label}</label>
-        <select
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            className="bg-black border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
-        >
-            <option value="">Select</option>
-            {options.filter(Boolean).map(option => (
-                <option key={option as string} value={option as string}>{option}</option>
-            ))}
-        </select>
-    </div>
-);
-
-const EntityRow: React.FC<{
-    entity: Client;
-    stats: { total: number; count: number };
-    onLogTouch: () => void;
-    onNextAction: () => void;
-    onInvoice?: () => void;
-    onPay?: () => void;
-    needsAttention: boolean;
-}> = ({ entity, stats, onLogTouch, onNextAction, onInvoice, onPay, needsAttention }) => {
-    const daysSince = formatDaysSince(entity.lastInteraction);
-    const descriptor = (() => {
-        if (entity.context === 'PERSONAL') {
-            if (entity.tags && entity.tags.length > 0) {
-                return entity.tags
-                    .map(tag => personalCategoryLabels[tag as PersonalCircle] || tag)
-                    .join(' · ');
-            }
-            return 'Personal Contact';
-        }
-        if (entity.type === 'CLIENT') {
-            return entity.company || 'Prospect';
-        }
-        if (entity.type === 'PARTNER') {
-            return entity.company || 'Partner';
-        }
-        return entity.role || 'Contributor';
-    })();
-    const detailLine = (() => {
-        if (entity.context === 'PERSONAL') {
-            return entity.contactHandle || entity.nextAction;
-        }
-        if (entity.type === 'CLIENT') {
-            return entity.needs || entity.contactHandle;
-        }
-        if (entity.type === 'PARTNER') {
-            return entity.focusArea || entity.contactHandle;
-        }
-        return entity.contactHandle || entity.focusArea;
-    })();
-
-    return (
-        <div className="bg-surface border border-border rounded-lg px-4 py-3 shadow-sm shadow-black/20">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-[180px]">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-white">{entity.name}</span>
-                        {entity.type === 'CLIENT' && <StageBadge stage={entity.stage} />}
-                        <StatusBadge status={entity.status} />
-                    </div>
-                    <div className="text-[11px] text-zinc-500">{descriptor}</div>
-                    {detailLine && <div className="text-[11px] text-zinc-600">{detailLine}</div>}
-                </div>
-                <div className="flex flex-col items-end text-right text-[11px] text-zinc-500">
-                    <span className={needsAttention ? 'text-amber-400 font-semibold' : 'text-zinc-400'}>{daysSince}</span>
-                    <span className="uppercase font-mono text-[10px]">Last touch</span>
-                </div>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-3 text-xs text-zinc-400">
-                <div className="flex flex-col gap-1 min-w-[200px]">
-                    {entity.nextAction && (
-                        <div className="flex items-center gap-2">
-                            <CalendarClock size={12} />
-                            <span className="text-zinc-300">{entity.nextAction}</span>
-                        </div>
-                    )}
-                    {entity.tags && entity.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                            {entity.tags.slice(0, entity.context === 'PERSONAL' ? 6 : 4).map(tag => (
-                                <span 
-                                    key={tag} 
-                                    className={`px-1.5 py-0.5 rounded text-[9px] ${entity.context === 'PERSONAL' ? 'bg-emerald-950/20 border border-emerald-900/30 text-emerald-300' : 'bg-black border border-zinc-800 text-zinc-400'}`}
-                                >
-                                    {entity.context === 'PERSONAL' 
-                                        ? personalCategoryLabels[tag as PersonalCircle] || tag 
-                                        : `#${tag}`}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {entity.context === 'NEMO' && (
-                    <div className="flex items-center gap-6 text-[11px] font-mono">
-                        <div>
-                            <div className="text-zinc-500 uppercase">Value</div>
-                            <div className="text-zinc-200">${entity.rate || 0}{entity.rateType !== 'NONE' ? `/${entity.rateType === 'HOURLY' ? 'hr' : entity.rateType === 'MONTHLY' ? 'mo' : ''}` : ''}</div>
-                        </div>
-                        <div>
-                            <div className="text-zinc-500 uppercase">{entity.type === 'CLIENT' ? 'Billed' : 'Paid'}</div>
-                            <div className="text-emerald-400">${stats.total.toLocaleString()}</div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 mt-3">
-                <button 
-                    onClick={onLogTouch}
-                    className="px-3 py-1.5 text-[10px] font-mono rounded border border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-white flex items-center gap-1"
-                >
-                    <Check size={12} /> Check-in
-                </button>
-                <button 
-                    onClick={onNextAction}
-                    className="px-3 py-1.5 text-[10px] font-mono rounded border border-zinc-800 text-zinc-400 hover:border-zinc-600 hover:text-white flex items-center gap-1"
-                >
-                    <NotebookPen size={12} /> Next Step
-                </button>
-                {entity.context === 'NEMO' && entity.type === 'CLIENT' && onInvoice && (
-                    <button 
-                        onClick={onInvoice}
-                        className="px-3 py-1.5 text-[10px] font-mono rounded border border-emerald-700 text-emerald-400 hover:bg-emerald-900/20 flex items-center gap-1"
-                    >
-                        <DollarSign size={12} /> Invoice
-                    </button>
-                )}
-                {entity.context === 'NEMO' && (entity.type === 'TEAM' || entity.type === 'CANDIDATE') && onPay && (
-                    <button 
-                        onClick={onPay}
-                        className="px-3 py-1.5 text-[10px] font-mono rounded border border-zinc-700 text-zinc-300 hover:bg-zinc-900/40 flex items-center gap-1"
-                    >
-                        <Wallet size={12} /> Pay
-                    </button>
-                )}
-                {entity.context === 'NEMO' && entity.type === 'PARTNER' && (
-                    <button 
-                        onClick={onNextAction}
-                        className="px-3 py-1.5 text-[10px] font-mono rounded border border-zinc-700 text-zinc-300 hover:bg-zinc-900/40 flex items-center gap-1"
-                    >
-                        <NotebookPen size={12} /> Sync
-                    </button>
-                )}
-                {entity.context === 'PERSONAL' && (
-                    <button 
-                        onClick={onLogTouch}
-                        className="px-3 py-1.5 text-[10px] font-mono rounded border border-zinc-800 text-zinc-300 hover:bg-zinc-900/40 flex items-center gap-1"
-                    >
-                        <Coffee size={12} /> Ping
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-};
-
-const ClientBoard = ({ groups, onStageChange, onEdit }: { groups: Record<Client['stage'], Client[]>; onStageChange: (id: string, stage: Client['stage']) => void; onEdit: (entity: Client) => void; }) => (
-    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
-        {clientStageOptions.map(stage => {
-            const items = groups[stage] || [];
-            return (
-                <div key={stage} className="bg-surface border border-border rounded-lg p-3 flex flex-col gap-3">
-                    <div className="flex items-center justify-between text-[11px] font-mono uppercase tracking-widest text-zinc-500">
-                        <span>{stage}</span>
-                        <span>{items.length}</span>
-                    </div>
-                    <div className="space-y-2 flex-1">
-                        {items.length === 0 && (
-                            <div className="text-[11px] text-zinc-600 border border-dashed border-zinc-800 rounded p-3 text-center">Empty</div>
-                        )}
-                        {items.map(entity => (
-                            <div key={entity.id} className="bg-black/30 border border-zinc-800 rounded p-3 space-y-2">
-                                <div className="flex items-center justify-between text-sm text-white gap-2">
-                                    <span className="font-medium truncate">{entity.company || entity.name}</span>
-                                    <button onClick={() => onEdit(entity)} className="text-zinc-500 hover:text-white">
-                                        <Edit3 size={14} />
-                                    </button>
-                                </div>
-                                <div className="text-[11px] text-zinc-500 truncate">{entity.name}</div>
-                                <div className="text-[11px] text-emerald-400 font-mono">${(entity.rate || 0).toLocaleString()}</div>
-                                <div className="text-xs text-zinc-400">{entity.nextAction || 'No next step'}</div>
-                                <select
-                                    value={entity.stage || 'LEAD'}
-                                    onChange={e => onStageChange(entity.id, e.target.value as Client['stage'])}
-                                    className="w-full bg-black border border-zinc-800 rounded px-2 py-1 text-[11px] text-zinc-300 focus:border-zinc-500 outline-none"
-                                >
-                                    {clientStageOptions.map(option => (
-                                        <option key={option} value={option}>{option}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        })}
-    </div>
-);
-
-const ClientCardGrid = ({ entities, onStageChange, onUpdate }: { entities: Client[]; onStageChange: (id: string, stage: Client['stage']) => void; onUpdate: (id: string, updates: Partial<Client>) => void; }) => {
-    if (entities.length === 0) {
-        return <EmptyState label="No deals captured" />;
-    }
-
-    const statusOptions = statusFilters.filter(option => option !== 'ALL');
-
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {entities.map(entity => (
-                <div key={entity.id} className="bg-surface border border-border rounded-xl p-4 flex flex-col gap-3">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                            <div className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Deal</div>
-                            <input 
-                                value={entity.company || ''}
-                                onChange={(e) => onUpdate(entity.id, { company: e.target.value })}
-                                placeholder="Company / Project"
-                                className="w-full bg-transparent border border-transparent focus:border-zinc-700 rounded px-1 py-0.5 text-sm font-semibold text-white"
-                            />
-                            <input 
-                                value={entity.name}
-                                onChange={(e) => onUpdate(entity.id, { name: e.target.value })}
-                                placeholder="Primary contact"
-                                className="w-full bg-transparent border border-transparent focus:border-zinc-700 rounded px-1 py-0.5 text-xs text-zinc-400"
-                            />
-                        </div>
-                        <select
-                            value={entity.stage || 'LEAD'}
-                            onChange={(e) => onStageChange(entity.id, e.target.value as Client['stage'])}
-                            className="text-[11px] font-mono bg-black border border-zinc-800 rounded px-2 py-1 text-zinc-300 focus:border-emerald-500 outline-none"
-                        >
-                            {clientStageOptions.map(option => (
-                                <option key={option} value={option}>{option}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 text-[11px] text-zinc-500">
-                        <div>
-                            <div className="uppercase font-mono text-[10px] mb-1">Status</div>
-                            <select
-                                value={entity.status}
-                                onChange={(e) => onUpdate(entity.id, { status: e.target.value })}
-                                className="w-full bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 focus:border-zinc-500 outline-none"
-                            >
-                                {statusOptions.map(option => (
-                                    <option key={option} value={option}>{option}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <div className="uppercase font-mono text-[10px] mb-1">Value</div>
-                            <input 
-                                type="number"
-                                value={entity.rate?.toString() || ''}
-                                onChange={(e) => onUpdate(entity.id, { rate: parseFloat(e.target.value) || 0 })}
-                                placeholder="USD"
-                                className="w-full bg-black border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 focus:border-zinc-500 outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-mono text-zinc-500 uppercase">Next step</label>
-                        <textarea 
-                            value={entity.nextAction || ''}
-                            onChange={(e) => onUpdate(entity.id, { nextAction: e.target.value })}
-                            placeholder="e.g. Send proposal, book demo"
-                            className="w-full bg-black/40 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-200 focus:border-emerald-500 outline-none resize-none"
-                            rows={2}
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-mono text-zinc-500 uppercase">Notes / Scope</label>
-                        <textarea 
-                            value={entity.needs || ''}
-                            onChange={(e) => onUpdate(entity.id, { needs: e.target.value })}
-                            placeholder="Scope, blockers, context"
-                            className="w-full bg-black/40 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-200 focus:border-zinc-600 outline-none resize-none"
-                            rows={2}
-                        />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-mono text-zinc-500 uppercase">Contact</label>
-                        <input 
-                            value={entity.contactHandle || ''}
-                            onChange={(e) => onUpdate(entity.id, { contactHandle: e.target.value })}
-                            placeholder="@handle / email"
-                            className="w-full bg-black border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-200 focus:border-zinc-500 outline-none"
-                        />
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-const StageBadge = ({ stage }: { stage?: Client['stage'] }) => {
-    if (!stage) return null;
-    const palette: Record<Client['stage'], string> = {
-        'LEAD': 'text-blue-400 border-blue-900/40 bg-blue-950/20',
-        'DISCOVERY': 'text-amber-400 border-amber-900/40 bg-amber-950/20',
-        'PROPOSAL': 'text-purple-400 border-purple-900/40 bg-purple-950/20',
-        'CLOSED': 'text-emerald-400 border-emerald-900/40 bg-emerald-950/20',
-        'LOST': 'text-zinc-400 border-zinc-800 bg-zinc-900/60'
-    };
-    return (
-        <span className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase border ${palette[stage]}`}>
-            {stage}
-        </span>
-    );
-};
-
-const StatusBadge = ({ status }: { status?: string }) => {
-    if (!status) return null;
-    const palette: Record<string, string> = {
-        'ACTIVE': 'text-emerald-400 border-emerald-900/40 bg-emerald-950/20',
-        'PAUSED': 'text-zinc-400 border-zinc-800 bg-zinc-900/60',
-        'OFFBOARDING': 'text-amber-300 border-amber-900/30 bg-amber-950/10',
-        'LEAD': 'text-blue-400 border-blue-900/40 bg-blue-950/20',
-        'INTERVIEWING': 'text-amber-400 border-amber-900/40 bg-amber-950/20',
-        'SOURCED': 'text-sky-400 border-sky-900/40 bg-sky-950/20',
-        'HOLD': 'text-zinc-400 border-zinc-800 bg-zinc-900/60',
-        'WARM': 'text-orange-400 border-orange-900/40 bg-orange-950/20',
-        'COLD': 'text-zinc-400 border-zinc-800 bg-zinc-900/60'
-    };
-
-    return (
-        <span className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase border ${palette[status] || 'text-zinc-500 border-zinc-800'}`}>
-            {status}
-        </span>
-    );
-};
-
-const EmptyState = ({ label }: { label: string }) => (
-    <div className="flex flex-col items-center justify-center py-16 text-zinc-600 gap-2">
-        <Clock3 size={28} className="opacity-40" />
-        <span className="text-xs font-mono uppercase tracking-widest">{label}</span>
-    </div>
-);
-
-const needsFollowUp = (entity: Client) => {
-    const windowMs = entity.context === 'NEMO' ? followUpThreshold.NEMO : followUpThreshold.PERSONAL;
-    return Date.now() - entity.lastInteraction > windowMs;
-};
-
-const formatDaysSince = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days <= 0) return 'Today';
-    if (days === 1) return '1 day ago';
-    return `${days} days ago`;
-};
+// --- SMART ENTRY MODAL ---
 
 const AddEntityModal: React.FC<{ 
     initialContext: EntityContext, 
     onClose: () => void, 
     onSave: (c: Client) => void 
 }> = ({ initialContext, onClose, onSave }) => {
+    
     const [context, setContext] = useState<EntityContext>(initialContext);
     const [type, setType] = useState<EntityType>('TEAM');
-    const [circle, setCircle] = useState<PersonalCircle>('FRIEND');
+    const [circle, setCircle] = useState<PersonalCircle>('NONE');
+    
     const [name, setName] = useState('');
     const [role, setRole] = useState('');
     const [company, setCompany] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
+    
     const [status, setStatus] = useState('ACTIVE');
     const [rate, setRate] = useState('');
     const [rateType, setRateType] = useState<'HOURLY'|'MONTHLY'|'FIXED'>('HOURLY');
 
+    // Suggestions based on Context
     const tagSuggestions = context === 'NEMO' 
         ? ['Frontend', 'Backend', 'Design', 'Marketing', 'Lead', 'Contractor']
         : ['Family', 'Friend', 'Mentor', 'Peer', 'Uni', 'Gym'];
 
     const handleAddTag = (t: string) => {
-        if(!t.trim()) return;
         if(!tags.includes(t)) setTags([...tags, t]);
         setTagInput('');
-    };
+    }
 
     const handleSave = () => {
         if(!name) return;
+        
         const finalType = context === 'PERSONAL' ? 'NETWORK' : type;
-        const computedRole = context === 'PERSONAL' ? (personalCategoryLabels[circle] || 'Contact') : role;
-        const finalTags = context === 'PERSONAL' ? Array.from(new Set([circle, ...tags])) : tags;
 
         onSave({
             id: generateId(),
             name,
-            role: computedRole,
+            role,
             company,
             context,
             type: finalType,
             status,
-            tags: finalTags,
+            tags,
             circle: context === 'PERSONAL' ? circle : undefined,
             rate: parseFloat(rate) || 0,
             rateType: context === 'NEMO' ? rateType : 'NONE',
@@ -1088,6 +296,8 @@ const AddEntityModal: React.FC<{
     return (
         <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in p-4">
             <div className="bg-surface border border-border w-full max-w-2xl rounded-lg shadow-2xl flex flex-col max-h-[90vh]">
+                
+                {/* HEADER */}
                 <div className="flex items-center justify-between p-6 border-b border-border">
                     <h2 className="text-lg font-medium text-white flex items-center gap-2">
                         <Plus size={18} className="text-emerald-500" /> New Network Entry
@@ -1095,7 +305,10 @@ const AddEntityModal: React.FC<{
                     <button onClick={onClose} className="text-zinc-500 hover:text-white"><X size={20}/></button>
                 </div>
 
+                {/* BODY */}
                 <div className="overflow-y-auto p-6 space-y-8">
+                    
+                    {/* 1. CONTEXT SELECTOR */}
                     <div>
                         <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-3 block">Context & Category</label>
                         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -1110,40 +323,40 @@ const AddEntityModal: React.FC<{
                                 onClick={() => setContext('PERSONAL')}
                                 className={`p-4 border rounded text-left transition-all ${context === 'PERSONAL' ? 'bg-zinc-800 border-zinc-600' : 'bg-transparent border-zinc-800 hover:border-zinc-700'}`}
                             >
-                                <div className="flex items-center gap-2 mb-1 text-sm font-bold text-zinc-200"><UserIcon size={16}/> Personal</div>
+                                <div className="flex items-center gap-2 mb-1 text-sm font-bold text-zinc-200"><User size={16}/> Personal</div>
                                 <div className="text-xs text-zinc-500">Friends, Family, Mentors</div>
                             </button>
                         </div>
+                        
+                        {/* Sub-Selection based on Context */}
                         {context === 'NEMO' ? (
                             <div className="flex gap-2">
                                 <SelectPill active={type === 'TEAM'} onClick={() => setType('TEAM')} label="Team Member" icon={<Users size={14}/>} />
                                 <SelectPill active={type === 'CANDIDATE'} onClick={() => setType('CANDIDATE')} label="Candidate" icon={<Star size={14}/>} />
                                 <SelectPill active={type === 'CLIENT'} onClick={() => setType('CLIENT')} label="Client" icon={<Briefcase size={14}/>} />
-                                <SelectPill active={type === 'PARTNER'} onClick={() => setType('PARTNER')} label="Partner" icon={<Handshake size={14}/>} />
                             </div>
                         ) : (
                             <div className="flex gap-2">
-                                <SelectPill active={circle === 'FRIEND'} onClick={() => setCircle('FRIEND')} label="Friend" icon={<Heart size={14}/>} />
-                                <SelectPill active={circle === 'FAMILY'} onClick={() => setCircle('FAMILY')} label="Family" icon={<Users size={14}/>} />
-                                <SelectPill active={circle === 'MENTOR'} onClick={() => setCircle('MENTOR')} label="Mentor" icon={<Briefcase size={14}/>} />
-                                <SelectPill active={circle === 'ALLY'} onClick={() => setCircle('ALLY')} label="High Value" icon={<Star size={14}/>} />
+                                <SelectPill active={circle === 'INNER'} onClick={() => setCircle('INNER')} label="Inner Circle" icon={<Heart size={14}/>} />
+                                <SelectPill active={circle === 'OUTER'} onClick={() => setCircle('OUTER')} label="Outer Circle" icon={<Users size={14}/>} />
+                                <SelectPill active={circle === 'PROFESSIONAL'} onClick={() => setCircle('PROFESSIONAL')} label="Professional" icon={<Briefcase size={14}/>} />
                             </div>
                         )}
                     </div>
 
+                    {/* 2. DETAILS INPUTS */}
                     <div className="space-y-4">
                         <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block">Identity Details</label>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="col-span-2">
                                 <input value={name} onChange={e => setName(e.target.value)} placeholder="Full Name" className="w-full bg-black border border-zinc-800 rounded px-4 py-3 text-zinc-200 focus:border-emerald-500 outline-none"/>
                             </div>
-                            {context === 'NEMO' && (
-                                <input value={role} onChange={e => setRole(e.target.value)} placeholder="Role (e.g. Dev)" className="bg-black border border-zinc-800 rounded px-4 py-3 text-zinc-200 focus:border-zinc-600 outline-none text-sm"/>
-                            )}
-                            <input value={company} onChange={e => setCompany(e.target.value)} placeholder={context === 'NEMO' ? 'Organization' : 'City / Context'} className="bg-black border border-zinc-800 rounded px-4 py-3 text-zinc-200 focus:border-zinc-600 outline-none text-sm"/>
+                            <input value={role} onChange={e => setRole(e.target.value)} placeholder={context === 'NEMO' ? "Role (e.g. Dev)" : "Relation (e.g. Uncle)"} className="bg-black border border-zinc-800 rounded px-4 py-3 text-zinc-200 focus:border-zinc-600 outline-none text-sm"/>
+                            <input value={company} onChange={e => setCompany(e.target.value)} placeholder="Organization / Location" className="bg-black border border-zinc-800 rounded px-4 py-3 text-zinc-200 focus:border-zinc-600 outline-none text-sm"/>
                         </div>
                     </div>
 
+                    {/* 3. TAGS & STATUS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2 block">Tags & Keywords</label>
@@ -1176,7 +389,7 @@ const AddEntityModal: React.FC<{
                         <div>
                             <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-2 block">Status & Stage</label>
                             <div className="flex flex-col gap-2">
-                                {['ACTIVE', 'PAUSED', 'OFFBOARDING', 'LEAD', 'INTERVIEWING', 'SOURCED', 'HOLD', 'WARM', 'COLD'].map(s => (
+                                {['ACTIVE', 'LEAD', 'INTERVIEWING', 'WARM', 'COLD'].map(s => (
                                     <button 
                                         key={s} 
                                         onClick={() => setStatus(s)}
@@ -1191,6 +404,7 @@ const AddEntityModal: React.FC<{
                     </div>
                 </div>
 
+                {/* FOOTER */}
                 <div className="p-6 border-t border-border flex justify-end gap-3 bg-zinc-900/30">
                     <button onClick={onClose} className="px-6 py-2 rounded border border-zinc-800 text-zinc-400 text-xs hover:text-white hover:bg-zinc-800">CANCEL</button>
                     <button onClick={handleSave} className="px-6 py-2 rounded bg-white text-black text-xs font-bold hover:bg-zinc-200">SAVE PROFILE</button>
@@ -1208,5 +422,148 @@ const SelectPill = ({ active, onClick, label, icon }: any) => (
         {icon} {label}
     </button>
 );
+
+const EntityCard: React.FC<{
+    entity: Client;
+    stats: { total: number; count: number };
+    onPay: () => void;
+    onInvoice: () => void;
+    onUpdate: (id: string, update: Partial<Client>) => void;
+}> = ({ entity, stats, onPay, onInvoice, onUpdate }) => {
+
+    // Status Colors
+    const getStatusColor = (s: string) => {
+        const map: any = {
+            'ACTIVE': 'text-emerald-400 border-emerald-900/30 bg-emerald-950/10',
+            'LEAD': 'text-blue-400 border-blue-900/30 bg-blue-950/10',
+            'INTERVIEWING': 'text-amber-400 border-amber-900/30 bg-amber-950/10',
+            'SIGNED': 'text-purple-400 border-purple-900/30 bg-purple-950/10',
+            'WARM': 'text-orange-400 border-orange-900/30 bg-orange-950/10'
+        };
+        return map[s] || 'text-zinc-500 border-zinc-800 bg-zinc-900';
+    };
+
+    // PERSONAL CIRCLE - Minimal Design
+    if (entity.context === 'PERSONAL') {
+        return (
+            <div className="bg-surface/50 border border-border rounded-lg p-5 hover:border-zinc-600 transition-all group relative">
+                {entity.circle && entity.circle !== 'NONE' && (
+                    <div className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[8px] font-mono uppercase bg-zinc-900 text-zinc-600 border border-zinc-800">
+                        {entity.circle}
+                    </div>
+                )}
+
+                <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-bold bg-zinc-900 border border-zinc-800 text-zinc-400">
+                        {entity.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-base font-semibold text-zinc-200 mb-1">{entity.name}</h3>
+                        <p className="text-xs text-zinc-500">{entity.role || 'Connection'}</p>
+                    </div>
+                </div>
+
+                {entity.company && (
+                    <div className="text-xs text-zinc-600 mb-3 flex items-center gap-2">
+                        <Briefcase size={11} />
+                        <span>{entity.company}</span>
+                    </div>
+                )}
+
+                {entity.tags && entity.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {entity.tags.slice(0, 2).map(tag => (
+                            <span key={tag} className="px-2 py-0.5 bg-zinc-900/50 border border-zinc-800 rounded-full text-[9px] text-zinc-500">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // AGENCY - Full CRM Design
+    return (
+        <div className="bg-surface border border-border rounded-lg p-4 hover:border-zinc-600 transition-colors flex flex-col justify-between group h-full relative overflow-hidden">
+            <div className={`absolute top-0 right-0 px-2 py-0.5 rounded-bl text-[9px] font-mono uppercase bg-zinc-800 text-zinc-500`}>
+                {entity.type}
+            </div>
+
+            <div>
+                <div className="flex justify-between items-start mb-3 mt-1">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded flex items-center justify-center text-sm font-bold border bg-zinc-900 border-zinc-800 text-zinc-400">
+                            {entity.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-zinc-200">{entity.name}</h3>
+                            <div className="flex items-center gap-2">
+                                <p className="text-[10px] text-zinc-500 font-mono">{entity.role}</p>
+                                <span className={`px-1.5 py-0 rounded-[2px] text-[8px] font-mono border uppercase ${getStatusColor(entity.status)}`}>
+                                    {entity.status}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-2 mb-3">
+                    {entity.company && (
+                        <div className="flex items-center gap-2 text-xs text-zinc-500">
+                            <Briefcase size={12} />
+                            <span>{entity.company}</span>
+                        </div>
+                    )}
+
+                    {entity.tags && entity.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                            {entity.tags.slice(0, 2).map(tag => (
+                                <span key={tag} className="px-1.5 py-0.5 bg-zinc-900 border border-zinc-800 rounded text-[9px] text-zinc-500">
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* FINANCIALS ROW */}
+                    <div className="p-2 bg-zinc-900/50 rounded border border-zinc-800/50 flex items-center justify-between mt-2">
+                        <div className="flex flex-col">
+                            <span className="text-[9px] text-zinc-600 font-mono uppercase">
+                                {entity.type === 'CLIENT' ? 'Value' : 'Rate'}
+                            </span>
+                            <span className="text-xs font-mono text-zinc-300">
+                                ${entity.rate.toLocaleString()}<span className="text-zinc-600 text-[9px]">{entity.rateType !== 'FIXED' && entity.rateType !== 'NONE' ? `/${entity.rateType === 'HOURLY' ? 'hr' : 'mo'}` : ''}</span>
+                            </span>
+                        </div>
+                        <div className="h-6 w-px bg-zinc-800"></div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-zinc-600 font-mono uppercase">
+                                {entity.type === 'CLIENT' ? 'Billed' : 'Paid'}
+                            </span>
+                            <span className={`text-xs font-mono ${stats.total > 0 ? (entity.type === 'CLIENT' ? 'text-emerald-500' : 'text-zinc-400') : 'text-zinc-600'}`}>
+                                ${stats.total.toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ACTIONS FOOTER */}
+            <div className="pt-3 border-t border-zinc-800/50 flex gap-2 mt-auto">
+                {(entity.type === 'TEAM' || entity.type === 'CANDIDATE') && (
+                    <button onClick={onPay} className="flex-1 py-1.5 bg-zinc-900 border border-zinc-800 rounded text-[10px] font-bold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1">
+                        <Wallet size={10} /> PAY
+                    </button>
+                )}
+                {entity.type === 'CLIENT' && (
+                    <button onClick={onInvoice} className="flex-1 py-1.5 bg-zinc-900 border border-zinc-800 rounded text-[10px] font-bold text-emerald-500 hover:text-emerald-400 hover:bg-zinc-800 transition-colors flex items-center justify-center gap-1">
+                        <DollarSign size={10} /> INVOICE
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export default NetworkView;

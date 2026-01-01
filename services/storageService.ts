@@ -53,6 +53,7 @@ const INITIAL_STATE: AppState = {
     { id: 'acc-bank', name: 'Bank', type: 'BANK', currency: 'USD' },
     { id: 'acc-crypto', name: 'Crypto', type: 'CRYPTO', currency: 'USD' }
   ],
+  shoppingList: [],
   tasks: [
     {
       id: 't-1',
@@ -286,7 +287,8 @@ export const loadState = async (): Promise<AppState> => {
         ...INITIAL_STATE,
         ...parsed,
         accounts: parsed.accounts || INITIAL_STATE.accounts,
-        activities: parsed.activities || INITIAL_STATE.activities
+        activities: parsed.activities || INITIAL_STATE.activities,
+        shoppingList: parsed.shoppingList || INITIAL_STATE.shoppingList
       } as AppState;
     }
   } catch (e) { console.error("Local read error", e); }
@@ -306,7 +308,8 @@ export const loadState = async (): Promise<AppState> => {
           ...data,
           marketing: data.marketing || INITIAL_STATE.marketing,
           accounts: data.accounts || INITIAL_STATE.accounts,
-          activities: data.activities || INITIAL_STATE.activities
+          activities: data.activities || INITIAL_STATE.activities,
+          shoppingList: data.shoppingList || INITIAL_STATE.shoppingList
         } as AppState;
       } else {
         console.log("☁️ New Cloud User - Seeding Data");
@@ -341,7 +344,8 @@ export const subscribeToState = (onUpdate: (state: AppState) => void): Unsubscri
           ...data,
           marketing: data.marketing || INITIAL_STATE.marketing,
           accounts: data.accounts || INITIAL_STATE.accounts,
-          activities: data.activities || INITIAL_STATE.activities
+          activities: data.activities || INITIAL_STATE.activities,
+          shoppingList: data.shoppingList || INITIAL_STATE.shoppingList
         } as AppState;
         onUpdate(mergedState);
       }

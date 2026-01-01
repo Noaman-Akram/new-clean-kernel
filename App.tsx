@@ -182,6 +182,13 @@ const App: React.FC = () => {
     setState(prev => prev ? ({ ...prev, marketing: [item, ...prev.marketing] }) : null);
   };
 
+  const handleMarketingDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      marketing: prev.marketing.filter(m => m.id !== id)
+    }) : null);
+  };
+
   const handleActivityAdd = (activity: Omit<Activity, 'id'>) => {
     const newActivity: Activity = { id: generateId(), ...activity };
     setState(prev => prev ? ({ ...prev, activities: [newActivity, ...prev.activities] }) : null);
@@ -305,7 +312,7 @@ const App: React.FC = () => {
       case Page.LEDGER:
         return <LedgerView state={state} onAdd={handleTransactionAdd} />;
       case Page.MARKETING:
-        return <MarketingView state={state} onAdd={handleMarketingAdd} onUpdate={handleMarketingUpdate} />;
+        return <MarketingView state={state} onAdd={handleMarketingAdd} onUpdate={handleMarketingUpdate} onDelete={handleMarketingDelete} />;
       case Page.MENTOR:
         return <MentorView state={state} onChatUpdate={handleChatUpdate} />;
       case Page.SUPPLICATIONS:
@@ -368,11 +375,22 @@ const App: React.FC = () => {
 
         {/* Navigation */}
         <div className="flex-1 flex flex-col gap-2 w-full items-center px-3 overflow-y-auto no-scrollbar pb-4 min-h-0">
+          {/* COMMAND CENTER */}
           <NavIcon
             active={state.currentPage === Page.COCKPIT}
             onClick={() => handleNavigate(Page.COCKPIT)}
             icon={<LayoutGrid size={18} />}
             label="Cockpit"
+            setHover={setHoveredNav}
+          />
+          <div className="h-px w-3/4 bg-border my-1 opacity-50 shrink-0"></div>
+
+          {/* PLANNING & EXECUTION */}
+          <NavIcon
+            active={state.currentPage === Page.WEEKLY}
+            onClick={() => handleNavigate(Page.WEEKLY)}
+            icon={<Layers size={18} />}
+            label="Weekly"
             setHover={setHoveredNav}
           />
           <NavIcon
@@ -383,13 +401,6 @@ const App: React.FC = () => {
             setHover={setHoveredNav}
           />
           <NavIcon
-            active={state.currentPage === Page.WEEKLY}
-            onClick={() => handleNavigate(Page.WEEKLY)}
-            icon={<Layers size={18} />}
-            label="Weekly"
-            setHover={setHoveredNav}
-          />
-          <NavIcon
             active={state.currentPage === Page.ACTIVITIES}
             onClick={() => handleNavigate(Page.ACTIVITIES)}
             icon={<MapPin size={18} />}
@@ -397,6 +408,8 @@ const App: React.FC = () => {
             setHover={setHoveredNav}
           />
           <div className="h-px w-3/4 bg-border my-1 opacity-50 shrink-0"></div>
+
+          {/* BUSINESS OPS */}
           <NavIcon
             active={state.currentPage === Page.NETWORK}
             onClick={() => handleNavigate(Page.NETWORK)}
@@ -419,6 +432,8 @@ const App: React.FC = () => {
             setHover={setHoveredNav}
           />
           <div className="h-px w-3/4 bg-border my-1 opacity-50 shrink-0"></div>
+
+          {/* KNOWLEDGE & GROWTH */}
           <NavIcon
             active={state.currentPage === Page.SUPPLICATIONS}
             onClick={() => handleNavigate(Page.SUPPLICATIONS)}
@@ -568,12 +583,12 @@ const NavIcon = ({ active, onClick, icon, label, setHover }: { active: boolean, 
     className={`
             group relative w-9 h-9 flex items-center justify-center rounded-md transition-all duration-200 flex-shrink-0
             ${active
-        ? 'bg-active text-zinc-100 shadow-sm border border-white/5'
+        ? 'bg-emerald-950/30 text-emerald-400 shadow-sm border border-emerald-900/30'
         : 'text-zinc-500 hover:text-zinc-300 hover:bg-surface'}
         `}
   >
     {icon}
-    {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 w-1 h-4 bg-zinc-100 rounded-r-full" />}
+    {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 w-1 h-5 bg-emerald-500 rounded-r-full shadow-glow" />}
   </button>
 );
 

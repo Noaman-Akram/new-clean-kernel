@@ -45,7 +45,7 @@ export type PersonalCircle = 'FRIEND' | 'FAMILY' | 'MENTOR' | 'ALLY' | 'NONE';
 
 // Simplified Marketing Types
 export type ContentIdentity = 'AGENCY' | 'CAREER' | 'PERSONAL';
-export type ContentPlatform = 'LINKEDIN' | 'TWITTER' | 'BLOG';
+export type ContentPlatform = 'LINKEDIN' | 'TWITTER' | 'INSTAGRAM' | 'FACEBOOK' | 'YOUTUBE' | 'TIKTOK' | 'BLOG' | 'OTHER';
 
 export interface MarketingItem {
   id: string;
@@ -133,6 +133,17 @@ export interface Account {
   type: AccountType;
   currency: 'USD' | 'EGP';
   note?: string;
+  color?: string; // For visual identification
+}
+
+export interface ShoppingListItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price?: number;
+  category: string;
+  isPurchased: boolean;
+  createdAt: number;
 }
 
 export interface Note {
@@ -192,6 +203,7 @@ export interface AppState {
   clients: Client[];
   transactions: Transaction[];
   accounts: Account[];
+  shoppingList: ShoppingListItem[];
   notes: Note[];
   resources: Resource[];
   marketing: MarketingItem[];

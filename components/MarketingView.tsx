@@ -2,26 +2,32 @@
 import React, { useState } from 'react';
 import { AppState, MarketingItem, ContentIdentity, ContentPlatform } from '../types';
 import { generateId } from '../utils';
-import { 
-    Send, 
-    Linkedin, 
-    Twitter, 
-    Globe, 
+import {
+    Send,
+    Linkedin,
+    Twitter,
+    Globe,
     CheckCircle2,
     Circle,
     User,
     Briefcase,
     Building2,
-    Trash2
+    Trash2,
+    Instagram,
+    Facebook,
+    Youtube,
+    Video,
+    MoreHorizontal
 } from 'lucide-react';
 
 interface Props {
   state: AppState;
   onAdd: (item: MarketingItem) => void;
   onUpdate: (id: string, updates: Partial<MarketingItem>) => void;
+  onDelete: (id: string) => void;
 }
 
-const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate }) => {
+const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
     const [content, setContent] = useState('');
     const [identity, setIdentity] = useState<ContentIdentity>('AGENCY');
     const [platform, setPlatform] = useState<ContentPlatform>('LINKEDIN');
@@ -49,12 +55,6 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate }) => {
         });
     };
 
-    const handleDelete = (id: string) => {
-        // Since we don't have a delete handler prop in this version, 
-        // we might just mark as posted or implement a proper delete in App.tsx later.
-        // For now, let's just move it to bottom by marking done.
-        onUpdate(id, { isPosted: true });
-    };
 
     const filteredItems = state.marketing.filter(m => {
         if (filter !== 'ALL' && m.identity !== filter) return false;
@@ -119,12 +119,17 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate }) => {
                         />
                         <div className="absolute bottom-3 right-3 flex items-center gap-2">
                              <div className="flex bg-zinc-800 rounded p-0.5">
-                                 <button type="button" onClick={() => setPlatform('LINKEDIN')} className={`p-1.5 rounded ${platform === 'LINKEDIN' ? 'bg-zinc-700 text-blue-400' : 'text-zinc-500 hover:text-zinc-300'}`}><Linkedin size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('TWITTER')} className={`p-1.5 rounded ${platform === 'TWITTER' ? 'bg-zinc-700 text-sky-400' : 'text-zinc-500 hover:text-zinc-300'}`}><Twitter size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('BLOG')} className={`p-1.5 rounded ${platform === 'BLOG' ? 'bg-zinc-700 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}><Globe size={14}/></button>
+                                 <button type="button" onClick={() => setPlatform('LINKEDIN')} className={`p-1.5 rounded ${platform === 'LINKEDIN' ? 'bg-zinc-700 text-blue-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="LinkedIn"><Linkedin size={14}/></button>
+                                 <button type="button" onClick={() => setPlatform('TWITTER')} className={`p-1.5 rounded ${platform === 'TWITTER' ? 'bg-zinc-700 text-sky-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Twitter/X"><Twitter size={14}/></button>
+                                 <button type="button" onClick={() => setPlatform('INSTAGRAM')} className={`p-1.5 rounded ${platform === 'INSTAGRAM' ? 'bg-zinc-700 text-pink-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Instagram"><Instagram size={14}/></button>
+                                 <button type="button" onClick={() => setPlatform('FACEBOOK')} className={`p-1.5 rounded ${platform === 'FACEBOOK' ? 'bg-zinc-700 text-blue-500' : 'text-zinc-500 hover:text-zinc-300'}`} title="Facebook"><Facebook size={14}/></button>
+                                 <button type="button" onClick={() => setPlatform('YOUTUBE')} className={`p-1.5 rounded ${platform === 'YOUTUBE' ? 'bg-zinc-700 text-red-500' : 'text-zinc-500 hover:text-zinc-300'}`} title="YouTube"><Youtube size={14}/></button>
+                                 <button type="button" onClick={() => setPlatform('TIKTOK')} className={`p-1.5 rounded ${platform === 'TIKTOK' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-zinc-300'}`} title="TikTok"><Video size={14}/></button>
+                                 <button type="button" onClick={() => setPlatform('BLOG')} className={`p-1.5 rounded ${platform === 'BLOG' ? 'bg-zinc-700 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Blog"><Globe size={14}/></button>
+                                 <button type="button" onClick={() => setPlatform('OTHER')} className={`p-1.5 rounded ${platform === 'OTHER' ? 'bg-zinc-700 text-zinc-300' : 'text-zinc-500 hover:text-zinc-300'}`} title="Other"><MoreHorizontal size={14}/></button>
                              </div>
-                             <button 
-                                type="submit" 
+                             <button
+                                type="submit"
                                 disabled={!content.trim()}
                                 className="flex items-center gap-2 px-4 py-1.5 bg-zinc-100 text-black text-xs font-bold rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                              >
@@ -163,12 +168,24 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate }) => {
                                         {getIdentityIcon(item.identity)}
                                         {item.identity}
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-3">
                                         <span className="text-zinc-600">
                                             {item.platform === 'LINKEDIN' && <Linkedin size={14}/>}
                                             {item.platform === 'TWITTER' && <Twitter size={14}/>}
+                                            {item.platform === 'INSTAGRAM' && <Instagram size={14}/>}
+                                            {item.platform === 'FACEBOOK' && <Facebook size={14}/>}
+                                            {item.platform === 'YOUTUBE' && <Youtube size={14}/>}
+                                            {item.platform === 'TIKTOK' && <Video size={14}/>}
                                             {item.platform === 'BLOG' && <Globe size={14}/>}
+                                            {item.platform === 'OTHER' && <MoreHorizontal size={14}/>}
                                         </span>
+                                        <button
+                                            onClick={() => onDelete(item.id)}
+                                            className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-red-500"
+                                            title="Delete"
+                                        >
+                                            <Trash2 size={14}/>
+                                        </button>
                                     </div>
                                 </div>
 

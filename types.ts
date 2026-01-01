@@ -80,7 +80,7 @@ export interface Task {
   notes?: string;
   slot?: TaskSlot;
   pillar?: Pillar;
-  scheduledTime?: number; // Timestamp for time-based planning (exact time, not just date)
+  scheduledTime?: number | null; // Timestamp for time-based planning (exact time, not just date)
   duration?: number; // Duration in minutes
 }
 

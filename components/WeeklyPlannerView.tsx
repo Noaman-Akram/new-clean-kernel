@@ -335,7 +335,7 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (draggedTask) {
-      onUpdate(draggedTask.id, { scheduledTime: undefined });
+      onUpdate(draggedTask.id, { scheduledTime: null });
     }
   };
 
@@ -880,7 +880,7 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
                             isEditing={editingTaskId === task.id}
                             onEditingChange={onEditingChange}
                             viewMode={viewMode}
-                            onDelete={(id) => onUpdate(id, { scheduledTime: undefined })}
+                            onDelete={(id) => onUpdate(id, { scheduledTime: null })}
                           />
                         ))}
                       </div>
@@ -907,7 +907,7 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
                                 isEditing={editingTaskId === task.id}
                                 onEditingChange={onEditingChange}
                                 viewMode={viewMode}
-                                onDelete={(id) => onUpdate(id, { scheduledTime: undefined })}
+                                onDelete={(id) => onUpdate(id, { scheduledTime: null })}
                               />
                             ))}
                           </div>
@@ -1045,7 +1045,7 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
                 isEditing={editingTaskId === task.id}
                 onEditingChange={onEditingChange}
                 viewMode={viewMode}
-                onDelete={(id) => onUpdate(id, { scheduledTime: undefined })}
+                onDelete={(id) => onUpdate(id, { scheduledTime: null })}
               />
             ))}
             {quickAddTime === 'unscheduled' && (
@@ -1138,7 +1138,7 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
           {task.scheduledTime && (
             <button
               onClick={() => {
-                onUpdate(task.id, { scheduledTime: undefined });
+                onUpdate(task.id, { scheduledTime: null });
                 onEditingChange(null);
               }}
               className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 text-[10px] rounded transition-colors"

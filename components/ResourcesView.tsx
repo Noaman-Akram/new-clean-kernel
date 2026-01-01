@@ -92,8 +92,8 @@ const ResourcesView: React.FC<Props> = ({ state, onAdd, onUpdate, onRemove }) =>
         <div className="h-full flex flex-col bg-background animate-fade-in overflow-hidden">
 
             {/* HEADER */}
-            <div className="p-8 pb-0 shrink-0">
-                <div className="flex items-center justify-between mb-6">
+            <div className="p-4 md:p-8 pb-0 shrink-0">
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                     <div>
                         <h1 className="text-xl font-medium text-zinc-100 flex items-center gap-2">
                             Arsenal
@@ -106,7 +106,7 @@ const ResourcesView: React.FC<Props> = ({ state, onAdd, onUpdate, onRemove }) =>
                     </div>
                     <button
                         onClick={() => setIsAdding(!isAdding)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-black rounded-sm text-xs font-semibold hover:bg-white transition-colors"
+                        className="flex items-center justify-center gap-2 px-3 py-1.5 bg-zinc-100 text-black rounded-sm text-xs font-semibold hover:bg-white transition-colors w-full md:w-auto"
                     >
                         <Plus size={12} /> ADD_TOOL
                     </button>
@@ -117,7 +117,7 @@ const ResourcesView: React.FC<Props> = ({ state, onAdd, onUpdate, onRemove }) =>
                     <button
                         onClick={() => setFilter('ALL')}
                         className={`
-                            px-3 py-1.5 rounded-sm text-[10px] font-mono tracking-wider transition-all border
+                            px-3 py-1.5 rounded-sm text-[10px] font-mono tracking-wider transition-all border shrink-0
                             ${filter === 'ALL'
                                 ? 'bg-zinc-800 text-zinc-100 border-zinc-700'
                                 : 'text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-zinc-900'}
@@ -125,13 +125,13 @@ const ResourcesView: React.FC<Props> = ({ state, onAdd, onUpdate, onRemove }) =>
                     >
                         ALL_SYSTEMS
                     </button>
-                    <div className="w-px h-4 bg-zinc-800 mx-1"></div>
+                    <div className="w-px h-4 bg-zinc-800 mx-1 shrink-0"></div>
                     {categories.map(cat => (
                         <button
                             key={cat.key}
                             onClick={() => setFilter(cat.key as any)}
                             className={`
-                                flex items-center gap-2 px-3 py-1.5 rounded-sm text-[10px] uppercase font-mono tracking-wider transition-all border whitespace-nowrap
+                                flex items-center gap-2 px-3 py-1.5 rounded-sm text-[10px] uppercase font-mono tracking-wider transition-all border whitespace-nowrap shrink-0
                                 ${filter === cat.key
                                     ? 'bg-zinc-900 text-zinc-200 border-zinc-700'
                                     : 'text-zinc-500 border-transparent hover:text-zinc-300 hover:bg-zinc-900/50'}
@@ -151,7 +151,7 @@ const ResourcesView: React.FC<Props> = ({ state, onAdd, onUpdate, onRemove }) =>
                 {isAdding && (
                     <div className="mb-8 p-4 border border-zinc-800 rounded bg-zinc-900/30 backdrop-blur-sm animate-in slide-in-from-top-2">
                         <div className="flex flex-col gap-4 max-w-lg">
-                            <div className="flex gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tool Name" className="flex-1 bg-zinc-950 border border-zinc-800 rounded-sm px-3 py-2 text-xs text-white outline-none focus:border-zinc-700" />
                                 <input value={url} onChange={e => setUrl(e.target.value)} placeholder="URL" className="flex-1 bg-zinc-950 border border-zinc-800 rounded-sm px-3 py-2 text-xs text-white outline-none font-mono focus:border-zinc-700" />
                             </div>

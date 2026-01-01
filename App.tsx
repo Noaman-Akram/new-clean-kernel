@@ -410,8 +410,8 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen w-screen bg-background text-zinc-400 font-sans overflow-hidden selection:bg-zinc-700 selection:text-zinc-200">
 
-      {/* --- SIDEBAR --- */}
-      <nav className="h-full w-[64px] flex flex-col items-center py-6 border-r border-border bg-surface z-50 flex-shrink-0 overflow-x-hidden">
+      {/* --- SIDEBAR (DESKTOP) --- */}
+      <nav className="hidden md:flex h-full w-[64px] flex-col items-center py-6 border-r border-border bg-surface z-50 flex-shrink-0 overflow-x-hidden">
 
         {/* Brand */}
         <div className="mb-8 text-zinc-100 opacity-80 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => handleNavigate(Page.COCKPIT)}>
@@ -510,10 +510,10 @@ const App: React.FC = () => {
 
       </nav>
 
-      {/* GLOBAL TOOLTIP LAYER */}
+      {/* GLOBAL TOOLTIP LAYER (Desktop Only) */}
       {hoveredNav && (
         <div
-          className="fixed left-[70px] bg-surface border border-border text-zinc-200 text-[10px] font-medium px-2 py-1 rounded shadow-xl z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none whitespace-nowrap"
+          className="fixed left-[70px] bg-surface border border-border text-zinc-200 text-[10px] font-medium px-2 py-1 rounded shadow-xl z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none whitespace-nowrap hidden md:block"
           style={{ top: hoveredNav.top }}
         >
           {hoveredNav.label}
@@ -521,7 +521,7 @@ const App: React.FC = () => {
       )}
 
       {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 flex flex-col min-w-0 bg-background relative">
+      <main className="flex-1 flex flex-col min-w-0 bg-background relative overflow-hidden h-[calc(100vh-64px)] md:h-screen">
         {/* Top Bar */}
         <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-background/60 backdrop-blur-xl sticky top-0 z-40">
           <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
@@ -538,10 +538,15 @@ const App: React.FC = () => {
                     syncStatus === 'ERROR' ? 'bg-red-500' :
                       'bg-zinc-600'
                   }`} />
-                <span className="text-zinc-500">
+                <span className="text-zinc-500 hidden sm:inline">
                   {syncStatus === 'SAVING' ? 'SAVING...' :
                     syncStatus === 'SAVED' ? 'SYNCED' :
                       syncStatus === 'ERROR' ? 'SYNC_FAIL' : 'READY'}
+                </span>
+                <span className="text-zinc-500 sm:hidden">
+                  {syncStatus === 'SAVING' ? 'SAV...' :
+                    syncStatus === 'SAVED' ? 'OK' :
+                      syncStatus === 'ERROR' ? 'ERR' : 'OK'}
                 </span>
               </div>
             )}
@@ -549,20 +554,21 @@ const App: React.FC = () => {
             {activeTask && (
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/30 border border-emerald-500/20 text-[10px] text-emerald-500 font-mono animate-pulse">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                ACTIVE_SESSION
+                <span className="hidden sm:inline">ACTIVE_SESSION</span>
+                <span className="sm:hidden">ACTIVE</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto relative">
+        <div className="flex-1 overflow-y-auto relative pb-20 md:pb-0">
           {renderView()}
         </div>
 
         {/* --- GLOBAL ACTIVE SESSION BAR --- */}
         {activeTask && (
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-            <div className="flex items-center gap-4 p-2 pl-5 pr-2 bg-zinc-900/90 backdrop-blur-md border border-zinc-700/50 rounded-full shadow-2xl shadow-black/50">
+          <div className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 animate-fade-in w-[95%] sm:w-auto">
+            <div className="flex items-center justify-between sm:justify-center gap-2 sm:gap-4 p-2 pl-3 sm:pl-5 pr-2 bg-zinc-900/95 backdrop-blur-md border border-zinc-700/50 rounded-full shadow-2xl shadow-black/50">
 
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
@@ -573,14 +579,14 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="h-8 w-px bg-zinc-700/50 mx-1"></div>
+              <div className="h-8 w-px bg-zinc-700/50 mx-1 hidden sm:block"></div>
 
-              <div className="flex flex-col max-w-[200px]">
+              <div className="hidden sm:flex flex-col max-w-[200px]">
                 <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Focusing on</span>
                 <span className="text-xs text-zinc-200 font-medium truncate">{activeTask.title}</span>
               </div>
 
-              <div className="flex items-center gap-1 ml-2">
+              <div className="flex items-center gap-1 sm:ml-2">
                 <button
                   onClick={stopSession}
                   className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
@@ -590,10 +596,10 @@ const App: React.FC = () => {
                 </button>
                 <button
                   onClick={completeSession}
-                  className="flex items-center gap-2 pl-3 pr-4 py-2 bg-zinc-100 text-black hover:bg-white rounded-full transition-colors"
+                  className="flex items-center gap-2 px-3 sm:pl-3 sm:pr-4 py-2 bg-zinc-100 text-black hover:bg-white rounded-full transition-colors"
                 >
                   <CheckSquare size={14} />
-                  <span className="text-xs font-semibold">Complete</span>
+                  <span className="text-xs font-semibold hidden sm:inline">Complete</span>
                 </button>
               </div>
             </div>
@@ -602,15 +608,50 @@ const App: React.FC = () => {
 
       </main>
 
+      {/* --- MOBILE NAVIGATION BAR --- */}
+      <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center justify-around px-2 z-50 fixed bottom-0 left-0 right-0 pb-safe">
+        <MobileNavIcon active={state.currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
+        <MobileNavIcon active={state.currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
+        <MobileNavIcon active={state.currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
+        <MobileNavIcon active={state.currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Marketing" />
+
+        {/* Mobile Menu for 'More' */}
+        <div className="relative group">
+          <MobileNavIcon
+            active={[Page.NETWORK, Page.MENTOR, Page.SUPPLICATIONS, Page.INTEL, Page.ARSENAL, Page.ACTIVITIES].includes(state.currentPage)}
+            onClick={() => { }} // Just visual indicator, usually would toggle a menu
+            icon={<Users size={20} />}
+            label="More"
+          />
+          {/* Simple dropdown for mobile 'More' - simplified for this iteration, strictly could rely on specific icons if space permits, 
+               but let's actually just list the most critical ones or make it scrollable. 
+               Let's make it a scrollable list instead of a 'More' button for better UX if we have many items.
+           */}
+        </div>
+      </div>
+
+      {/* Redoing Mobile Nav to be scrollable horizontal list instead of "More" menu for simplicity and speed */}
+      <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center gap-4 px-4 overflow-x-auto no-scrollbar z-50 fixed bottom-0 left-0 right-0 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
+        <MobileNavIcon active={state.currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
+        <MobileNavIcon active={state.currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
+        <MobileNavIcon active={state.currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
+        <MobileNavIcon active={state.currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Mktg" />
+        <MobileNavIcon active={state.currentPage === Page.NETWORK} onClick={() => handleNavigate(Page.NETWORK)} icon={<Users size={20} />} label="Network" />
+        <MobileNavIcon active={state.currentPage === Page.MENTOR} onClick={() => handleNavigate(Page.MENTOR)} icon={<MessageSquare size={20} />} label="Protocol" />
+        <MobileNavIcon active={state.currentPage === Page.SUPPLICATIONS} onClick={() => handleNavigate(Page.SUPPLICATIONS)} icon={<BookOpen size={20} />} label="Sanctuary" />
+        <MobileNavIcon active={state.currentPage === Page.INTEL} onClick={() => handleNavigate(Page.INTEL)} icon={<StickyNote size={20} />} label="Intel" />
+      </div>
+
       {/* --- OFFLINE WARNING BANNER --- */}
       {
         !db && (
-          <div className="fixed bottom-0 left-0 right-0 bg-red-600/90 text-white text-xs font-mono py-2 px-4 flex items-center justify-between z-[100] backdrop-blur-md">
+          <div className="fixed bottom-[70px] md:bottom-0 left-0 right-0 bg-red-600/90 text-white text-xs font-mono py-2 px-4 flex items-center justify-between z-[40] backdrop-blur-md">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              <span className="font-bold">OFFLINE MODE: LOCAL DATA ONLY</span>
+              <span className="font-bold hidden sm:inline">OFFLINE MODE: LOCAL DATA ONLY</span>
+              <span className="font-bold sm:hidden">OFFLINE</span>
             </div>
-            <span>You must create a .env file with firebase keys to sync with deployed site.</span>
+            <span className="hidden sm:inline">You must create a .env file with firebase keys to sync with deployed site.</span>
           </div>
         )}
     </div>
@@ -634,6 +675,21 @@ const NavIcon = ({ active, onClick, icon, label, setHover }: { active: boolean, 
   >
     {icon}
     {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-4 w-1 h-5 bg-emerald-500 rounded-r-full shadow-glow" />}
+  </button>
+);
+
+const MobileNavIcon = ({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string }) => (
+  <button
+    onClick={onClick}
+    className={`
+       flex flex-col items-center justify-center gap-1 min-w-[50px]
+       ${active ? 'text-emerald-400' : 'text-zinc-500'}
+    `}
+  >
+    <div className={`${active ? 'bg-emerald-950/50 rounded-xl px-3 py-1' : ''}`}>
+      {icon}
+    </div>
+    <span className="text-[9px] font-mono uppercase tracking-wider">{label}</span>
   </button>
 );
 

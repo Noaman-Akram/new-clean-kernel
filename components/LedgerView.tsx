@@ -59,13 +59,13 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
         <div className="h-full flex flex-col animate-fade-in bg-background">
 
             {/* HEADER SUMMARY - COMPACT */}
-            <div className="border-b border-border bg-surface/20 p-6">
-                <div className="flex items-end justify-between mb-6">
+            <div className="border-b border-border bg-surface/20 p-4 md:p-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between mb-4 md:mb-6 gap-4">
                     <div>
                         <div className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                             <CreditCard size={14} /> Net Position
                         </div>
-                        <div className="text-4xl font-medium text-white tracking-tight font-mono">${net.toLocaleString()}</div>
+                        <div className="text-3xl md:text-4xl font-medium text-white tracking-tight font-mono">${net.toLocaleString()}</div>
                     </div>
                     <div className="flex items-center gap-3">
                         <button
@@ -103,43 +103,49 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
 
             {/* ADD ROW */}
             {isAdding && (
-                <div className="border-b border-border p-4 bg-surface flex items-center justify-center gap-3 animate-fade-in">
+                <div className="border-b border-border p-4 bg-surface flex flex-col md:flex-row items-stretch md:items-center justify-center gap-3 animate-fade-in">
                     <input
                         value={desc}
                         onChange={e => setDesc(e.target.value)}
                         placeholder="Description..."
-                        className="bg-background border border-border rounded-md px-4 py-2 text-sm text-white focus:border-zinc-500 outline-none w-80"
+                        className="bg-background border border-border rounded-md px-4 py-2 text-sm text-white focus:border-zinc-500 outline-none w-full md:w-80"
                         autoFocus
                     />
-                    <input
-                        value={category}
-                        onChange={e => setCategory(e.target.value)}
-                        placeholder="Category"
-                        className="bg-background border border-border rounded-md px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 outline-none w-32"
-                    />
-                    <select
-                        value={accountId}
-                        onChange={e => setAccountId(e.target.value)}
-                        className="bg-background border border-border rounded-md px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
-                    >
-                        {state.accounts.map(acc => (
-                            <option key={acc.id} value={acc.id}>{acc.name} · {acc.type}</option>
-                        ))}
-                    </select>
-                    <input
-                        value={amount}
-                        onChange={e => setAmount(e.target.value)}
-                        placeholder="0.00"
-                        type="number"
-                        className="bg-background border border-border rounded-md px-4 py-2 text-sm text-white focus:border-zinc-500 outline-none font-mono w-40"
-                    />
-                    <button onClick={() => handleAdd('INCOME')} className="px-4 py-2 bg-emerald-600 text-white rounded-md text-xs font-bold hover:bg-emerald-500">INCOME</button>
-                    <button onClick={() => handleAdd('EXPENSE')} className="px-4 py-2 bg-zinc-700 text-zinc-200 rounded-md text-xs font-bold hover:bg-zinc-600">EXPENSE</button>
+                    <div className="flex gap-2">
+                        <input
+                            value={category}
+                            onChange={e => setCategory(e.target.value)}
+                            placeholder="Category"
+                            className="bg-background border border-border rounded-md px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 outline-none w-full md:w-32"
+                        />
+                        <select
+                            value={accountId}
+                            onChange={e => setAccountId(e.target.value)}
+                            className="bg-background border border-border rounded-md px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none w-full md:w-auto"
+                        >
+                            {state.accounts.map(acc => (
+                                <option key={acc.id} value={acc.id}>{acc.name} · {acc.type}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="flex gap-2">
+                        <input
+                            value={amount}
+                            onChange={e => setAmount(e.target.value)}
+                            placeholder="0.00"
+                            type="number"
+                            className="bg-background border border-border rounded-md px-4 py-2 text-sm text-white focus:border-zinc-500 outline-none font-mono w-full md:w-40"
+                        />
+                    </div>
+                    <div className="flex gap-2 mt-2 md:mt-0">
+                        <button onClick={() => handleAdd('INCOME')} className="flex-1 md:flex-none px-4 py-2 bg-emerald-600 text-white rounded-md text-xs font-bold hover:bg-emerald-500">INCOME</button>
+                        <button onClick={() => handleAdd('EXPENSE')} className="flex-1 md:flex-none px-4 py-2 bg-zinc-700 text-zinc-200 rounded-md text-xs font-bold hover:bg-zinc-600">EXPENSE</button>
+                    </div>
                 </div>
             )}
 
             {/* CONTENT */}
-            <div className="flex-1 overflow-auto px-6 py-6 space-y-6">
+            <div className="flex-1 overflow-auto px-4 md:px-6 py-6 space-y-6">
 
                 {/* ACCOUNTS SECTION */}
                 <div>
@@ -173,10 +179,12 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
                     </div>
                 </div>
 
-                {/* TRANSACTIONS TABLE */}
+                {/* TRANSACTIONS SECTION */}
                 <div>
                     <div className="text-[10px] font-mono text-zinc-600 uppercase mb-3">Recent Activity</div>
-                    <div className="border-t border-border">
+
+                    {/* Desktop Table */}
+                    <div className="hidden md:block border-t border-border">
                         <table className="w-full text-left border-collapse">
                             <tbody className="divide-y divide-zinc-800">
                                 {state.transactions.map(tx => (
@@ -213,6 +221,41 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Mobile Card List */}
+                    <div className="md:hidden space-y-3">
+                        {state.transactions.map(tx => (
+                            <div key={tx.id} className="bg-surface/50 border border-zinc-800 rounded-lg p-3 flex flex-col gap-2">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium text-zinc-200">{tx.description}</span>
+                                        <span className="text-[10px] text-zinc-500 font-mono">{new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}</span>
+                                    </div>
+                                    <div className={`text-sm font-mono font-medium ${tx.type === 'INCOME' ? 'text-emerald-500' : 'text-zinc-400'}`}>
+                                        {tx.type === 'INCOME' ? '+' : ''}{tx.amount.toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between border-t border-zinc-800/50 pt-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-mono text-zinc-600 px-1.5 py-0.5 rounded bg-zinc-900 uppercase border border-zinc-800">
+                                            {tx.category}
+                                        </span>
+                                        <span className="text-[10px] text-zinc-600">
+                                            {state.accounts.find(a => a.id === tx.accountId)?.name}
+                                        </span>
+                                    </div>
+                                    {onDeleteTransaction && (
+                                        <button
+                                            onClick={() => onDeleteTransaction(tx.id)}
+                                            className="text-zinc-600 hover:text-red-400 p-1"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>

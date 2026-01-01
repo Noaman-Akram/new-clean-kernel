@@ -26,18 +26,17 @@ const NetworkView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
   return (
     <div className="h-full flex flex-col bg-background animate-fade-in overflow-hidden">
       {/* HEADER */}
-      <div className="p-6 border-b border-border bg-surface/30 shrink-0">
+      <div className="p-4 md:p-6 border-b border-border bg-surface/30 shrink-0">
         <div className="max-w-5xl mx-auto space-y-4">
 
           {/* Context Switcher */}
-          <div className="flex items-center gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               onClick={() => { setContext('NEMO'); setIsAdding(false); }}
-              className={`flex items-center gap-3 px-6 py-3 rounded-lg text-sm font-bold tracking-wide transition-all border ${
-                context === 'NEMO'
-                  ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/30 shadow-sm'
-                  : 'bg-transparent text-zinc-600 border-transparent hover:text-zinc-400 hover:bg-zinc-900/30'
-              }`}
+              className={`flex items-center justify-center sm:justify-start gap-3 px-4 py-3 rounded-lg text-sm font-bold tracking-wide transition-all border ${context === 'NEMO'
+                ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/30 shadow-sm'
+                : 'bg-transparent text-zinc-600 border-transparent hover:text-zinc-400 hover:bg-zinc-900/30'
+                }`}
             >
               <Building2 size={18} />
               <div className="flex flex-col items-start">
@@ -48,11 +47,10 @@ const NetworkView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
 
             <button
               onClick={() => { setContext('PERSONAL'); setIsAdding(false); }}
-              className={`flex items-center gap-3 px-6 py-3 rounded-lg text-sm font-bold tracking-wide transition-all border ${
-                context === 'PERSONAL'
-                  ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/30 shadow-sm'
-                  : 'bg-transparent text-zinc-600 border-transparent hover:text-zinc-400 hover:bg-zinc-900/30'
-              }`}
+              className={`flex items-center justify-center sm:justify-start gap-3 px-4 py-3 rounded-lg text-sm font-bold tracking-wide transition-all border ${context === 'PERSONAL'
+                ? 'bg-emerald-950/30 text-emerald-400 border-emerald-900/30 shadow-sm'
+                : 'bg-transparent text-zinc-600 border-transparent hover:text-zinc-400 hover:bg-zinc-900/30'
+                }`}
             >
               <User size={18} />
               <div className="flex flex-col items-start">
@@ -63,8 +61,8 @@ const NetworkView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
           </div>
 
           {/* Tabs & Add Button */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {context === 'NEMO' ? (
                 <>
                   <TabButton
@@ -86,7 +84,7 @@ const NetworkView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
               ) : (
                 <TabButton
                   active={true}
-                  onClick={() => {}}
+                  onClick={() => { }}
                   label="All Contacts"
                 />
               )}
@@ -94,7 +92,7 @@ const NetworkView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
 
             <button
               onClick={() => setIsAdding(!isAdding)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-md text-xs font-bold hover:bg-zinc-200 transition-colors"
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-black rounded-md text-xs font-bold hover:bg-zinc-200 transition-colors shrink-0"
             >
               <Plus size={14} />
               {isAdding ? 'Cancel' : `Add ${context === 'NEMO' ? agencyTab : 'Contact'}`}
@@ -162,11 +160,10 @@ const NetworkView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
 const TabButton: React.FC<{ active: boolean; onClick: () => void; label: string }> = ({ active, onClick, label }) => (
   <button
     onClick={onClick}
-    className={`px-4 py-2 text-xs font-mono uppercase rounded transition-colors ${
-      active
-        ? 'bg-zinc-900 text-zinc-300 border border-zinc-800'
-        : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/30'
-    }`}
+    className={`px-4 py-2 text-xs font-mono uppercase rounded transition-colors ${active
+      ? 'bg-zinc-900 text-zinc-300 border border-zinc-800'
+      : 'text-zinc-600 hover:text-zinc-400 hover:bg-zinc-900/30'
+      }`}
   >
     {label}
   </button>
@@ -218,7 +215,7 @@ const AgencyAddForm: React.FC<{
 
   return (
     <form onSubmit={handleSubmit} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-3 animate-fade-in">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input
           value={form.name}
           onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
@@ -241,7 +238,7 @@ const AgencyAddForm: React.FC<{
         className="w-full bg-background border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
       />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input
           value={form.email}
           onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))}
@@ -272,11 +269,10 @@ const AgencyAddForm: React.FC<{
                 key={stage}
                 type="button"
                 onClick={() => setForm(prev => ({ ...prev, stage: stage }))}
-                className={`px-3 py-1.5 text-[10px] font-mono uppercase rounded transition-colors ${
-                  form.stage === stage
-                    ? 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/30'
-                    : 'bg-transparent text-zinc-600 border border-transparent hover:bg-zinc-900'
-                }`}
+                className={`px-3 py-1.5 text-[10px] font-mono uppercase rounded transition-colors ${form.stage === stage
+                  ? 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/30'
+                  : 'bg-transparent text-zinc-600 border border-transparent hover:bg-zinc-900'
+                  }`}
               >
                 {stage}
               </button>
@@ -286,7 +282,7 @@ const AgencyAddForm: React.FC<{
       )}
 
       {(type === 'TEAM' || type === 'CLIENT') && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <input
             value={form.rate}
             onChange={e => setForm(prev => ({ ...prev, rate: parseFloat(e.target.value) || 0 }))}
@@ -361,7 +357,7 @@ const PersonalAddForm: React.FC<{
 
   return (
     <form onSubmit={handleSubmit} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-3 animate-fade-in">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input
           value={form.name}
           onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
@@ -384,7 +380,7 @@ const PersonalAddForm: React.FC<{
         className="w-full bg-background border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 focus:border-zinc-600 outline-none"
       />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <input
           value={form.contactHandle}
           onChange={e => setForm(prev => ({ ...prev, contactHandle: e.target.value }))}

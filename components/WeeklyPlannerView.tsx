@@ -257,7 +257,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           </div>
         </div>
 
-        <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
           <div className="h-full flex min-w-max">{weekDays.map((day) => (
             <DayColumn
               key={day.dateStr}
@@ -737,7 +737,7 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
     <div
       ref={ref}
       onDragEnd={handleDragEnd}
-      className={`flex-1 min-w-[200px] md:min-w-[240px] max-w-[200px] md:max-w-[240px] border-r border-border flex flex-col ${isCurrentDay ? 'bg-zinc-900/20' : ''
+      className={`flex-1 min-w-[300px] md:min-w-[240px] max-w-[300px] md:max-w-[240px] border-r border-border flex flex-col snap-center ${isCurrentDay ? 'bg-zinc-900/20' : ''
         }`}
     >
       <div

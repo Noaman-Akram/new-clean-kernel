@@ -21,10 +21,10 @@ import {
 } from 'lucide-react';
 
 interface Props {
-  state: AppState;
-  onAdd: (item: MarketingItem) => void;
-  onUpdate: (id: string, updates: Partial<MarketingItem>) => void;
-  onDelete: (id: string) => void;
+    state: AppState;
+    onAdd: (item: MarketingItem) => void;
+    onUpdate: (id: string, updates: Partial<MarketingItem>) => void;
+    onDelete: (id: string) => void;
 }
 
 const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
@@ -35,7 +35,7 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) =>
 
     const handleAdd = (e: React.FormEvent) => {
         e.preventDefault();
-        if(!content.trim()) return;
+        if (!content.trim()) return;
 
         onAdd({
             id: generateId(),
@@ -49,7 +49,7 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) =>
     };
 
     const togglePosted = (id: string, current: boolean) => {
-        onUpdate(id, { 
+        onUpdate(id, {
             isPosted: !current,
             postedAt: !current ? Date.now() : undefined
         });
@@ -66,7 +66,7 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) =>
     });
 
     const getIdentityColor = (id: ContentIdentity) => {
-        switch(id) {
+        switch (id) {
             case 'AGENCY': return 'text-amber-500 border-amber-900/30 bg-amber-950/10';
             case 'CAREER': return 'text-blue-500 border-blue-900/30 bg-blue-950/10';
             case 'PERSONAL': return 'text-zinc-400 border-zinc-800 bg-zinc-900/50';
@@ -74,67 +74,67 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) =>
     };
 
     const getIdentityIcon = (id: ContentIdentity) => {
-        switch(id) {
-            case 'AGENCY': return <Building2 size={12}/>;
-            case 'CAREER': return <Briefcase size={12}/>;
-            case 'PERSONAL': return <User size={12}/>;
+        switch (id) {
+            case 'AGENCY': return <Building2 size={12} />;
+            case 'CAREER': return <Briefcase size={12} />;
+            case 'PERSONAL': return <User size={12} />;
         }
     };
 
     return (
         <div className="h-full flex flex-col bg-background animate-fade-in overflow-hidden">
-            
+
             {/* INPUT AREA */}
-            <div className="p-6 border-b border-border bg-surface/30 shrink-0">
+            <div className="p-4 md:p-6 border-b border-border bg-surface/30 shrink-0">
                 <div className="max-w-3xl mx-auto space-y-4">
-                    <div className="flex items-center justify-between">
-                         <h1 className="text-sm font-medium text-zinc-300">New Transmission</h1>
-                         <div className="flex gap-1">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                        <h1 className="text-sm font-medium text-zinc-300">New Transmission</h1>
+                        <div className="flex gap-1 overflow-x-auto max-w-full pb-1 sm:pb-0 no-scrollbar">
                             {(['AGENCY', 'CAREER', 'PERSONAL'] as ContentIdentity[]).map(id => (
                                 <button
                                     key={id}
                                     onClick={() => setIdentity(id)}
                                     className={`
-                                        flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-mono uppercase transition-all border
-                                        ${identity === id 
-                                            ? getIdentityColor(id) + ' shadow-sm' 
+                                        flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-mono uppercase transition-all border shrink-0
+                                        ${identity === id
+                                            ? getIdentityColor(id) + ' shadow-sm'
                                             : 'text-zinc-600 border-transparent hover:bg-zinc-900'}
                                     `}
                                 >
                                     {getIdentityIcon(id)} {id}
                                 </button>
                             ))}
-                         </div>
+                        </div>
                     </div>
 
                     <form onSubmit={handleAdd} className="relative">
-                        <textarea 
+                        <textarea
                             value={content}
                             onChange={e => setContent(e.target.value)}
                             onKeyDown={e => {
-                                if(e.key === 'Enter' && e.metaKey) handleAdd(e);
+                                if (e.key === 'Enter' && e.metaKey) handleAdd(e);
                             }}
                             placeholder="Draft your thoughts, hooks, or updates..."
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-200 focus:border-zinc-600 outline-none min-h-[100px] resize-none font-mono"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-4 pb-14 sm:pb-4 text-sm text-zinc-200 focus:border-zinc-600 outline-none min-h-[120px] resize-none font-mono"
                         />
-                        <div className="absolute bottom-3 right-3 flex items-center gap-2">
-                             <div className="flex bg-zinc-800 rounded p-0.5">
-                                 <button type="button" onClick={() => setPlatform('LINKEDIN')} className={`p-1.5 rounded ${platform === 'LINKEDIN' ? 'bg-zinc-700 text-blue-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="LinkedIn"><Linkedin size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('TWITTER')} className={`p-1.5 rounded ${platform === 'TWITTER' ? 'bg-zinc-700 text-sky-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Twitter/X"><Twitter size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('INSTAGRAM')} className={`p-1.5 rounded ${platform === 'INSTAGRAM' ? 'bg-zinc-700 text-pink-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Instagram"><Instagram size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('FACEBOOK')} className={`p-1.5 rounded ${platform === 'FACEBOOK' ? 'bg-zinc-700 text-blue-500' : 'text-zinc-500 hover:text-zinc-300'}`} title="Facebook"><Facebook size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('YOUTUBE')} className={`p-1.5 rounded ${platform === 'YOUTUBE' ? 'bg-zinc-700 text-red-500' : 'text-zinc-500 hover:text-zinc-300'}`} title="YouTube"><Youtube size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('TIKTOK')} className={`p-1.5 rounded ${platform === 'TIKTOK' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-zinc-300'}`} title="TikTok"><Video size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('BLOG')} className={`p-1.5 rounded ${platform === 'BLOG' ? 'bg-zinc-700 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Blog"><Globe size={14}/></button>
-                                 <button type="button" onClick={() => setPlatform('OTHER')} className={`p-1.5 rounded ${platform === 'OTHER' ? 'bg-zinc-700 text-zinc-300' : 'text-zinc-500 hover:text-zinc-300'}`} title="Other"><MoreHorizontal size={14}/></button>
-                             </div>
-                             <button
+                        <div className="absolute bottom-3 right-3 left-3 sm:left-auto flex items-center justify-between sm:justify-end gap-2">
+                            <div className="flex bg-zinc-800 rounded p-0.5 overflow-x-auto max-w-[200px] sm:max-w-none no-scrollbar">
+                                <button type="button" onClick={() => setPlatform('LINKEDIN')} className={`p-1.5 rounded shrink-0 ${platform === 'LINKEDIN' ? 'bg-zinc-700 text-blue-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="LinkedIn"><Linkedin size={14} /></button>
+                                <button type="button" onClick={() => setPlatform('TWITTER')} className={`p-1.5 rounded shrink-0 ${platform === 'TWITTER' ? 'bg-zinc-700 text-sky-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Twitter/X"><Twitter size={14} /></button>
+                                <button type="button" onClick={() => setPlatform('INSTAGRAM')} className={`p-1.5 rounded shrink-0 ${platform === 'INSTAGRAM' ? 'bg-zinc-700 text-pink-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Instagram"><Instagram size={14} /></button>
+                                <button type="button" onClick={() => setPlatform('FACEBOOK')} className={`p-1.5 rounded shrink-0 ${platform === 'FACEBOOK' ? 'bg-zinc-700 text-blue-500' : 'text-zinc-500 hover:text-zinc-300'}`} title="Facebook"><Facebook size={14} /></button>
+                                <button type="button" onClick={() => setPlatform('YOUTUBE')} className={`p-1.5 rounded shrink-0 ${platform === 'YOUTUBE' ? 'bg-zinc-700 text-red-500' : 'text-zinc-500 hover:text-zinc-300'}`} title="YouTube"><Youtube size={14} /></button>
+                                <button type="button" onClick={() => setPlatform('TIKTOK')} className={`p-1.5 rounded shrink-0 ${platform === 'TIKTOK' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-zinc-300'}`} title="TikTok"><Video size={14} /></button>
+                                <button type="button" onClick={() => setPlatform('BLOG')} className={`p-1.5 rounded shrink-0 ${platform === 'BLOG' ? 'bg-zinc-700 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`} title="Blog"><Globe size={14} /></button>
+                                <button type="button" onClick={() => setPlatform('OTHER')} className={`p-1.5 rounded shrink-0 ${platform === 'OTHER' ? 'bg-zinc-700 text-zinc-300' : 'text-zinc-500 hover:text-zinc-300'}`} title="Other"><MoreHorizontal size={14} /></button>
+                            </div>
+                            <button
                                 type="submit"
                                 disabled={!content.trim()}
-                                className="flex items-center gap-2 px-4 py-1.5 bg-zinc-100 text-black text-xs font-bold rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                             >
-                                 <Send size={12}/> Queue
-                             </button>
+                                className="flex items-center gap-2 px-4 py-1.5 bg-zinc-100 text-black text-xs font-bold rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+                            >
+                                <Send size={12} /> Queue
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -143,7 +143,7 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) =>
             {/* FEED */}
             <div className="flex-1 overflow-y-auto p-6">
                 <div className="max-w-3xl mx-auto">
-                    
+
                     {/* FILTERS */}
                     <div className="flex gap-4 mb-6 text-xs font-mono text-zinc-500 border-b border-zinc-800 pb-2">
                         <button onClick={() => setFilter('ALL')} className={`hover:text-white transition-colors ${filter === 'ALL' ? 'text-white' : ''}`}>ALL</button>
@@ -154,12 +154,12 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) =>
 
                     <div className="grid grid-cols-1 gap-4">
                         {filteredItems.map(item => (
-                            <div 
-                                key={item.id} 
+                            <div
+                                key={item.id}
                                 className={`
                                     group relative p-4 rounded-lg border transition-all
-                                    ${item.isPosted 
-                                        ? 'bg-transparent border-zinc-800/50 opacity-60' 
+                                    ${item.isPosted
+                                        ? 'bg-transparent border-zinc-800/50 opacity-60'
                                         : 'bg-surface border-zinc-800 hover:border-zinc-700'}
                                 `}
                             >
@@ -170,26 +170,26 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) =>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className="text-zinc-600">
-                                            {item.platform === 'LINKEDIN' && <Linkedin size={14}/>}
-                                            {item.platform === 'TWITTER' && <Twitter size={14}/>}
-                                            {item.platform === 'INSTAGRAM' && <Instagram size={14}/>}
-                                            {item.platform === 'FACEBOOK' && <Facebook size={14}/>}
-                                            {item.platform === 'YOUTUBE' && <Youtube size={14}/>}
-                                            {item.platform === 'TIKTOK' && <Video size={14}/>}
-                                            {item.platform === 'BLOG' && <Globe size={14}/>}
-                                            {item.platform === 'OTHER' && <MoreHorizontal size={14}/>}
+                                            {item.platform === 'LINKEDIN' && <Linkedin size={14} />}
+                                            {item.platform === 'TWITTER' && <Twitter size={14} />}
+                                            {item.platform === 'INSTAGRAM' && <Instagram size={14} />}
+                                            {item.platform === 'FACEBOOK' && <Facebook size={14} />}
+                                            {item.platform === 'YOUTUBE' && <Youtube size={14} />}
+                                            {item.platform === 'TIKTOK' && <Video size={14} />}
+                                            {item.platform === 'BLOG' && <Globe size={14} />}
+                                            {item.platform === 'OTHER' && <MoreHorizontal size={14} />}
                                         </span>
                                         <button
                                             onClick={() => onDelete(item.id)}
                                             className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-600 hover:text-red-500"
                                             title="Delete"
                                         >
-                                            <Trash2 size={14}/>
+                                            <Trash2 size={14} />
                                         </button>
                                     </div>
                                 </div>
 
-                                <textarea 
+                                <textarea
                                     value={item.content}
                                     onChange={(e) => onUpdate(item.id, { content: e.target.value })}
                                     readOnly={item.isPosted}
@@ -204,26 +204,26 @@ const MarketingView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) =>
                                     <span className="text-[10px] text-zinc-600 font-mono">
                                         {new Date(item.createdAt).toLocaleDateString()}
                                     </span>
-                                    
-                                    <button 
+
+                                    <button
                                         onClick={() => togglePosted(item.id, item.isPosted)}
                                         className={`
                                             flex items-center gap-1.5 px-3 py-1 rounded text-[10px] font-bold uppercase transition-colors
-                                            ${item.isPosted 
-                                                ? 'bg-zinc-900 text-zinc-500 hover:text-zinc-300' 
+                                            ${item.isPosted
+                                                ? 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'
                                                 : 'bg-zinc-100 text-black hover:bg-white'}
                                         `}
                                     >
                                         {item.isPosted ? (
-                                            <>Posted <CheckCircle2 size={12}/></>
+                                            <>Posted <CheckCircle2 size={12} /></>
                                         ) : (
-                                            <>Ship <Send size={12}/></>
+                                            <>Ship <Send size={12} /></>
                                         )}
                                     </button>
                                 </div>
                             </div>
                         ))}
-                        
+
                         {filteredItems.length === 0 && (
                             <div className="py-12 text-center text-zinc-600 text-xs font-mono">
                                 No transmissions found in this frequency.

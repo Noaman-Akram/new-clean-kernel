@@ -154,10 +154,30 @@ export const saveState = async (state: AppState) => {
   // B. Sync to Firebase (Fire and forget)
   if (db) {
     try {
+      // DEBUG: Log state before save to catch undefined values
+      // console.log("☁️ Syncing to Cloud...", state); 
       await setDoc(doc(db, "users", USER_ID), state);
       // console.log("☁️ Synced to Cloud");
-    } catch (e) {
-      console.error("Cloud sync failed", e);
+    } catch (e: any) {
+      console.error("🔥 Cloud sync failed DETAILED:", e);
+      if (e.message.includes("undefined")) {
+        console.error("UNDEFINED FIELD FOUND. Inspecting state keys:");
+        Object.keys(state).forEach(key => {
+          const val = (state as any)[key];
+          if (val === undefined) console.error(`TOP LEVEL KEY ${key} is UNDEFINED`);
+          if (Array.isArray(val)) {
+            val.forEach((item, idx) => {
+              if (typeof item === 'object' && item !== null) {
+                Object.keys(item).forEach(subKey => {
+                  if (item[subKey] === undefined) {
+                    console.error(`ARRAY ${key}[${idx}].${subKey} is UNDEFINED`);
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
     }
   }
 };

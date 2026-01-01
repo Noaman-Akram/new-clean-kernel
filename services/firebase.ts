@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
 // 1. Replace these with your keys from the Firebase Console -> Project Settings
 // 2. Or create a .env file with VITE_FIREBASE_API_KEY, etc.
@@ -19,18 +19,15 @@ let db: any = null;
 try {
     if (firebaseConfig.apiKey) {
         const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
 
-        // Enable Offline Persistence
-        enableIndexedDbPersistence(db).catch((err) => {
-            if (err.code == 'failed-precondition') {
-                console.log('Persistence failed: Multiple tabs open');
-            } else if (err.code == 'unimplemented') {
-                console.log('Persistence not supported');
-            }
+        // Initialize Firestore with modern persistence settings
+        db = initializeFirestore(app, {
+            localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager()
+            })
         });
 
-        console.log("🔥 Firebase initialized with Offline Support");
+        console.log("🔥 Firebase initialized with Persistent Cache (Multi-tab)");
     } else {
         console.log("⚠️ No Firebase keys found. Running in Offline Mode.");
     }

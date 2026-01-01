@@ -67,21 +67,31 @@ export const loadState = async (): Promise<AppState> => {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        console.log("☁️ Loaded from Cloud");
         const data = docSnap.data();
 
-        // DEEP MERGE STRATEGY: 
-        // We want cloud data, but we must ensure the structure is valid.
-        return {
+        // CONFLICT RESOLUTION:
+        // If LocalStorage has a significantly newer 'lastSync' timestamp than the Cloud,
+        // it means we have pending writes. We MUST prefer local to avoid reversion.
+        const cloudTime = data.metrics?.lastSync ? new Date(data.metrics.lastSync).getTime() : 0;
+        const localTime = localData?.metrics?.lastSync ? new Date(localData.metrics.lastSync).getTime() : 0;
+
+        if (localData && localTime > cloudTime + 2000) {
+          console.log("💾 Local is newer than Cloud - Preferring Local");
+          setDoc(docRef, localData).catch(e => console.error("Background sync failed", e));
+          return localData;
+        }
+
+        console.log("☁️ Loaded from Cloud");
+        const mergedData = {
           ...INITIAL_STATE,
           ...data,
-          // Ensure arrays are arrays (in case of corruption)
           marketing: data.marketing || [],
           accounts: data.accounts || [],
           activities: data.activities || [],
           shoppingList: data.shoppingList || [],
           stickyNotes: data.stickyNotes || {}
         } as AppState;
+        return mergedData;
       } else {
         console.log("☁️ New Cloud User - Seeding Data from Local or Default");
         // If we have local data, upload it to seed the cloud. Otherwise use default.

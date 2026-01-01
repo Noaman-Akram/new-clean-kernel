@@ -98,7 +98,7 @@ const App: React.FC = () => {
     title: string,
     category: Category,
     impact: 'LOW' | 'MED' | 'HIGH',
-    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus }
+    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus; scheduledTime?: number }
   ) => {
     const newTask: Task = {
       id: generateId(),
@@ -110,6 +110,9 @@ const App: React.FC = () => {
     };
     if (options?.deadline) {
       newTask.deadline = options.deadline;
+    }
+    if (options?.scheduledTime) {
+      newTask.scheduledTime = options.scheduledTime;
     }
     if (options?.slot) {
       newTask.slot = options.slot;

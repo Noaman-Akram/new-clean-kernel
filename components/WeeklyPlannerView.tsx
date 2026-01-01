@@ -28,7 +28,7 @@ import { generateId } from '../utils';
 
 interface Props {
   state: AppState;
-  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH') => void;
+  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH', options?: { scheduledTime?: number }) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
@@ -180,6 +180,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         onToggleCollapse={() => setBacklogCollapsed(!backlogCollapsed)}
         onDragStart={setDraggedTask}
         onDelete={onDelete}
+        draggedTask={draggedTask}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -301,12 +302,13 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
 interface BacklogSidebarProps {
   tasks: Task[];
   weekDays: WeekDay[];
-  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH') => void;
+  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH', options?: { scheduledTime?: number }) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onDragStart: (task: Task) => void;
   onDelete: (id: string) => void;
+  draggedTask: Task | null;
 }
 
 const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
@@ -318,11 +320,24 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
   onToggleCollapse,
   onDragStart,
   onDelete,
+  draggedTask,
 }) => {
   const [input, setInput] = useState('');
   const [schedulingTask, setSchedulingTask] = useState<Task | null>(null);
   const [scheduleDay, setScheduleDay] = useState(0);
   const [scheduleTime, setScheduleTime] = useState('9:00 AM');
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedTask) {
+      onUpdate(draggedTask.id, { scheduledTime: undefined });
+    }
+  };
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -374,8 +389,11 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
   }
 
   return (
-    <div className={`w-full md:w-72 border-r border-border flex flex-col shrink-0 bg-surface/20 ${collapsed ? 'hidden md:flex' : 'flex'
-      }`}>
+    <div
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+      className={`w-full md:w-72 border-r border-border flex flex-col shrink-0 bg-surface/20 ${collapsed ? 'hidden md:flex' : 'flex'
+        }`}>
       <div className="h-14 border-b border-border px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
@@ -517,7 +535,7 @@ interface DayColumnProps {
   tasks: Task[];
   unscheduledTasks: Task[];
   currentTime: Date;
-  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH') => void;
+  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH', options?: { scheduledTime?: number }) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
@@ -565,36 +583,10 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
   const [showDockPicker, setShowDockPicker] = useState(false);
   const [draggingOver, setDraggingOver] = useState<number | null>(null);
   const [isStickyOpen, setIsStickyOpen] = useState(false);
-  const pendingScheduleRef = useRef<{ hour: number; title: string; notes?: string } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const prayers = getPrayerTimesForDate(day.date);
   const isCurrentDay = day.isToday;
-
-  // Watch for new tasks to schedule them
-  useEffect(() => {
-    if (!pendingScheduleRef.current) return;
-
-    const { hour, title, notes } = pendingScheduleRef.current;
-
-    const newTask = allTasks.find(t =>
-      t.title === title &&
-      !t.scheduledTime &&
-      t.createdAt > Date.now() - 3000
-    );
-
-    if (newTask) {
-      const scheduledDate = new Date(day.date);
-      scheduledDate.setHours(hour, 0, 0, 0);
-
-      onUpdate(newTask.id, {
-        scheduledTime: scheduledDate.getTime(),
-        notes: notes || undefined,
-      });
-
-      pendingScheduleRef.current = null;
-    }
-  }, [allTasks, day.date, onUpdate]);
 
   useEffect(() => {
     if (quickAddTime && inputRef.current) {
@@ -651,13 +643,10 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
     const cleanTitle = title.replace(/^!/, '').trim();
 
     // Store what we're scheduling
-    pendingScheduleRef.current = {
-      hour,
-      title: cleanTitle,
-      notes: description || undefined,
-    };
+    const scheduledDate = new Date(day.date);
+    scheduledDate.setHours(hour, 0, 0, 0);
 
-    onAdd(cleanTitle, Category.AGENCY, isUrgent ? 'HIGH' : 'MED');
+    onAdd(cleanTitle, Category.AGENCY, isUrgent ? 'HIGH' : 'MED', { scheduledTime: scheduledDate.getTime() });
 
     setQuickAddText('');
     setQuickAddTime(null);
@@ -726,13 +715,10 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
     const cleanTitle = title.replace(/^!/, '').trim();
 
     // Store what we're scheduling
-    pendingScheduleRef.current = {
-      hour: 23,
-      title: cleanTitle,
-      notes: description || undefined,
-    };
+    const scheduledDate = new Date(day.date);
+    scheduledDate.setHours(23, 0, 0, 0); // 23:00 Convention for unscheduled/all-day in this column
 
-    onAdd(cleanTitle, Category.AGENCY, isUrgent ? 'HIGH' : 'MED');
+    onAdd(cleanTitle, Category.AGENCY, isUrgent ? 'HIGH' : 'MED', { scheduledTime: scheduledDate.getTime() });
 
     setQuickAddText('');
     setQuickAddTime(null);
@@ -1032,7 +1018,11 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
         })}
 
         {/* Unscheduled Tasks */}
-        <div className="mt-8 pt-5 border-t border-dashed border-zinc-800">
+        <div
+          className={`mt-8 pt-5 border-t border-dashed border-zinc-800 transition-colors ${draggingOver === 23 ? 'bg-emerald-900/10' : ''}`}
+          onDragOver={(e) => handleDragOver(e, 23)}
+          onDrop={(e) => handleDrop(e, 23)}
+        >
           <div className="flex items-center justify-between mb-3">
             <div className="text-xs font-mono text-zinc-600">Unscheduled</div>
             <button

@@ -142,6 +142,10 @@ const App: React.FC = () => {
     setState(prev => prev ? ({ ...prev, transactions: [tx, ...prev.transactions] }) : null);
   }
 
+  const handleTransactionDelete = (id: string) => {
+    setState(prev => prev ? ({ ...prev, transactions: prev.transactions.filter(t => t.id !== id) }) : null);
+  }
+
   const handleAccountAdd = (account: Account) => {
     setState(prev => prev ? ({ ...prev, accounts: [...prev.accounts, account] }) : null);
   }
@@ -342,6 +346,7 @@ const App: React.FC = () => {
           onAddAccount={handleAccountAdd}
           onUpdateAccount={handleAccountUpdate}
           onDeleteAccount={handleAccountDelete}
+          onDeleteTransaction={handleTransactionDelete}
         />;
       case Page.MARKETING:
         return <MarketingView state={state} onAdd={handleMarketingAdd} onUpdate={handleMarketingUpdate} onDelete={handleMarketingDelete} />;

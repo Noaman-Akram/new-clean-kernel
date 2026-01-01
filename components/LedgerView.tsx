@@ -4,24 +4,26 @@ import { generateId } from '../utils';
 import { Plus, CreditCard, TrendingUp, TrendingDown, Wallet, Edit2, Check, X, Trash2 } from 'lucide-react';
 
 interface Props {
-  state: AppState;
-  onAdd: (tx: Transaction) => void;
-  onAddAccount?: (account: Account) => void;
-  onUpdateAccount?: (id: string, updates: Partial<Account>) => void;
-  onDeleteAccount?: (id: string) => void;
+    state: AppState;
+    onAdd: (tx: Transaction) => void;
+    onAddAccount?: (account: Account) => void;
+    onUpdateAccount?: (id: string, updates: Partial<Account>) => void;
+    onDeleteAccount?: (id: string) => void;
+    onDeleteTransaction?: (id: string) => void;
 }
 
-const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccount, onDeleteAccount }) => {
+const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccount, onDeleteAccount, onDeleteTransaction }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [desc, setDesc] = useState('');
     const [amount, setAmount] = useState('');
     const [accountId, setAccountId] = useState(state.accounts[0]?.id || '');
+    const [category, setCategory] = useState<string>('DEV');
     const [isManagingAccounts, setIsManagingAccounts] = useState(false);
     const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
 
     const handleAdd = (type: 'INCOME' | 'EXPENSE') => {
         const val = parseFloat(amount);
-        if(!val || !desc || !accountId) return;
+        if (!val || !desc || !accountId) return;
 
         onAdd({
             id: generateId(),
@@ -29,11 +31,12 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
             date: Date.now(),
             description: desc,
             type,
-            category: Category.FREELANCE,
+            category: category,
             accountId
         });
         setAmount('');
         setDesc('');
+        setCategory('DEV');
         setIsAdding(false);
     };
 
@@ -48,16 +51,16 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
         return Object.values(map);
     }, [state.accounts, state.transactions]);
 
-    const net = state.transactions.reduce((a,b) => a + b.amount, 0);
-    const income = state.transactions.filter(t => t.type === 'INCOME').reduce((a,b) => a+b.amount, 0);
-    const expense = Math.abs(state.transactions.filter(t => t.type === 'EXPENSE').reduce((a,b) => a+b.amount, 0));
+    const net = state.transactions.reduce((a, b) => a + b.amount, 0);
+    const income = state.transactions.filter(t => t.type === 'INCOME').reduce((a, b) => a + b.amount, 0);
+    const expense = Math.abs(state.transactions.filter(t => t.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0));
 
     return (
         <div className="h-full flex flex-col animate-fade-in bg-background">
 
             {/* HEADER SUMMARY - COMPACT */}
             <div className="border-b border-border bg-surface/20 p-6">
-                 <div className="flex items-end justify-between mb-6">
+                <div className="flex items-end justify-between mb-6">
                     <div>
                         <div className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                             <CreditCard size={14} /> Net Position
@@ -80,33 +83,39 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
                             <span>New Transaction</span>
                         </button>
                     </div>
-                 </div>
+                </div>
 
-                 <div className="grid grid-cols-2 gap-3 max-w-md">
+                <div className="grid grid-cols-2 gap-3 max-w-md">
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded p-3">
-                        <div className="text-[10px] text-zinc-500 uppercase mb-1 flex items-center gap-1"><TrendingUp size={12}/> Income</div>
+                        <div className="text-[10px] text-zinc-500 uppercase mb-1 flex items-center gap-1"><TrendingUp size={12} /> Income</div>
                         <div className="text-xl text-emerald-500 font-mono font-medium">
                             +${income.toLocaleString()}
                         </div>
                     </div>
                     <div className="bg-zinc-900/50 border border-zinc-800 rounded p-3">
-                        <div className="text-[10px] text-zinc-500 uppercase mb-1 flex items-center gap-1"><TrendingDown size={12}/> Expenses</div>
+                        <div className="text-[10px] text-zinc-500 uppercase mb-1 flex items-center gap-1"><TrendingDown size={12} /> Expenses</div>
                         <div className="text-xl text-zinc-400 font-mono font-medium">
                             ${expense.toLocaleString()}
                         </div>
                     </div>
-                 </div>
+                </div>
             </div>
 
-             {/* ADD ROW */}
-             {isAdding && (
+            {/* ADD ROW */}
+            {isAdding && (
                 <div className="border-b border-border p-4 bg-surface flex items-center justify-center gap-3 animate-fade-in">
-                     <input
+                    <input
                         value={desc}
                         onChange={e => setDesc(e.target.value)}
                         placeholder="Description..."
                         className="bg-background border border-border rounded-md px-4 py-2 text-sm text-white focus:border-zinc-500 outline-none w-80"
                         autoFocus
+                    />
+                    <input
+                        value={category}
+                        onChange={e => setCategory(e.target.value)}
+                        placeholder="Category"
+                        className="bg-background border border-border rounded-md px-3 py-2 text-sm text-zinc-300 focus:border-zinc-500 outline-none w-32"
                     />
                     <select
                         value={accountId}
@@ -173,7 +182,7 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
                                 {state.transactions.map(tx => (
                                     <tr key={tx.id} className="group hover:bg-zinc-900/30 transition-colors">
                                         <td className="py-4 text-xs text-zinc-500 font-mono w-32">
-                                            {new Date(tx.date).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year:'2-digit'})}
+                                            {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' })}
                                         </td>
                                         <td className="py-4 text-sm text-zinc-300 font-medium">
                                             {tx.description}
@@ -188,6 +197,17 @@ const LedgerView: React.FC<Props> = ({ state, onAdd, onAddAccount, onUpdateAccou
                                         </td>
                                         <td className="py-4 text-right text-[11px] text-zinc-500 font-mono w-32">
                                             {state.accounts.find(a => a.id === tx.accountId)?.name || '—'}
+                                        </td>
+                                        <td className="py-4 pl-4 pr-0 w-8 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {onDeleteTransaction && (
+                                                <button
+                                                    onClick={() => onDeleteTransaction(tx.id)}
+                                                    className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-900/10 rounded transition-colors"
+                                                    title="Delete Transaction"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

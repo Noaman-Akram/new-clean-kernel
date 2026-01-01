@@ -120,7 +120,7 @@ export interface Transaction {
   date: number;
   description: string;
   type: 'INCOME' | 'EXPENSE';
-  category: Category;
+  category: string;
   accountId?: string;
   relatedEntityId?: string; // Link to Client/Entity
 }

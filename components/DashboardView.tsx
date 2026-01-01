@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, TaskStatus, Category, Task } from '../types';
 import { getNextPrayer } from '../utils';
-import { 
+import {
     Target,
     ArrowUpRight,
     Zap,
@@ -13,7 +13,12 @@ import {
     CheckCircle2,
     Flame,
     AlertTriangle,
-    Calendar
+    Calendar,
+    CalendarDays,
+    Users,
+    Send,
+    DollarSign,
+    Activity
 } from 'lucide-react';
 
 interface Props {
@@ -23,9 +28,10 @@ interface Props {
   onPrayerToggle: (key: string) => void;
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
+  onNavigate?: (page: string) => void;
 }
 
-const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPrayerToggle, onStartSession, activeTaskId }) => {
+const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPrayerToggle, onStartSession, activeTaskId, onNavigate }) => {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -71,7 +77,48 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
   return (
     <div className="h-full overflow-y-auto p-6 animate-fade-in bg-background">
       <div className="max-w-[1200px] mx-auto flex flex-col gap-8 h-full">
-        
+
+        {/* --- QUICK NAVIGATION --- */}
+        {onNavigate && (
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => onNavigate('WEEKLY')}
+              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
+            >
+              <CalendarDays size={14} />
+              <span>Weekly</span>
+            </button>
+            <button
+              onClick={() => onNavigate('NETWORK')}
+              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
+            >
+              <Users size={14} />
+              <span>Network</span>
+            </button>
+            <button
+              onClick={() => onNavigate('MARKETING')}
+              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
+            >
+              <Send size={14} />
+              <span>Marketing</span>
+            </button>
+            <button
+              onClick={() => onNavigate('LEDGER')}
+              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
+            >
+              <DollarSign size={14} />
+              <span>Ledger</span>
+            </button>
+            <button
+              onClick={() => onNavigate('ACTIVITIES')}
+              className="flex items-center gap-2 px-4 py-2 bg-surface/50 border border-border rounded-md text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all"
+            >
+              <Activity size={14} />
+              <span>Activities</span>
+            </button>
+          </div>
+        )}
+
         {/* --- TOP KPI STRIP --- */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
 

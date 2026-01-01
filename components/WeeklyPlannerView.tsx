@@ -54,7 +54,7 @@ const getPrayerIcon = (iconName: string) => {
   return iconMap[iconName] || <Sun size={12} />;
 };
 
-const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId }) => {
+const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete }) => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [backlogCollapsed, setBacklogCollapsed] = useState(false);
@@ -177,12 +177,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         collapsed={backlogCollapsed}
         onToggleCollapse={() => setBacklogCollapsed(!backlogCollapsed)}
         onDragStart={setDraggedTask}
-        onDelete={(id) => {
-          const task = state.tasks.find(t => t.id === id);
-          if (task) {
-            onUpdate(id, { status: TaskStatus.DONE });
-          }
-        }}
+        onDelete={onDelete}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -1100,13 +1095,25 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
           className="w-full bg-transparent text-sm text-zinc-200 outline-none resize-none"
           autoFocus
         />
-        <div className="flex gap-2 mt-3">
+        <div className="flex gap-1.5 mt-2">
           <button
             onClick={handleSave}
-            className="flex-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs rounded transition-colors"
+            className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-bold rounded transition-colors"
           >
             Save
           </button>
+          {task.scheduledTime && (
+            <button
+              onClick={() => {
+                onUpdate(task.id, { scheduledTime: undefined });
+                onEditingChange(null);
+              }}
+              className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 text-[10px] rounded transition-colors"
+              title="Push to backlog"
+            >
+              → Backlog
+            </button>
+          )}
           {onDelete && (
             <button
               onClick={() => {
@@ -1115,14 +1122,14 @@ const TaskLine: React.FC<TaskLineProps> = ({ task, onUpdate, onStartSession, isA
                   onEditingChange(null);
                 }
               }}
-              className="px-3 py-1.5 bg-red-900/50 hover:bg-red-900/70 border border-red-500/50 text-red-400 text-xs rounded transition-colors"
+              className="px-2.5 py-1 bg-red-900/30 hover:bg-red-900/50 border border-red-900/50 text-red-400 text-[10px] rounded transition-colors"
             >
               Delete
             </button>
           )}
           <button
             onClick={handleCancel}
-            className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-xs rounded transition-colors"
+            className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-[10px] rounded transition-colors"
           >
             Cancel
           </button>

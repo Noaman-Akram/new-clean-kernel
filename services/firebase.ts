@@ -24,7 +24,8 @@ try {
         db = initializeFirestore(app, {
             localCache: persistentLocalCache({
                 tabManager: persistentMultipleTabManager()
-            })
+            }),
+            ignoreUndefinedProperties: true
         });
 
         console.log("🔥 Firebase initialized with Persistent Cache (Multi-tab)");

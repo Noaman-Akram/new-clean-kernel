@@ -33,7 +33,8 @@ export enum Page {
   SUPPLICATIONS = 'SANCTUARY',
   INTEL = 'INTEL',
   ARSENAL = 'ARSENAL',
-  WEEKLY = 'WEEKLY'
+  WEEKLY = 'WEEKLY',
+  GYM = 'GYM'
 }
 
 export type Severity = 'LOW' | 'MED' | 'HIGH';
@@ -187,6 +188,44 @@ export interface HorizonGoal {
   progress: number;
 }
 
+// Gym Tracker Types
+export type ExerciseCategory = 'CHEST' | 'BACK' | 'LEGS' | 'SHOULDERS' | 'ARMS' | 'CORE' | 'CARDIO';
+export type ExerciseType = 'STRENGTH' | 'CARDIO' | 'STRETCH';
+
+export interface Exercise {
+  id: string;
+  name: string;
+  category: ExerciseCategory;
+  type: ExerciseType;
+  isCustom: boolean;
+}
+
+export interface WorkoutSet {
+  id: string;
+  reps: number;
+  weight?: number; // Optional for bodyweight
+  completed: boolean;
+  notes?: string;
+}
+
+export interface WorkoutExercise {
+  id: string;
+  exerciseName: string; // Store name directly for simplicity
+  exerciseCategory: ExerciseCategory;
+  sets: WorkoutSet[];
+  restTimer?: number; // seconds
+}
+
+export interface WorkoutSession {
+  id: string;
+  programName?: string;
+  startTime: number;
+  endTime?: number;
+  exercises: WorkoutExercise[];
+  notes?: string;
+  isActive: boolean;
+}
+
 export type PrayerName = 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha';
 
 export interface PrayerTime {
@@ -214,4 +253,6 @@ export interface AppState {
   activeSession: ActiveSession;
   horizonGoals: HorizonGoal[];
   stickyNotes: Record<string, string>; // format: YYYY-MM-DD -> content
+  workoutSessions: WorkoutSession[];
+  exercises: Exercise[];
 }

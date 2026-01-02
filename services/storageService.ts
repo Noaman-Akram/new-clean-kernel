@@ -28,6 +28,8 @@ const INITIAL_STATE: AppState = {
   activities: [],
   accounts: [],
   shoppingList: [],
+  workoutSessions: [],
+  exercises: [],
   metrics: {
     revenue: 0,
     target: 0,
@@ -89,6 +91,8 @@ export const loadState = async (): Promise<AppState> => {
           accounts: data.accounts || [],
           activities: data.activities || [],
           shoppingList: data.shoppingList || [],
+          workoutSessions: data.workoutSessions || [],
+          exercises: data.exercises || [],
           stickyNotes: data.stickyNotes || {}
         } as AppState;
         return mergedData;
@@ -127,7 +131,9 @@ export const subscribeToState = (onUpdate: (state: AppState) => void): Unsubscri
           marketing: data.marketing || INITIAL_STATE.marketing,
           accounts: data.accounts || INITIAL_STATE.accounts,
           activities: data.activities || INITIAL_STATE.activities,
-          shoppingList: data.shoppingList || INITIAL_STATE.shoppingList
+          shoppingList: data.shoppingList || INITIAL_STATE.shoppingList,
+          workoutSessions: data.workoutSessions || INITIAL_STATE.workoutSessions,
+          exercises: data.exercises || INITIAL_STATE.exercises
         } as AppState;
         onUpdate(mergedState);
       }

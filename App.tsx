@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise } from './types';
 import { loadState, saveState, subscribeToState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
@@ -235,13 +235,44 @@ const App: React.FC = () => {
     }) : null);
   };
 
-  const handleStartWorkout = () => {
+  // Workout Template Handlers
+  const handleCreateTemplate = (template: WorkoutTemplate) => {
+    setState(prev => prev ? ({
+      ...prev,
+      workoutTemplates: [...prev.workoutTemplates, template]
+    }) : null);
+  };
+
+  const handleUpdateTemplate = (template: WorkoutTemplate) => {
+    setState(prev => prev ? ({
+      ...prev,
+      workoutTemplates: prev.workoutTemplates.map(t => t.id === template.id ? template : t)
+    }) : null);
+  };
+
+  const handleDeleteTemplate = (templateId: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      workoutTemplates: prev.workoutTemplates.filter(t => t.id !== templateId)
+    }) : null);
+  };
+
+  // Workout Session Handlers
+  const handleStartWorkout = (template?: WorkoutTemplate) => {
     const newSession: WorkoutSession = {
       id: generateId(),
+      templateId: template?.id,
+      templateName: template?.name,
       startTime: Date.now(),
       exercises: [],
       isActive: true
     };
+
+    // Update template's lastUsed time
+    if (template) {
+      handleUpdateTemplate({ ...template, lastUsed: Date.now() });
+    }
+
     setState(prev => prev ? ({
       ...prev,
       workoutSessions: [newSession, ...prev.workoutSessions]
@@ -259,6 +290,13 @@ const App: React.FC = () => {
     setState(prev => prev ? ({
       ...prev,
       workoutSessions: prev.workoutSessions.map(s => s.id === session.id ? session : s)
+    }) : null);
+  };
+
+  const handleAddExercise = (exercise: Exercise) => {
+    setState(prev => prev ? ({
+      ...prev,
+      exercises: [...prev.exercises, exercise]
     }) : null);
   };
 
@@ -410,6 +448,10 @@ const App: React.FC = () => {
           onStartSession={handleStartWorkout}
           onEndSession={handleEndWorkout}
           onUpdateSession={handleUpdateWorkout}
+          onCreateTemplate={handleCreateTemplate}
+          onUpdateTemplate={handleUpdateTemplate}
+          onDeleteTemplate={handleDeleteTemplate}
+          onAddExercise={handleAddExercise}
         />;
       default:
         return <DashboardView {...viewProps} onPrayerToggle={handlePrayerToggle} onAdhkarToggle={handleAdhkarToggle} onTaskAdd={handleTaskAdd} />;

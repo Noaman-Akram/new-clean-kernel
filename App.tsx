@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise } from './types';
 import { loadState, saveState, subscribeToState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
@@ -21,7 +21,8 @@ import {
   Container,
   Loader2,
   Megaphone,
-  MapPin
+  MapPin,
+  Dumbbell
 } from 'lucide-react';
 
 // Views
@@ -35,6 +36,7 @@ import ResourcesView from './components/ResourcesView';
 import MarketingView from './components/MarketingView';
 import ActivitiesView from './components/ActivitiesView';
 import WeeklyPlannerView from './components/WeeklyPlannerView';
+import GymView from './components/GymView';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
@@ -233,6 +235,71 @@ const App: React.FC = () => {
     }) : null);
   };
 
+  // Workout Template Handlers
+  const handleCreateTemplate = (template: WorkoutTemplate) => {
+    setState(prev => prev ? ({
+      ...prev,
+      workoutTemplates: [...prev.workoutTemplates, template]
+    }) : null);
+  };
+
+  const handleUpdateTemplate = (template: WorkoutTemplate) => {
+    setState(prev => prev ? ({
+      ...prev,
+      workoutTemplates: prev.workoutTemplates.map(t => t.id === template.id ? template : t)
+    }) : null);
+  };
+
+  const handleDeleteTemplate = (templateId: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      workoutTemplates: prev.workoutTemplates.filter(t => t.id !== templateId)
+    }) : null);
+  };
+
+  // Workout Session Handlers
+  const handleStartWorkout = (template?: WorkoutTemplate) => {
+    const newSession: WorkoutSession = {
+      id: generateId(),
+      templateId: template?.id,
+      templateName: template?.name,
+      startTime: Date.now(),
+      exercises: [],
+      isActive: true
+    };
+
+    // Update template's lastUsed time
+    if (template) {
+      handleUpdateTemplate({ ...template, lastUsed: Date.now() });
+    }
+
+    setState(prev => prev ? ({
+      ...prev,
+      workoutSessions: [newSession, ...prev.workoutSessions]
+    }) : null);
+  };
+
+  const handleEndWorkout = (session: WorkoutSession) => {
+    setState(prev => prev ? ({
+      ...prev,
+      workoutSessions: prev.workoutSessions.map(s => s.id === session.id ? session : s)
+    }) : null);
+  };
+
+  const handleUpdateWorkout = (session: WorkoutSession) => {
+    setState(prev => prev ? ({
+      ...prev,
+      workoutSessions: prev.workoutSessions.map(s => s.id === session.id ? session : s)
+    }) : null);
+  };
+
+  const handleAddExercise = (exercise: Exercise) => {
+    setState(prev => prev ? ({
+      ...prev,
+      exercises: [...prev.exercises, exercise]
+    }) : null);
+  };
+
   const handlePrayerToggle = (key: string) => {
     setState(prev => prev ? ({
       ...prev,
@@ -375,6 +442,17 @@ const App: React.FC = () => {
             onRemove={handleActivityRemove}
           />
         );
+      case Page.GYM:
+        return <GymView
+          state={state}
+          onStartSession={handleStartWorkout}
+          onEndSession={handleEndWorkout}
+          onUpdateSession={handleUpdateWorkout}
+          onCreateTemplate={handleCreateTemplate}
+          onUpdateTemplate={handleUpdateTemplate}
+          onDeleteTemplate={handleDeleteTemplate}
+          onAddExercise={handleAddExercise}
+        />;
       default:
         return <DashboardView {...viewProps} onPrayerToggle={handlePrayerToggle} onAdhkarToggle={handleAdhkarToggle} onTaskAdd={handleTaskAdd} />;
     }
@@ -450,6 +528,13 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.ACTIVITIES)}
             icon={<MapPin size={18} />}
             label="Activities"
+            setHover={setHoveredNav}
+          />
+          <NavIcon
+            active={state.currentPage === Page.GYM}
+            onClick={() => handleNavigate(Page.GYM)}
+            icon={<Dumbbell size={18} />}
+            label="Gym"
             setHover={setHoveredNav}
           />
           <div className="h-px w-3/4 bg-border my-1 opacity-50 shrink-0"></div>
@@ -640,6 +725,7 @@ const App: React.FC = () => {
         <MobileNavIcon active={state.currentPage === Page.MENTOR} onClick={() => handleNavigate(Page.MENTOR)} icon={<MessageSquare size={20} />} label="Protocol" />
         <MobileNavIcon active={state.currentPage === Page.SUPPLICATIONS} onClick={() => handleNavigate(Page.SUPPLICATIONS)} icon={<BookOpen size={20} />} label="Sanctuary" />
         <MobileNavIcon active={state.currentPage === Page.INTEL} onClick={() => handleNavigate(Page.INTEL)} icon={<StickyNote size={20} />} label="Intel" />
+        <MobileNavIcon active={state.currentPage === Page.GYM} onClick={() => handleNavigate(Page.GYM)} icon={<Dumbbell size={20} />} label="Gym" />
       </div>
 
       {/* --- OFFLINE WARNING BANNER --- */}

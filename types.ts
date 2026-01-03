@@ -33,7 +33,8 @@ export enum Page {
   SUPPLICATIONS = 'SANCTUARY',
   INTEL = 'INTEL',
   ARSENAL = 'ARSENAL',
-  WEEKLY = 'WEEKLY'
+  WEEKLY = 'WEEKLY',
+  GYM = 'GYM'
 }
 
 export type Severity = 'LOW' | 'MED' | 'HIGH';
@@ -187,6 +188,71 @@ export interface HorizonGoal {
   progress: number;
 }
 
+// Gym Tracker Types - RepCount Style
+export type ExerciseCategory = 'CHEST' | 'BACK' | 'LEGS' | 'SHOULDERS' | 'ARMS' | 'CORE' | 'CARDIO' | 'FULL_BODY';
+
+// Exercise Library
+export interface Exercise {
+  id: string;
+  name: string;
+  category: ExerciseCategory;
+  isCustom: boolean;
+  defaultRestTime?: number; // Default rest between sets in seconds
+}
+
+// Template Exercise - defines how an exercise appears in a template
+export interface TemplateExercise {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  targetSets: number; // How many sets planned
+  targetReps?: number; // Target reps (optional, can vary by set)
+  restTime: number; // Rest between sets in seconds
+  notes?: string;
+}
+
+// Workout Template/Program - reusable workout
+export interface WorkoutTemplate {
+  id: string;
+  name: string; // "Push Day", "Leg Day", etc.
+  exercises: TemplateExercise[];
+  createdAt: number;
+  lastUsed?: number;
+}
+
+// Actual workout set logged
+export interface WorkoutSet {
+  id: string;
+  reps: number;
+  weight?: number; // Optional for bodyweight
+  completed: boolean;
+  timestamp: number; // When this set was completed
+}
+
+// Exercise within an active/completed workout
+export interface WorkoutExercise {
+  id: string;
+  exerciseId: string;
+  exerciseName: string;
+  sets: WorkoutSet[];
+  targetSets: number;
+  targetReps?: number;
+  restTime: number;
+  previousBest?: { reps: number; weight?: number }; // For progressive overload
+}
+
+// Completed or Active Workout Session
+export interface WorkoutSession {
+  id: string;
+  templateId?: string; // Reference to template if used
+  templateName?: string; // Store name for history
+  startTime: number;
+  endTime?: number;
+  exercises: WorkoutExercise[];
+  notes?: string;
+  isActive: boolean;
+}
+
 export type PrayerName = 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha';
 
 export interface PrayerTime {
@@ -214,4 +280,7 @@ export interface AppState {
   activeSession: ActiveSession;
   horizonGoals: HorizonGoal[];
   stickyNotes: Record<string, string>; // format: YYYY-MM-DD -> content
+  workoutSessions: WorkoutSession[];
+  workoutTemplates: WorkoutTemplate[];
+  exercises: Exercise[];
 }

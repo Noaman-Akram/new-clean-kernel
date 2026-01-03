@@ -28,6 +28,50 @@ const INITIAL_STATE: AppState = {
   activities: [],
   accounts: [],
   shoppingList: [],
+  workoutSessions: [],
+  workoutTemplates: [],
+  exercises: [
+    // Chest
+    { id: 'ex-bench-press', name: 'Bench Press', category: 'CHEST', isCustom: false, defaultRestTime: 180 },
+    { id: 'ex-incline-bench', name: 'Incline Bench Press', category: 'CHEST', isCustom: false, defaultRestTime: 180 },
+    { id: 'ex-dumbbell-press', name: 'Dumbbell Press', category: 'CHEST', isCustom: false, defaultRestTime: 120 },
+    { id: 'ex-chest-fly', name: 'Chest Fly', category: 'CHEST', isCustom: false, defaultRestTime: 90 },
+    { id: 'ex-pushups', name: 'Push-ups', category: 'CHEST', isCustom: false, defaultRestTime: 60 },
+
+    // Back
+    { id: 'ex-deadlift', name: 'Deadlift', category: 'BACK', isCustom: false, defaultRestTime: 240 },
+    { id: 'ex-barbell-row', name: 'Barbell Row', category: 'BACK', isCustom: false, defaultRestTime: 180 },
+    { id: 'ex-pullups', name: 'Pull-ups', category: 'BACK', isCustom: false, defaultRestTime: 120 },
+    { id: 'ex-lat-pulldown', name: 'Lat Pulldown', category: 'BACK', isCustom: false, defaultRestTime: 90 },
+    { id: 'ex-seated-row', name: 'Seated Cable Row', category: 'BACK', isCustom: false, defaultRestTime: 90 },
+
+    // Legs
+    { id: 'ex-squat', name: 'Squat', category: 'LEGS', isCustom: false, defaultRestTime: 240 },
+    { id: 'ex-leg-press', name: 'Leg Press', category: 'LEGS', isCustom: false, defaultRestTime: 180 },
+    { id: 'ex-lunges', name: 'Lunges', category: 'LEGS', isCustom: false, defaultRestTime: 90 },
+    { id: 'ex-leg-curl', name: 'Leg Curl', category: 'LEGS', isCustom: false, defaultRestTime: 90 },
+    { id: 'ex-leg-extension', name: 'Leg Extension', category: 'LEGS', isCustom: false, defaultRestTime: 90 },
+    { id: 'ex-calf-raise', name: 'Calf Raises', category: 'LEGS', isCustom: false, defaultRestTime: 60 },
+
+    // Shoulders
+    { id: 'ex-overhead-press', name: 'Overhead Press', category: 'SHOULDERS', isCustom: false, defaultRestTime: 180 },
+    { id: 'ex-lateral-raise', name: 'Lateral Raises', category: 'SHOULDERS', isCustom: false, defaultRestTime: 60 },
+    { id: 'ex-front-raise', name: 'Front Raises', category: 'SHOULDERS', isCustom: false, defaultRestTime: 60 },
+    { id: 'ex-rear-delt-fly', name: 'Rear Delt Fly', category: 'SHOULDERS', isCustom: false, defaultRestTime: 60 },
+
+    // Arms
+    { id: 'ex-barbell-curl', name: 'Barbell Curl', category: 'ARMS', isCustom: false, defaultRestTime: 90 },
+    { id: 'ex-hammer-curl', name: 'Hammer Curl', category: 'ARMS', isCustom: false, defaultRestTime: 60 },
+    { id: 'ex-tricep-dips', name: 'Tricep Dips', category: 'ARMS', isCustom: false, defaultRestTime: 90 },
+    { id: 'ex-tricep-extension', name: 'Tricep Extension', category: 'ARMS', isCustom: false, defaultRestTime: 60 },
+    { id: 'ex-close-grip-bench', name: 'Close Grip Bench', category: 'ARMS', isCustom: false, defaultRestTime: 120 },
+
+    // Core
+    { id: 'ex-plank', name: 'Plank', category: 'CORE', isCustom: false, defaultRestTime: 60 },
+    { id: 'ex-crunches', name: 'Crunches', category: 'CORE', isCustom: false, defaultRestTime: 45 },
+    { id: 'ex-hanging-leg-raise', name: 'Hanging Leg Raises', category: 'CORE', isCustom: false, defaultRestTime: 90 },
+    { id: 'ex-russian-twist', name: 'Russian Twists', category: 'CORE', isCustom: false, defaultRestTime: 45 }
+  ],
   metrics: {
     revenue: 0,
     target: 0,
@@ -89,6 +133,9 @@ export const loadState = async (): Promise<AppState> => {
           accounts: data.accounts || [],
           activities: data.activities || [],
           shoppingList: data.shoppingList || [],
+          workoutSessions: data.workoutSessions || [],
+          workoutTemplates: data.workoutTemplates || [],
+          exercises: data.exercises || INITIAL_STATE.exercises,
           stickyNotes: data.stickyNotes || {}
         } as AppState;
         return mergedData;
@@ -127,7 +174,11 @@ export const subscribeToState = (onUpdate: (state: AppState) => void): Unsubscri
           marketing: data.marketing || INITIAL_STATE.marketing,
           accounts: data.accounts || INITIAL_STATE.accounts,
           activities: data.activities || INITIAL_STATE.activities,
-          shoppingList: data.shoppingList || INITIAL_STATE.shoppingList
+          shoppingList: data.shoppingList || INITIAL_STATE.shoppingList,
+          workoutSessions: data.workoutSessions || INITIAL_STATE.workoutSessions,
+          workoutTemplates: data.workoutTemplates || INITIAL_STATE.workoutTemplates,
+          exercises: data.exercises || INITIAL_STATE.exercises,
+          stickyNotes: data.stickyNotes || INITIAL_STATE.stickyNotes
         } as AppState;
         onUpdate(mergedState);
       }

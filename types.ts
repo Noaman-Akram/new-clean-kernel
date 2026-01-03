@@ -34,7 +34,8 @@ export enum Page {
   INTEL = 'INTEL',
   ARSENAL = 'ARSENAL',
   WEEKLY = 'WEEKLY',
-  GYM = 'GYM'
+  GYM = 'GYM',
+  CRM = 'CRM'
 }
 
 export type Severity = 'LOW' | 'MED' | 'HIGH';
@@ -43,6 +44,23 @@ export type Severity = 'LOW' | 'MED' | 'HIGH';
 export type EntityContext = 'NEMO' | 'PERSONAL';
 export type EntityType = 'TEAM' | 'CANDIDATE' | 'CLIENT' | 'NETWORK' | 'PARTNER';
 export type PersonalCircle = 'FRIEND' | 'FAMILY' | 'MENTOR' | 'ALLY' | 'NONE';
+
+export enum CRMStage {
+  LEAD = 'LEAD',
+  CONTACTED = 'CONTACTED',
+  DISCOVERY = 'DISCOVERY',
+  PROPOSAL = 'PROPOSAL',
+  NEGOTIATION = 'NEGOTIATION',
+  CLOSED_WON = 'CLOSED_WON',
+  CLOSED_LOST = 'CLOSED_LOST'
+}
+
+export interface CRMNote {
+  id: string;
+  content: string;
+  timestamp: number;
+  author: string; // e.g., "Nemo"
+}
 
 // Simplified Marketing Types
 export type ContentIdentity = 'AGENCY' | 'CAREER' | 'PERSONAL';
@@ -111,8 +129,17 @@ export interface Client { // Acts as "Entity" (Person or Company)
   profileUrl?: string;
   contactHandle?: string;
   needs?: string;
-  stage?: 'LEAD' | 'DISCOVERY' | 'PROPOSAL' | 'CLOSED' | 'LOST';
+  stage?: CRMStage | 'LEAD' | 'DISCOVERY' | 'PROPOSAL' | 'CLOSED' | 'LOST'; // Backward compat + new enum
   focusArea?: string;
+
+  // CRM Extended Fields
+  leadSource?: string;
+  probability?: number; // 0-100
+  expectedValue?: number;
+  expectedCloseDate?: number;
+  industry?: string;
+  website?: string;
+  crmNotes?: CRMNote[];
 }
 
 export interface Transaction {

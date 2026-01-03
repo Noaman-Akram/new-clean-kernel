@@ -27,6 +27,7 @@ import {
 
 // Views
 import DashboardView from './components/DashboardView';
+import CRMView from './components/CRMView';
 import NetworkView from './components/NetworkView';
 import LedgerView from './components/LedgerView';
 import MentorView from './components/MentorView';
@@ -141,6 +142,10 @@ const App: React.FC = () => {
 
   const handleClientAdd = (client: Client) => {
     setState(prev => prev ? ({ ...prev, clients: [client, ...prev.clients] }) : null);
+  }
+
+  const handleClientDelete = (id: string) => {
+    setState(prev => prev ? ({ ...prev, clients: prev.clients.filter(c => c.id !== id) }) : null);
   }
 
   const handleTransactionAdd = (tx: Transaction) => {
@@ -407,7 +412,10 @@ const App: React.FC = () => {
             onStickyNoteUpdate={handleStickyNoteUpdate}
           />
         );
+      case Page.CRM:
+        return <CRMView state={state} onUpdate={handleClientUpdate} onAdd={handleClientAdd} onDelete={handleClientDelete} />;
       case Page.NETWORK:
+        // Use NetworkView for Personal Context
         return <NetworkView state={state} onUpdate={handleClientUpdate} onAdd={handleClientAdd} onAddTransaction={handleTransactionAdd} />;
       case Page.LEDGER:
         return <LedgerView
@@ -541,10 +549,10 @@ const App: React.FC = () => {
 
           {/* BUSINESS OPS */}
           <NavIcon
-            active={state.currentPage === Page.NETWORK}
-            onClick={() => handleNavigate(Page.NETWORK)}
+            active={state.currentPage === Page.CRM}
+            onClick={() => handleNavigate(Page.CRM)}
             icon={<Users size={18} />}
-            label="Network"
+            label="Relationships"
             setHover={setHoveredNav}
           />
           <NavIcon

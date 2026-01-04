@@ -14,7 +14,7 @@ const generateFutureDate = (days: number) => {
 }
 
 const INITIAL_STATE: AppState = {
-  currentPage: Page.COCKPIT,
+  // currentPage removed - this is now local UI state
   activeSession: {
     taskId: null,
     startTime: null
@@ -121,7 +121,12 @@ export const loadState = async (): Promise<AppState> => {
 
         if (localData && localTime > cloudTime + 2000) {
           console.log("💾 Local is newer than Cloud - Preferring Local");
-          setDoc(docRef, localData).catch(e => console.error("Background sync failed", e));
+
+          // Clean payload before saving to avoid accidentally sending UI state if it exists in old local data
+          const payload = { ...localData };
+          if ('currentPage' in payload) delete (payload as any).currentPage;
+
+          setDoc(docRef, payload).catch(e => console.error("Background sync failed", e));
           return localData;
         }
 
@@ -207,7 +212,12 @@ export const saveState = async (state: AppState) => {
     try {
       // DEBUG: Log state before save to catch undefined values
       // console.log("☁️ Syncing to Cloud...", state); 
-      await setDoc(doc(db, "users", USER_ID), state);
+
+      // Sanitization: Ensure NO UI state leaks into Cloud
+      const payload = { ...state };
+      if ('currentPage' in payload) delete (payload as any).currentPage;
+
+      await setDoc(doc(db, "users", USER_ID), payload);
       // console.log("☁️ Synced to Cloud");
     } catch (e: any) {
       console.error("🔥 Cloud sync failed DETAILED:", e);

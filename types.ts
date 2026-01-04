@@ -290,7 +290,6 @@ export interface PrayerTime {
 }
 
 export interface AppState {
-  currentPage: Page;
   tasks: Task[];
   activities: Activity[];
   clients: Client[];

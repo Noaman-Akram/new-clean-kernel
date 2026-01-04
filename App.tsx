@@ -43,7 +43,11 @@ const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'SAVED' | 'ERROR'>('IDLE');
+  // UI State - Local Only (Not Synced)
+  const [currentPage, setCurrentPage] = useState<Page>(Page.COCKPIT);
+  const [showBackupMenu, setShowBackupMenu] = useState(false);
+
+  const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'SAVED' | 'ERROR' | 'SYNCED'>('IDLE');
   const [hoveredNav, setHoveredNav] = useState<{ label: string, top: number } | null>(null);
 
   // --- INITIALIZATION & REAL-TIME SYNC ---
@@ -54,6 +58,13 @@ const App: React.FC = () => {
       // 1. Initial Load (Fast)
       const data = await loadState();
       setState(data);
+
+      // Load local view preference if exists
+      const savedPage = localStorage.getItem('noeman_local_page');
+      if (savedPage && Object.values(Page).includes(savedPage as Page)) {
+        setCurrentPage(savedPage as Page);
+      }
+
       setLoading(false);
 
       // 2. Real-time Subscription (Live)
@@ -94,7 +105,8 @@ const App: React.FC = () => {
   // --- ACTIONS ---
 
   const handleNavigate = (page: Page) => {
-    setState(prev => prev ? ({ ...prev, currentPage: page }) : null);
+    setCurrentPage(page);
+    localStorage.setItem('noeman_local_page', page);
   };
 
   const handleTaskAdd = (
@@ -377,6 +389,44 @@ const App: React.FC = () => {
     }) : null);
   };
 
+  // --- BACKUP UTILS ---
+  const handleExportBackup = () => {
+    if (!state) return;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "noeman_backup_" + new Date().toISOString() + ".json");
+    document.body.appendChild(downloadAnchorNode); // required for firefox
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  }
+
+  const handleImportBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    if (event.target.files && event.target.files.length > 0) {
+      fileReader.readAsText(event.target.files[0], "UTF-8");
+      fileReader.onload = async (e) => {
+        if (e.target?.result) {
+          try {
+            const parsed = JSON.parse(e.target.result as string);
+            // Basic validation
+            if (parsed.tasks && parsed.metrics) {
+              await saveState(parsed); // Save to DB
+              setState(parsed); // Update UI
+              alert("Backup restored successfully!");
+            } else {
+              alert("Invalid backup file format.");
+            }
+          } catch (err) {
+            console.error(err);
+            alert("Failed to parse backup file.");
+          }
+        }
+      };
+    }
+  }
+
+
   // --- RENDER ---
 
   const renderView = () => {
@@ -389,7 +439,7 @@ const App: React.FC = () => {
       activeTaskId: state.activeSession.taskId
     };
 
-    switch (state.currentPage) {
+    switch (currentPage) {
       case Page.COCKPIT:
         return <DashboardView
           {...viewProps}
@@ -500,7 +550,7 @@ const App: React.FC = () => {
       <nav className="hidden md:flex h-full w-[64px] flex-col items-center py-6 border-r border-border bg-surface z-50 flex-shrink-0 overflow-x-hidden">
 
         {/* Brand */}
-        <div className="mb-8 text-zinc-100 opacity-80 hover:opacity-100 transition-opacity cursor-pointer" onClick={() => handleNavigate(Page.COCKPIT)}>
+        <div className="mb-8 text-zinc-100 opacity-80 hover:opacity-100 transition-opacity cursor-pointer flex flex-col items-center gap-1" onClick={() => handleNavigate(Page.COCKPIT)}>
           <Hexagon size={22} strokeWidth={2} />
         </div>
 
@@ -508,7 +558,7 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col gap-2 w-full items-center px-3 overflow-y-auto no-scrollbar pb-4 min-h-0">
           {/* COMMAND CENTER */}
           <NavIcon
-            active={state.currentPage === Page.COCKPIT}
+            active={currentPage === Page.COCKPIT}
             onClick={() => handleNavigate(Page.COCKPIT)}
             icon={<LayoutGrid size={18} />}
             label="Cockpit"
@@ -518,28 +568,28 @@ const App: React.FC = () => {
 
           {/* PLANNING & EXECUTION */}
           <NavIcon
-            active={state.currentPage === Page.WEEKLY}
+            active={currentPage === Page.WEEKLY}
             onClick={() => handleNavigate(Page.WEEKLY)}
             icon={<Layers size={18} />}
             label="Weekly"
             setHover={setHoveredNav}
           />
           <NavIcon
-            active={state.currentPage === Page.MENTOR}
+            active={currentPage === Page.MENTOR}
             onClick={() => handleNavigate(Page.MENTOR)}
             icon={<MessageSquare size={18} />}
             label="Protocol"
             setHover={setHoveredNav}
           />
           <NavIcon
-            active={state.currentPage === Page.ACTIVITIES}
+            active={currentPage === Page.ACTIVITIES}
             onClick={() => handleNavigate(Page.ACTIVITIES)}
             icon={<MapPin size={18} />}
             label="Activities"
             setHover={setHoveredNav}
           />
           <NavIcon
-            active={state.currentPage === Page.GYM}
+            active={currentPage === Page.GYM}
             onClick={() => handleNavigate(Page.GYM)}
             icon={<Dumbbell size={18} />}
             label="Gym"
@@ -549,21 +599,21 @@ const App: React.FC = () => {
 
           {/* BUSINESS OPS */}
           <NavIcon
-            active={state.currentPage === Page.CRM}
+            active={currentPage === Page.CRM}
             onClick={() => handleNavigate(Page.CRM)}
             icon={<Users size={18} />}
             label="Relationships"
             setHover={setHoveredNav}
           />
           <NavIcon
-            active={state.currentPage === Page.MARKETING}
+            active={currentPage === Page.MARKETING}
             onClick={() => handleNavigate(Page.MARKETING)}
             icon={<Megaphone size={18} />}
             label="Marketing"
             setHover={setHoveredNav}
           />
           <NavIcon
-            active={state.currentPage === Page.LEDGER}
+            active={currentPage === Page.LEDGER}
             onClick={() => handleNavigate(Page.LEDGER)}
             icon={<CreditCard size={18} />}
             label="Ledger"
@@ -573,21 +623,21 @@ const App: React.FC = () => {
 
           {/* KNOWLEDGE & GROWTH */}
           <NavIcon
-            active={state.currentPage === Page.SUPPLICATIONS}
+            active={currentPage === Page.SUPPLICATIONS}
             onClick={() => handleNavigate(Page.SUPPLICATIONS)}
             icon={<BookOpen size={18} />}
             label="Sanctuary"
             setHover={setHoveredNav}
           />
           <NavIcon
-            active={state.currentPage === Page.INTEL}
+            active={currentPage === Page.INTEL}
             onClick={() => handleNavigate(Page.INTEL)}
             icon={<StickyNote size={18} />}
             label="Intel"
             setHover={setHoveredNav}
           />
           <NavIcon
-            active={state.currentPage === Page.ARSENAL}
+            active={currentPage === Page.ARSENAL}
             onClick={() => handleNavigate(Page.ARSENAL)}
             icon={<Container size={18} />}
             label="Arsenal"
@@ -618,11 +668,29 @@ const App: React.FC = () => {
         {/* Top Bar */}
         <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-background/60 backdrop-blur-xl sticky top-0 z-40">
           <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
-            <span className="text-zinc-300 font-medium">{state.currentPage}</span>
+            <span className="text-zinc-300 font-medium">{currentPage}</span>
             <span className="opacity-30">/</span>
             <span>{db ? 'CLOUD_SYNC' : 'LOCAL_ENV'}</span>
           </div>
           <div className="flex items-center gap-3">
+            {/* BACKUP MENU */}
+            <div className="relative">
+              <button onClick={() => setShowBackupMenu(!showBackupMenu)} className="text-[10px] text-zinc-500 hover:text-zinc-300 px-2 font-mono uppercase tracking-wider">
+                Backup
+              </button>
+              {showBackupMenu && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-zinc-700 rounded-md shadow-xl z-50 p-1 flex flex-col gap-1">
+                  <button onClick={handleExportBackup} className="text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 rounded">
+                    Download JSON
+                  </button>
+                  <label className="text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 rounded cursor-pointer">
+                    Restore form JSON
+                    <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
+                  </label>
+                </div>
+              )}
+            </div>
+
             {/* Sync Indicator */}
             {!loading && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-surface border border-border rounded text-[10px] font-mono">
@@ -703,15 +771,15 @@ const App: React.FC = () => {
 
       {/* --- MOBILE NAVIGATION BAR --- */}
       <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center justify-around px-2 z-50 fixed bottom-0 left-0 right-0 pb-safe">
-        <MobileNavIcon active={state.currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
-        <MobileNavIcon active={state.currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
-        <MobileNavIcon active={state.currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
-        <MobileNavIcon active={state.currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Marketing" />
+        <MobileNavIcon active={currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
+        <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
+        <MobileNavIcon active={currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
+        <MobileNavIcon active={currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Marketing" />
 
         {/* Mobile Menu for 'More' */}
         <div className="relative group">
           <MobileNavIcon
-            active={[Page.NETWORK, Page.MENTOR, Page.SUPPLICATIONS, Page.INTEL, Page.ARSENAL, Page.ACTIVITIES].includes(state.currentPage)}
+            active={[Page.NETWORK, Page.MENTOR, Page.SUPPLICATIONS, Page.INTEL, Page.ARSENAL, Page.ACTIVITIES].includes(currentPage)}
             onClick={() => { }} // Just visual indicator, usually would toggle a menu
             icon={<Users size={20} />}
             label="More"
@@ -725,15 +793,15 @@ const App: React.FC = () => {
 
       {/* Redoing Mobile Nav to be scrollable horizontal list instead of "More" menu for simplicity and speed */}
       <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center gap-4 px-4 overflow-x-auto no-scrollbar z-50 fixed bottom-0 left-0 right-0 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
-        <MobileNavIcon active={state.currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
-        <MobileNavIcon active={state.currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
-        <MobileNavIcon active={state.currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
-        <MobileNavIcon active={state.currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Mktg" />
-        <MobileNavIcon active={state.currentPage === Page.NETWORK} onClick={() => handleNavigate(Page.NETWORK)} icon={<Users size={20} />} label="Network" />
-        <MobileNavIcon active={state.currentPage === Page.MENTOR} onClick={() => handleNavigate(Page.MENTOR)} icon={<MessageSquare size={20} />} label="Protocol" />
-        <MobileNavIcon active={state.currentPage === Page.SUPPLICATIONS} onClick={() => handleNavigate(Page.SUPPLICATIONS)} icon={<BookOpen size={20} />} label="Sanctuary" />
-        <MobileNavIcon active={state.currentPage === Page.INTEL} onClick={() => handleNavigate(Page.INTEL)} icon={<StickyNote size={20} />} label="Intel" />
-        <MobileNavIcon active={state.currentPage === Page.GYM} onClick={() => handleNavigate(Page.GYM)} icon={<Dumbbell size={20} />} label="Gym" />
+        <MobileNavIcon active={currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
+        <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
+        <MobileNavIcon active={currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
+        <MobileNavIcon active={currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Mktg" />
+        <MobileNavIcon active={currentPage === Page.NETWORK} onClick={() => handleNavigate(Page.NETWORK)} icon={<Users size={20} />} label="Network" />
+        <MobileNavIcon active={currentPage === Page.MENTOR} onClick={() => handleNavigate(Page.MENTOR)} icon={<MessageSquare size={20} />} label="Protocol" />
+        <MobileNavIcon active={currentPage === Page.SUPPLICATIONS} onClick={() => handleNavigate(Page.SUPPLICATIONS)} icon={<BookOpen size={20} />} label="Sanctuary" />
+        <MobileNavIcon active={currentPage === Page.INTEL} onClick={() => handleNavigate(Page.INTEL)} icon={<StickyNote size={20} />} label="Intel" />
+        <MobileNavIcon active={currentPage === Page.GYM} onClick={() => handleNavigate(Page.GYM)} icon={<Dumbbell size={20} />} label="Gym" />
       </div>
 
       {/* --- OFFLINE WARNING BANNER --- */}

@@ -17,7 +17,7 @@ export enum TaskType {
   URGENT = 'URGENT',
   DEEP = 'DEEP',
   RECURRING = 'RECURRING',
-  MINI = 'MINI',
+  TEMPLATE = 'TEMPLATE',
   STANDARD = 'STANDARD'
 }
 

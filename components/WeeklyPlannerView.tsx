@@ -25,7 +25,8 @@ import {
   Flame,
   Mountain,
   Repeat,
-  Zap,
+  FileText,
+  Inbox,
 } from 'lucide-react';
 import { getPrayerTimesForDate, formatTime, formatTimeAMPM, PRAYER_ICONS } from '../utils/prayerTimes';
 import { generateId } from '../utils';
@@ -407,9 +408,9 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
   // Categorize tasks by type (assistive, not mandatory)
   const categorizedTasks = {
     urgent: tasks.filter(t => t.type === TaskType.URGENT),
-    deep: tasks.filter(t => t.type === TaskType.DEEP),
     recurring: tasks.filter(t => t.type === TaskType.RECURRING),
-    mini: tasks.filter(t => t.type === TaskType.MINI),
+    templates: tasks.filter(t => t.type === TaskType.TEMPLATE),
+    deep: tasks.filter(t => t.type === TaskType.DEEP),
     standard: tasks.filter(t => !t.type || t.type === TaskType.STANDARD),
   };
 
@@ -446,19 +447,19 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
     if (title.startsWith('!')) {
       taskType = TaskType.URGENT;
       title = title.replace(/^!/, '').trim();
-    } else if (title.startsWith('~')) {
-      taskType = TaskType.MINI;
-      title = title.replace(/^~/, '').trim();
     } else if (title.startsWith('↻') || title.startsWith('@r')) {
       taskType = TaskType.RECURRING;
       title = title.replace(/^(↻|@r)/, '').trim();
+    } else if (title.startsWith('📋') || title.startsWith('@t')) {
+      taskType = TaskType.TEMPLATE;
+      title = title.replace(/^(📋|@t)/, '').trim();
     } else if (title.startsWith('@d')) {
       taskType = TaskType.DEEP;
       title = title.replace(/^@d/, '').trim();
     }
 
     // Determine impact based on type
-    const impact = taskType === TaskType.URGENT ? 'HIGH' : taskType === TaskType.MINI ? 'LOW' : 'MED';
+    const impact = taskType === TaskType.URGENT ? 'HIGH' : 'MED';
 
     // Create task with type
     const newTask: Partial<Task> = {
@@ -556,17 +557,6 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setSelectedType(TaskType.DEEP)}
-            className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
-              selectedType === TaskType.DEEP
-                ? 'bg-purple-500/20 text-purple-400'
-                : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
-            }`}
-          >
-            Deep
-          </button>
-          <button
-            type="button"
             onClick={() => setSelectedType(TaskType.RECURRING)}
             className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
               selectedType === TaskType.RECURRING
@@ -578,14 +568,25 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setSelectedType(TaskType.MINI)}
+            onClick={() => setSelectedType(TaskType.TEMPLATE)}
             className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
-              selectedType === TaskType.MINI
+              selectedType === TaskType.TEMPLATE
                 ? 'bg-blue-500/20 text-blue-400'
                 : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
             }`}
           >
-            Quick
+            Template
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedType(TaskType.DEEP)}
+            className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
+              selectedType === TaskType.DEEP
+                ? 'bg-purple-500/20 text-purple-400'
+                : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
+            }`}
+          >
+            Project
           </button>
           <button
             type="button"
@@ -604,7 +605,7 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {/* Strategy Dock Sections */}
 
-        {/* Urgent Section */}
+        {/* 🔥 URGENT */}
         {categorizedTasks.urgent.length > 0 && (
           <div className="space-y-2">
             <button
@@ -617,14 +618,14 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
                   size={10}
                   className={`transition-transform ${!collapsedSections.has('urgent') ? 'rotate-90' : ''}`}
                 />
-                <span>Urgent</span>
+                <span className="uppercase tracking-wide">Urgent</span>
               </div>
               <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
                 {categorizedTasks.urgent.length}
               </span>
             </button>
             {!collapsedSections.has('urgent') && (
-              <div className="space-y-2 ml-3">
+              <div className="space-y-2 ml-4">
                 {categorizedTasks.urgent.map(task => (
                   <TaskCard
                     key={task.id}
@@ -640,43 +641,7 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           </div>
         )}
 
-        {/* Deep Work / Projects Section */}
-        {categorizedTasks.deep.length > 0 && (
-          <div className="space-y-2">
-            <button
-              onClick={() => toggleSection('deep')}
-              className="w-full flex items-center justify-between text-xs font-medium text-purple-400/80 hover:text-purple-400 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <Mountain size={11} />
-                <ChevronRightIcon
-                  size={10}
-                  className={`transition-transform ${!collapsedSections.has('deep') ? 'rotate-90' : ''}`}
-                />
-                <span>Projects (Spawns Sessions)</span>
-              </div>
-              <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
-                {categorizedTasks.deep.length}
-              </span>
-            </button>
-            {!collapsedSections.has('deep') && (
-              <div className="space-y-2 ml-3">
-                {categorizedTasks.deep.map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onDragStart={onDragStart}
-                    onSchedule={setSchedulingTask}
-                    onUpdate={onUpdate}
-                    onDelete={onDelete}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Recurring / Routines Section */}
+        {/* ↻ DAILY ROUTINES */}
         {categorizedTasks.recurring.length > 0 && (
           <div className="space-y-2">
             <button
@@ -689,14 +654,14 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
                   size={10}
                   className={`transition-transform ${!collapsedSections.has('recurring') ? 'rotate-90' : ''}`}
                 />
-                <span>Routines (Clones)</span>
+                <span className="uppercase tracking-wide">Daily Routines</span>
               </div>
               <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
                 {categorizedTasks.recurring.length}
               </span>
             </button>
             {!collapsedSections.has('recurring') && (
-              <div className="space-y-2 ml-3">
+              <div className="space-y-2 ml-4">
                 {categorizedTasks.recurring.map(task => (
                   <TaskCard
                     key={task.id}
@@ -708,33 +673,34 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
                     isRecurring
                   />
                 ))}
+                <div className="text-[9px] text-zinc-600 italic pl-2">Drag to clone (original stays)</div>
               </div>
             )}
           </div>
         )}
 
-        {/* Quick Wins Section */}
-        {categorizedTasks.mini.length > 0 && (
+        {/* 📋 TEMPLATES */}
+        {categorizedTasks.templates.length > 0 && (
           <div className="space-y-2">
             <button
-              onClick={() => toggleSection('mini')}
+              onClick={() => toggleSection('templates')}
               className="w-full flex items-center justify-between text-xs font-medium text-blue-400/80 hover:text-blue-400 transition-colors"
             >
               <div className="flex items-center gap-2">
-                <Zap size={11} />
+                <FileText size={11} />
                 <ChevronRightIcon
                   size={10}
-                  className={`transition-transform ${!collapsedSections.has('mini') ? 'rotate-90' : ''}`}
+                  className={`transition-transform ${!collapsedSections.has('templates') ? 'rotate-90' : ''}`}
                 />
-                <span>Quick Wins (&lt;15m)</span>
+                <span className="uppercase tracking-wide">Templates</span>
               </div>
               <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
-                {categorizedTasks.mini.length}
+                {categorizedTasks.templates.length}
               </span>
             </button>
-            {!collapsedSections.has('mini') && (
-              <div className="space-y-2 ml-3">
-                {categorizedTasks.mini.map(task => (
+            {!collapsedSections.has('templates') && (
+              <div className="space-y-2 ml-4">
+                {categorizedTasks.templates.map(task => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -744,12 +710,50 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
                     onDelete={onDelete}
                   />
                 ))}
+                <div className="text-[9px] text-zinc-600 italic pl-2">Multi-step workflows</div>
               </div>
             )}
           </div>
         )}
 
-        {/* Standard / Backlog Section */}
+        {/* 🏔️ PROJECTS (Deep Work) */}
+        {categorizedTasks.deep.length > 0 && (
+          <div className="space-y-2">
+            <button
+              onClick={() => toggleSection('deep')}
+              className="w-full flex items-center justify-between text-xs font-medium text-purple-400/80 hover:text-purple-400 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Mountain size={11} />
+                <ChevronRightIcon
+                  size={10}
+                  className={`transition-transform ${!collapsedSections.has('deep') ? 'rotate-90' : ''}`}
+                />
+                <span className="uppercase tracking-wide">Projects</span>
+              </div>
+              <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
+                {categorizedTasks.deep.length}
+              </span>
+            </button>
+            {!collapsedSections.has('deep') && (
+              <div className="space-y-2 ml-4">
+                {categorizedTasks.deep.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onDragStart={onDragStart}
+                    onSchedule={setSchedulingTask}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                  />
+                ))}
+                <div className="text-[9px] text-zinc-600 italic pl-2">Drag spawns work session</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 📥 BACKLOG */}
         {categorizedTasks.standard.length > 0 && (
           <div className="space-y-2">
             <button
@@ -757,18 +761,19 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
               className="w-full flex items-center justify-between text-xs font-medium text-zinc-500 hover:text-zinc-400 transition-colors"
             >
               <div className="flex items-center gap-2">
+                <Inbox size={11} />
                 <ChevronRightIcon
                   size={10}
                   className={`transition-transform ${!collapsedSections.has('standard') ? 'rotate-90' : ''}`}
                 />
-                <span>Backlog / Other</span>
+                <span className="uppercase tracking-wide">Backlog</span>
               </div>
               <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
                 {categorizedTasks.standard.length}
               </span>
             </button>
             {!collapsedSections.has('standard') && (
-              <div className="space-y-2 ml-3">
+              <div className="space-y-2 ml-4">
                 {categorizedTasks.standard.map(task => (
                   <TaskCard
                     key={task.id}

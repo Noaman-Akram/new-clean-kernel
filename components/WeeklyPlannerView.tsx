@@ -506,44 +506,7 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
         </div>
       </div>
 
-      <form onSubmit={handleAdd} className="p-3 border-b border-border/50 space-y-2">
-        {/* Impact Selector Tabs */}
-        <div className="flex items-center gap-1 bg-zinc-900/50 rounded p-1">
-          <button
-            type="button"
-            onClick={() => setSelectedImpact('HIGH')}
-            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-medium transition-colors ${
-              selectedImpact === 'HIGH'
-                ? 'bg-amber-500/20 text-amber-400'
-                : 'text-zinc-600 hover:text-zinc-400'
-            }`}
-          >
-            🔥 Urgent
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedImpact('MED')}
-            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-medium transition-colors ${
-              selectedImpact === 'MED'
-                ? 'bg-blue-500/20 text-blue-400'
-                : 'text-zinc-600 hover:text-zinc-400'
-            }`}
-          >
-            🎯 Projects
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedImpact('LOW')}
-            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-medium transition-colors ${
-              selectedImpact === 'LOW'
-                ? 'bg-emerald-500/20 text-emerald-400'
-                : 'text-zinc-600 hover:text-zinc-400'
-            }`}
-          >
-            ⚡ Quick
-          </button>
-        </div>
-
+      <form onSubmit={handleAdd} className="p-3 border-b border-border/50">
         <input
           type="text"
           value={input}
@@ -551,6 +514,43 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           placeholder="Type task name..."
           className="w-full bg-transparent border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-700 focus:border-zinc-600 outline-none"
         />
+
+        {/* Impact Selector Tabs - Minimal style */}
+        <div className="flex items-center gap-0.5 mt-2">
+          <button
+            type="button"
+            onClick={() => setSelectedImpact('HIGH')}
+            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+              selectedImpact === 'HIGH'
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
+            }`}
+          >
+            Urgent
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedImpact('MED')}
+            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+              selectedImpact === 'MED'
+                ? 'bg-blue-500/20 text-blue-400'
+                : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
+            }`}
+          >
+            Projects
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedImpact('LOW')}
+            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
+              selectedImpact === 'LOW'
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
+            }`}
+          >
+            Quick
+          </button>
+        </div>
       </form>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-4">

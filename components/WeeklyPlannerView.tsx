@@ -429,10 +429,20 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
     e.preventDefault();
     if (!input.trim()) return;
 
-    const isUrgent = input.startsWith('!');
-    const title = input.replace(/^!/, '').trim();
+    // Detect impact level from prefix
+    let impact: 'LOW' | 'MED' | 'HIGH' = 'MED';
+    let title = input.trim();
 
-    onAdd(title, Category.AGENCY, isUrgent ? 'HIGH' : 'MED');
+    if (title.startsWith('!')) {
+      impact = 'HIGH'; // Urgent
+      title = title.replace(/^!/, '').trim();
+    } else if (title.startsWith('~')) {
+      impact = 'LOW'; // Quick Wins
+      title = title.replace(/^~/, '').trim();
+    }
+    // No prefix = MED (Projects & Deep)
+
+    onAdd(title, Category.AGENCY, impact);
     setInput('');
   };
 
@@ -500,7 +510,7 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           type="text"
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="Add task (! for urgent)..."
+          placeholder="Add task (! urgent, ~ quick win)..."
           className="w-full bg-transparent border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-700 focus:border-zinc-600 outline-none"
         />
       </form>
@@ -853,17 +863,26 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
     if (!quickAddText.trim()) return;
 
     const lines = quickAddText.trim().split('\n');
-    const title = lines[0];
+    let title = lines[0];
     const description = lines.slice(1).join('\n').trim();
 
-    const isUrgent = title.startsWith('!');
-    const cleanTitle = title.replace(/^!/, '').trim();
+    // Detect impact level from prefix
+    let impact: 'LOW' | 'MED' | 'HIGH' = 'MED';
+
+    if (title.startsWith('!')) {
+      impact = 'HIGH'; // Urgent
+      title = title.replace(/^!/, '').trim();
+    } else if (title.startsWith('~')) {
+      impact = 'LOW'; // Quick Wins
+      title = title.replace(/^~/, '').trim();
+    }
+    // No prefix = MED (Projects & Deep)
 
     // Store what we're scheduling
     const scheduledDate = new Date(day.date);
     scheduledDate.setHours(hour, 0, 0, 0);
 
-    onAdd(cleanTitle, Category.AGENCY, isUrgent ? 'HIGH' : 'MED', { scheduledTime: scheduledDate.getTime() });
+    onAdd(title, Category.AGENCY, impact, { scheduledTime: scheduledDate.getTime() });
 
     setQuickAddText('');
     setQuickAddTime(null);
@@ -925,17 +944,26 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
     if (!quickAddText.trim()) return;
 
     const lines = quickAddText.trim().split('\n');
-    const title = lines[0];
+    let title = lines[0];
     const description = lines.slice(1).join('\n').trim();
 
-    const isUrgent = title.startsWith('!');
-    const cleanTitle = title.replace(/^!/, '').trim();
+    // Detect impact level from prefix
+    let impact: 'LOW' | 'MED' | 'HIGH' = 'MED';
+
+    if (title.startsWith('!')) {
+      impact = 'HIGH'; // Urgent
+      title = title.replace(/^!/, '').trim();
+    } else if (title.startsWith('~')) {
+      impact = 'LOW'; // Quick Wins
+      title = title.replace(/^~/, '').trim();
+    }
+    // No prefix = MED (Projects & Deep)
 
     // Store what we're scheduling
     const scheduledDate = new Date(day.date);
     scheduledDate.setHours(23, 0, 0, 0); // 23:00 Convention for unscheduled/all-day in this column
 
-    onAdd(cleanTitle, Category.AGENCY, isUrgent ? 'HIGH' : 'MED', { scheduledTime: scheduledDate.getTime() });
+    onAdd(title, Category.AGENCY, impact, { scheduledTime: scheduledDate.getTime() });
 
     setQuickAddText('');
     setQuickAddTime(null);
@@ -1234,7 +1262,7 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
                               setShowDockPicker(false);
                             }
                           }}
-                          placeholder="Type task (Enter to save, Shift+Enter for newline, Tab for next)"
+                          placeholder="Task (! urgent, ~ quick | Enter=save, Tab=next)"
                           rows={2}
                           className="w-full bg-transparent text-sm text-zinc-200 placeholder:text-zinc-700 outline-none resize-none"
                         />
@@ -1293,7 +1321,7 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
                       setQuickAddText('');
                     }
                   }}
-                  placeholder="Type task (Enter to save, Shift+Enter for newline)"
+                  placeholder="Task (! urgent, ~ quick | Enter=save)"
                   rows={2}
                   className="w-full bg-transparent text-sm text-zinc-200 placeholder:text-zinc-700 outline-none resize-none"
                 />

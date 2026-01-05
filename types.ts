@@ -13,6 +13,14 @@ export enum TaskStatus {
   DONE = 'DONE'
 }
 
+export enum TaskType {
+  URGENT = 'URGENT',
+  DEEP = 'DEEP',
+  RECURRING = 'RECURRING',
+  MINI = 'MINI',
+  STANDARD = 'STANDARD'
+}
+
 export type Weekday = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 
 export interface TaskSlot {
@@ -96,6 +104,7 @@ export interface Task {
   createdAt: number;
   deadline?: number; // Timestamp
   impact: Severity;
+  type?: TaskType; // NEW: Task type for organizing and behavior
   notes?: string;
   slot?: TaskSlot;
   pillar?: Pillar;

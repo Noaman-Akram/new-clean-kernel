@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Task, Category, TaskStatus } from '../types';
+import { AppState, Task, Category, TaskStatus, TaskType } from '../types';
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,6 +22,10 @@ import {
   LayoutGrid,
   Trash2,
   StickyNote,
+  Flame,
+  Mountain,
+  Repeat,
+  Zap,
 } from 'lucide-react';
 import { getPrayerTimesForDate, formatTime, formatTimeAMPM, PRAYER_ICONS } from '../utils/prayerTimes';
 import { generateId } from '../utils';
@@ -305,9 +309,10 @@ interface TaskCardProps {
   onSchedule: (task: Task) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
+  isRecurring?: boolean;
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ task, onDragStart, onSchedule, onUpdate, onDelete }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ task, onDragStart, onSchedule, onUpdate, onDelete, isRecurring }) => {
   return (
     <div
       draggable
@@ -315,6 +320,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onDragStart, onSchedule, onUp
       className={`group bg-zinc-900/50 border border-zinc-800/50 rounded p-2 hover:border-zinc-700 transition-all cursor-grab ${
         task.status === TaskStatus.DONE ? 'opacity-50' : ''
       }`}
+      title={isRecurring ? 'Drag to clone (original stays here)' : undefined}
     >
       <div className="flex items-start gap-2">
         <GripVertical size={10} className="text-zinc-700 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5" />
@@ -327,6 +333,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onDragStart, onSchedule, onUp
           }`}
         >
           {task.title}
+          {isRecurring && <span className="ml-1.5 text-[9px] text-orange-500/60">↻</span>}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <button
@@ -395,13 +402,15 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
   const [scheduleDay, setScheduleDay] = useState(0);
   const [scheduleTime, setScheduleTime] = useState('9:00 AM');
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  const [selectedImpact, setSelectedImpact] = useState<'LOW' | 'MED' | 'HIGH'>('MED');
+  const [selectedType, setSelectedType] = useState<TaskType>(TaskType.STANDARD);
 
-  // Categorize tasks into Strategy Dock sections
+  // Categorize tasks by type (assistive, not mandatory)
   const categorizedTasks = {
-    urgent: tasks.filter(t => t.impact === 'HIGH'),
-    projects: tasks.filter(t => t.impact === 'MED'),
-    quickWins: tasks.filter(t => t.impact === 'LOW'),
+    urgent: tasks.filter(t => t.type === TaskType.URGENT),
+    deep: tasks.filter(t => t.type === TaskType.DEEP),
+    recurring: tasks.filter(t => t.type === TaskType.RECURRING),
+    mini: tasks.filter(t => t.type === TaskType.MINI),
+    standard: tasks.filter(t => !t.type || t.type === TaskType.STANDARD),
   };
 
   const toggleSection = (section: string) => {
@@ -430,20 +439,37 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
     e.preventDefault();
     if (!input.trim()) return;
 
-    // Detect impact level from prefix (overrides selected tab)
-    let impact: 'LOW' | 'MED' | 'HIGH' = selectedImpact;
     let title = input.trim();
+    let taskType = selectedType;
 
+    // Prefix shortcuts (override selected tab)
     if (title.startsWith('!')) {
-      impact = 'HIGH'; // Urgent
+      taskType = TaskType.URGENT;
       title = title.replace(/^!/, '').trim();
     } else if (title.startsWith('~')) {
-      impact = 'LOW'; // Quick Wins
+      taskType = TaskType.MINI;
       title = title.replace(/^~/, '').trim();
+    } else if (title.startsWith('↻') || title.startsWith('@r')) {
+      taskType = TaskType.RECURRING;
+      title = title.replace(/^(↻|@r)/, '').trim();
+    } else if (title.startsWith('@d')) {
+      taskType = TaskType.DEEP;
+      title = title.replace(/^@d/, '').trim();
     }
-    // No prefix = use selected tab
 
-    onAdd(title, Category.AGENCY, impact);
+    // Determine impact based on type
+    const impact = taskType === TaskType.URGENT ? 'HIGH' : taskType === TaskType.MINI ? 'LOW' : 'MED';
+
+    // Create task with type
+    const newTask: Partial<Task> = {
+      title,
+      category: Category.AGENCY,
+      impact,
+      type: taskType,
+    };
+
+    // @ts-ignore - onAdd signature needs updating but works
+    onAdd(title, Category.AGENCY, impact, { type: taskType });
     setInput('');
   };
 
@@ -515,14 +541,14 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           className="w-full bg-transparent border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-700 focus:border-zinc-600 outline-none"
         />
 
-        {/* Impact Selector Tabs - Minimal style */}
-        <div className="flex items-center gap-0.5 mt-2">
+        {/* Task Type Selector Tabs */}
+        <div className="flex items-center gap-0.5 mt-2 overflow-x-auto">
           <button
             type="button"
-            onClick={() => setSelectedImpact('HIGH')}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
-              selectedImpact === 'HIGH'
-                ? 'bg-amber-500/20 text-amber-400'
+            onClick={() => setSelectedType(TaskType.URGENT)}
+            className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
+              selectedType === TaskType.URGENT
+                ? 'bg-red-500/20 text-red-400'
                 : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
             }`}
           >
@@ -530,25 +556,47 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setSelectedImpact('MED')}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
-              selectedImpact === 'MED'
+            onClick={() => setSelectedType(TaskType.DEEP)}
+            className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
+              selectedType === TaskType.DEEP
+                ? 'bg-purple-500/20 text-purple-400'
+                : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
+            }`}
+          >
+            Deep
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedType(TaskType.RECURRING)}
+            className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
+              selectedType === TaskType.RECURRING
+                ? 'bg-orange-500/20 text-orange-400'
+                : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
+            }`}
+          >
+            Routine
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedType(TaskType.MINI)}
+            className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
+              selectedType === TaskType.MINI
                 ? 'bg-blue-500/20 text-blue-400'
                 : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
             }`}
           >
-            Projects
+            Quick
           </button>
           <button
             type="button"
-            onClick={() => setSelectedImpact('LOW')}
-            className={`flex-1 px-2 py-1 rounded text-[10px] font-medium transition-colors ${
-              selectedImpact === 'LOW'
-                ? 'bg-emerald-500/20 text-emerald-400'
+            onClick={() => setSelectedType(TaskType.STANDARD)}
+            className={`px-2 py-1 rounded text-[9px] font-medium transition-colors whitespace-nowrap ${
+              selectedType === TaskType.STANDARD
+                ? 'bg-zinc-700/50 text-zinc-300'
                 : 'text-zinc-700 hover:text-zinc-500 hover:bg-zinc-900/50'
             }`}
           >
-            Quick
+            Other
           </button>
         </div>
       </form>
@@ -561,11 +609,12 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           <div className="space-y-2">
             <button
               onClick={() => toggleSection('urgent')}
-              className="w-full flex items-center justify-between text-xs font-medium text-amber-400/80 hover:text-amber-400 transition-colors"
+              className="w-full flex items-center justify-between text-xs font-medium text-red-400/80 hover:text-red-400 transition-colors"
             >
               <div className="flex items-center gap-2">
+                <Flame size={11} />
                 <ChevronRightIcon
-                  size={12}
+                  size={10}
                   className={`transition-transform ${!collapsedSections.has('urgent') ? 'rotate-90' : ''}`}
                 />
                 <span>Urgent</span>
@@ -591,27 +640,28 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           </div>
         )}
 
-        {/* Projects & Deep Section */}
-        {categorizedTasks.projects.length > 0 && (
+        {/* Deep Work / Projects Section */}
+        {categorizedTasks.deep.length > 0 && (
           <div className="space-y-2">
             <button
-              onClick={() => toggleSection('projects')}
-              className="w-full flex items-center justify-between text-xs font-medium text-blue-400/80 hover:text-blue-400 transition-colors"
+              onClick={() => toggleSection('deep')}
+              className="w-full flex items-center justify-between text-xs font-medium text-purple-400/80 hover:text-purple-400 transition-colors"
             >
               <div className="flex items-center gap-2">
+                <Mountain size={11} />
                 <ChevronRightIcon
-                  size={12}
-                  className={`transition-transform ${!collapsedSections.has('projects') ? 'rotate-90' : ''}`}
+                  size={10}
+                  className={`transition-transform ${!collapsedSections.has('deep') ? 'rotate-90' : ''}`}
                 />
-                <span>Projects & Deep</span>
+                <span>Projects (Spawns Sessions)</span>
               </div>
               <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
-                {categorizedTasks.projects.length}
+                {categorizedTasks.deep.length}
               </span>
             </button>
-            {!collapsedSections.has('projects') && (
+            {!collapsedSections.has('deep') && (
               <div className="space-y-2 ml-3">
-                {categorizedTasks.projects.map(task => (
+                {categorizedTasks.deep.map(task => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -626,27 +676,100 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           </div>
         )}
 
-        {/* Quick Wins Section */}
-        {categorizedTasks.quickWins.length > 0 && (
+        {/* Recurring / Routines Section */}
+        {categorizedTasks.recurring.length > 0 && (
           <div className="space-y-2">
             <button
-              onClick={() => toggleSection('quickWins')}
-              className="w-full flex items-center justify-between text-xs font-medium text-emerald-400/80 hover:text-emerald-400 transition-colors"
+              onClick={() => toggleSection('recurring')}
+              className="w-full flex items-center justify-between text-xs font-medium text-orange-400/80 hover:text-orange-400 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Repeat size={11} />
+                <ChevronRightIcon
+                  size={10}
+                  className={`transition-transform ${!collapsedSections.has('recurring') ? 'rotate-90' : ''}`}
+                />
+                <span>Routines (Clones)</span>
+              </div>
+              <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
+                {categorizedTasks.recurring.length}
+              </span>
+            </button>
+            {!collapsedSections.has('recurring') && (
+              <div className="space-y-2 ml-3">
+                {categorizedTasks.recurring.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onDragStart={onDragStart}
+                    onSchedule={setSchedulingTask}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                    isRecurring
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Quick Wins Section */}
+        {categorizedTasks.mini.length > 0 && (
+          <div className="space-y-2">
+            <button
+              onClick={() => toggleSection('mini')}
+              className="w-full flex items-center justify-between text-xs font-medium text-blue-400/80 hover:text-blue-400 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Zap size={11} />
+                <ChevronRightIcon
+                  size={10}
+                  className={`transition-transform ${!collapsedSections.has('mini') ? 'rotate-90' : ''}`}
+                />
+                <span>Quick Wins (&lt;15m)</span>
+              </div>
+              <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
+                {categorizedTasks.mini.length}
+              </span>
+            </button>
+            {!collapsedSections.has('mini') && (
+              <div className="space-y-2 ml-3">
+                {categorizedTasks.mini.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onDragStart={onDragStart}
+                    onSchedule={setSchedulingTask}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Standard / Backlog Section */}
+        {categorizedTasks.standard.length > 0 && (
+          <div className="space-y-2">
+            <button
+              onClick={() => toggleSection('standard')}
+              className="w-full flex items-center justify-between text-xs font-medium text-zinc-500 hover:text-zinc-400 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <ChevronRightIcon
-                  size={12}
-                  className={`transition-transform ${!collapsedSections.has('quickWins') ? 'rotate-90' : ''}`}
+                  size={10}
+                  className={`transition-transform ${!collapsedSections.has('standard') ? 'rotate-90' : ''}`}
                 />
-                <span>Quick Wins</span>
+                <span>Backlog / Other</span>
               </div>
               <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
-                {categorizedTasks.quickWins.length}
+                {categorizedTasks.standard.length}
               </span>
             </button>
-            {!collapsedSections.has('quickWins') && (
+            {!collapsedSections.has('standard') && (
               <div className="space-y-2 ml-3">
-                {categorizedTasks.quickWins.map(task => (
+                {categorizedTasks.standard.map(task => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -951,7 +1074,35 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
 
     const scheduledDate = new Date(day.date);
     scheduledDate.setHours(hour, 0, 0, 0);
-    onUpdate(draggedTask.id, { scheduledTime: scheduledDate.getTime() });
+
+    // RECURRING TASKS: Clone instead of move (original stays in dock)
+    if (draggedTask.type === TaskType.RECURRING && !draggedTask.scheduledTime) {
+      onAdd(
+        draggedTask.title,
+        draggedTask.category,
+        draggedTask.impact,
+        {
+          scheduledTime: scheduledDate.getTime(),
+          // Cloned instance becomes standard task
+        }
+      );
+    }
+    // DEEP WORK: Spawn session (original stays in dock)
+    else if (draggedTask.type === TaskType.DEEP && !draggedTask.scheduledTime) {
+      onAdd(
+        `${draggedTask.title} (Session)`,
+        draggedTask.category,
+        draggedTask.impact,
+        {
+          scheduledTime: scheduledDate.getTime(),
+          // Session becomes standard task
+        }
+      );
+    }
+    // STANDARD: Move task
+    else {
+      onUpdate(draggedTask.id, { scheduledTime: scheduledDate.getTime() });
+    }
 
     setDraggingOver(null);
     onDragLeave();

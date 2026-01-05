@@ -395,6 +395,7 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
   const [scheduleDay, setScheduleDay] = useState(0);
   const [scheduleTime, setScheduleTime] = useState('9:00 AM');
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [selectedImpact, setSelectedImpact] = useState<'LOW' | 'MED' | 'HIGH'>('MED');
 
   // Categorize tasks into Strategy Dock sections
   const categorizedTasks = {
@@ -429,8 +430,8 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
     e.preventDefault();
     if (!input.trim()) return;
 
-    // Detect impact level from prefix
-    let impact: 'LOW' | 'MED' | 'HIGH' = 'MED';
+    // Detect impact level from prefix (overrides selected tab)
+    let impact: 'LOW' | 'MED' | 'HIGH' = selectedImpact;
     let title = input.trim();
 
     if (title.startsWith('!')) {
@@ -440,7 +441,7 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
       impact = 'LOW'; // Quick Wins
       title = title.replace(/^~/, '').trim();
     }
-    // No prefix = MED (Projects & Deep)
+    // No prefix = use selected tab
 
     onAdd(title, Category.AGENCY, impact);
     setInput('');
@@ -505,12 +506,49 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
         </div>
       </div>
 
-      <form onSubmit={handleAdd} className="p-3 border-b border-border/50">
+      <form onSubmit={handleAdd} className="p-3 border-b border-border/50 space-y-2">
+        {/* Impact Selector Tabs */}
+        <div className="flex items-center gap-1 bg-zinc-900/50 rounded p-1">
+          <button
+            type="button"
+            onClick={() => setSelectedImpact('HIGH')}
+            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-medium transition-colors ${
+              selectedImpact === 'HIGH'
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'text-zinc-600 hover:text-zinc-400'
+            }`}
+          >
+            🔥 Urgent
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedImpact('MED')}
+            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-medium transition-colors ${
+              selectedImpact === 'MED'
+                ? 'bg-blue-500/20 text-blue-400'
+                : 'text-zinc-600 hover:text-zinc-400'
+            }`}
+          >
+            🎯 Projects
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedImpact('LOW')}
+            className={`flex-1 px-2 py-1.5 rounded text-[10px] font-medium transition-colors ${
+              selectedImpact === 'LOW'
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : 'text-zinc-600 hover:text-zinc-400'
+            }`}
+          >
+            ⚡ Quick
+          </button>
+        </div>
+
         <input
           type="text"
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="Add task (! urgent, ~ quick win)..."
+          placeholder="Type task name..."
           className="w-full bg-transparent border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-700 focus:border-zinc-600 outline-none"
         />
       </form>

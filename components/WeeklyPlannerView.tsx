@@ -461,15 +461,6 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
     // Determine impact based on type
     const impact = taskType === TaskType.URGENT ? 'HIGH' : 'MED';
 
-    // Create task with type
-    const newTask: Partial<Task> = {
-      title,
-      category: Category.AGENCY,
-      impact,
-      type: taskType,
-    };
-
-    // @ts-ignore - onAdd signature needs updating but works
     onAdd(title, Category.AGENCY, impact, { type: taskType });
     setInput('');
   };
@@ -1088,7 +1079,7 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
         draggedTask.impact,
         {
           scheduledTime: scheduledDate.getTime(),
-          // Cloned instance becomes standard task
+          type: TaskType.STANDARD, // Cloned instance becomes standard task
         }
       );
     }
@@ -1100,7 +1091,7 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
         draggedTask.impact,
         {
           scheduledTime: scheduledDate.getTime(),
-          // Session becomes standard task
+          type: TaskType.STANDARD, // Session becomes standard task
         }
       );
     }

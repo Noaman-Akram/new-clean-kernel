@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, TaskType } from './types';
 import { loadState, saveState, subscribeToState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
@@ -113,7 +113,7 @@ const App: React.FC = () => {
     title: string,
     category: Category,
     impact: 'LOW' | 'MED' | 'HIGH',
-    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus; scheduledTime?: number }
+    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus; scheduledTime?: number; type?: TaskType }
   ) => {
     const newTask: Task = {
       id: generateId(),
@@ -134,6 +134,9 @@ const App: React.FC = () => {
     }
     if (options?.pillar) {
       newTask.pillar = options.pillar;
+    }
+    if (options?.type) {
+      newTask.type = options.type;
     }
     setState(prev => prev ? ({ ...prev, tasks: [newTask, ...prev.tasks] }) : null);
   };

@@ -594,15 +594,82 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
     }
   }, [quickAddTime]);
 
+  // Calculate which hours are relevant to show
+  const calculateRelevantHours = (): number[] => {
+    const relevantHours = new Set<number>();
+
+    // Add hours with tasks
+    tasks.forEach(task => {
+      if (task.scheduledTime) {
+        const hour = new Date(task.scheduledTime).getHours();
+        relevantHours.add(hour);
+      }
+    });
+
+    // Add hours with prayers
+    prayers.forEach(prayer => {
+      const prayerHour = new Date(prayer.timestamp).getHours();
+      relevantHours.add(prayerHour);
+    });
+
+    // Add current hour if today
+    if (isCurrentDay) {
+      const cairoTimeStr = currentTime.toLocaleString('en-US', {
+        timeZone: 'Africa/Cairo',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const currentHour = parseInt(cairoTimeStr.split(':')[0]);
+      relevantHours.add(currentHour);
+    }
+
+    // If we have relevant hours, add padding
+    if (relevantHours.size > 0) {
+      const hours = Array.from(relevantHours).sort((a, b) => a - b);
+      const firstHour = hours[0];
+      const lastHour = hours[hours.length - 1];
+
+      // Add 1 hour padding before and after
+      if (firstHour > 0) relevantHours.add(firstHour - 1);
+      if (lastHour < 23) relevantHours.add(lastHour + 1);
+
+      return Array.from(relevantHours).sort((a, b) => a - b);
+    }
+
+    // If day is empty, show anchor hours
+    return [9, 12, 15, 18];
+  };
+
   const generateTimeSlots = () => {
+    const relevantHours = calculateRelevantHours();
     const slots = [];
-    for (let hour = 0; hour <= 23; hour++) {
+
+    for (let i = 0; i < relevantHours.length; i++) {
+      const hour = relevantHours[i];
+      const prevHour = i > 0 ? relevantHours[i - 1] : null;
+      const gap = prevHour !== null ? hour - prevHour - 1 : 0;
+
+      // Add gap indicator if there are skipped hours
+      if (gap > 0) {
+        slots.push({
+          hour: -1, // Special marker for gap
+          time: '',
+          timestamp: 0,
+          isGap: true,
+          gapSize: gap,
+          gapRange: `${formatTimeAMPM(prevHour! + 1, 0)} - ${formatTimeAMPM(hour - 1, 0)}`,
+        });
+      }
+
       slots.push({
         hour,
         time: formatTimeAMPM(hour, 0),
         timestamp: new Date(day.date).setHours(hour, 0, 0, 0),
+        isGap: false,
       });
     }
+
     return slots;
   };
 
@@ -777,7 +844,20 @@ const DayColumn = React.forwardRef<HTMLDivElement, DayColumnProps>(({
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 relative group">
-        {timeSlots.map((slot) => {
+        {timeSlots.map((slot, slotIndex) => {
+          // Handle gap indicator
+          if ((slot as any).isGap) {
+            return (
+              <div key={`gap-${slotIndex}`} className="py-2 flex items-center justify-center">
+                <div className="flex items-center gap-2 text-[10px] text-zinc-700 font-mono">
+                  <div className="flex-1 h-px bg-zinc-800/50"></div>
+                  <span>{(slot as any).gapSize}h</span>
+                  <div className="flex-1 h-px bg-zinc-800/50"></div>
+                </div>
+              </div>
+            );
+          }
+
           const tasksAtTime = getTasksAtTime(slot.hour);
           const prayer = getPrayerAtHour(slot.hour);
           const isHovered = hoveredTimeSlot === slot.time;

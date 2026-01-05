@@ -298,6 +298,74 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   );
 };
 
+// Task Card for Strategy Dock
+interface TaskCardProps {
+  task: Task;
+  onDragStart: (task: Task) => void;
+  onSchedule: (task: Task) => void;
+  onUpdate: (id: string, updates: Partial<Task>) => void;
+  onDelete: (id: string) => void;
+}
+
+const TaskCard: React.FC<TaskCardProps> = ({ task, onDragStart, onSchedule, onUpdate, onDelete }) => {
+  return (
+    <div
+      draggable
+      onDragStart={() => onDragStart(task)}
+      className={`group bg-zinc-900/50 border border-zinc-800/50 rounded p-2 hover:border-zinc-700 transition-all cursor-grab ${
+        task.status === TaskStatus.DONE ? 'opacity-50' : ''
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        <GripVertical size={10} className="text-zinc-700 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5" />
+        {task.impact === 'HIGH' && (
+          <div className="w-1 h-1 rounded-full bg-amber-500 mt-2 shrink-0" />
+        )}
+        <div
+          className={`flex-1 min-w-0 text-sm text-zinc-300 ${
+            task.status === TaskStatus.DONE ? 'line-through' : ''
+          }`}
+        >
+          {task.title}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            onClick={() => onSchedule(task)}
+            className="p-1 text-zinc-600 hover:text-zinc-400 transition-colors"
+            title="Schedule task"
+          >
+            <Clock size={12} />
+          </button>
+          <button
+            onClick={() =>
+              onUpdate(task.id, {
+                status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE,
+              })
+            }
+            className={`p-1 hover:text-emerald-400 transition-colors opacity-0 group-hover:opacity-100 ${
+              task.status === TaskStatus.DONE ? 'text-emerald-500' : 'text-zinc-600'
+            }`}
+            title="Toggle Complete"
+          >
+            <Check size={12} />
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm('Permanently delete this task?')) {
+                onDelete(task.id);
+              }
+            }}
+            className="p-1 text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+            title="Delete task"
+          >
+            <Trash2 size={12} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Backlog Sidebar
 interface BacklogSidebarProps {
   tasks: Task[];
@@ -326,6 +394,24 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
   const [schedulingTask, setSchedulingTask] = useState<Task | null>(null);
   const [scheduleDay, setScheduleDay] = useState(0);
   const [scheduleTime, setScheduleTime] = useState('9:00 AM');
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  // Categorize tasks into Strategy Dock sections
+  const categorizedTasks = {
+    urgent: tasks.filter(t => t.impact === 'HIGH'),
+    projects: tasks.filter(t => t.impact === 'MED'),
+    quickWins: tasks.filter(t => t.impact === 'LOW'),
+  };
+
+  const toggleSection = (section: string) => {
+    const newCollapsed = new Set(collapsedSections);
+    if (newCollapsed.has(section)) {
+      newCollapsed.delete(section);
+    } else {
+      newCollapsed.add(section);
+    }
+    setCollapsedSections(newCollapsed);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -402,7 +488,7 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
           >
             <ChevronDown size={14} />
           </button>
-          <div className="text-sm text-zinc-400">Backlog</div>
+          <div className="text-sm text-zinc-400">Strategy Dock</div>
         </div>
         <div className="text-xs text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded">
           {tasks.length}
@@ -419,56 +505,120 @@ const BacklogSidebar: React.FC<BacklogSidebarProps> = ({
         />
       </form>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-2">
-        {tasks.map(task => (
-          <div
-            key={task.id}
-            draggable
-            onDragStart={() => onDragStart(task)}
-            className={`group bg-zinc-900/50 border border-zinc-800/50 rounded p-2 hover:border-zinc-700 transition-all cursor-grab ${task.status === TaskStatus.DONE ? 'opacity-50' : ''
-              }`}
-          >
-            <div className="flex items-start gap-2">
-              <GripVertical size={10} className="text-zinc-700 opacity-0 group-hover:opacity-100 shrink-0 mt-0.5" />
-              {task.impact === 'HIGH' && (
-                <div className="w-1 h-1 rounded-full bg-amber-500 mt-2 shrink-0" />
-              )}
-              <div
-                className={`flex-1 min-w-0 text-sm text-zinc-300 ${task.status === TaskStatus.DONE ? 'line-through' : ''
-                  }`}
-              >
-                {task.title}
+      <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        {/* Strategy Dock Sections */}
+
+        {/* Urgent Section */}
+        {categorizedTasks.urgent.length > 0 && (
+          <div className="space-y-2">
+            <button
+              onClick={() => toggleSection('urgent')}
+              className="w-full flex items-center justify-between text-xs font-medium text-amber-400/80 hover:text-amber-400 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <ChevronRightIcon
+                  size={12}
+                  className={`transition-transform ${!collapsedSections.has('urgent') ? 'rotate-90' : ''}`}
+                />
+                <span>Urgent</span>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => setSchedulingTask(task)}
-                  className="p-1 text-zinc-600 hover:text-zinc-400 transition-colors"
-                  title="Schedule task"
-                >
-                  <Clock size={12} />
-                </button>
-                <button
-                  onClick={() => onUpdate(task.id, { status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE })}
-                  className={`p-1 hover:text-emerald-400 transition-colors opacity-0 group-hover:opacity-100 ${task.status === TaskStatus.DONE ? 'text-emerald-500' : 'text-zinc-600'}`}
-                  title="Toggle Complete"
-                >
-                  <Check size={12} />
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm('Permanently delete this task?')) {
-                      onDelete(task.id);
-                    }
-                  }}
-                  className="p-1 text-zinc-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                  title="Delete task"
-                >
-                  <Trash2 size={12} />
-                </button>
+              <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
+                {categorizedTasks.urgent.length}
+              </span>
+            </button>
+            {!collapsedSections.has('urgent') && (
+              <div className="space-y-2 ml-3">
+                {categorizedTasks.urgent.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onDragStart={onDragStart}
+                    onSchedule={setSchedulingTask}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                  />
+                ))}
               </div>
-            </div>
+            )}
           </div>
-        ))}
+        )}
+
+        {/* Projects & Deep Section */}
+        {categorizedTasks.projects.length > 0 && (
+          <div className="space-y-2">
+            <button
+              onClick={() => toggleSection('projects')}
+              className="w-full flex items-center justify-between text-xs font-medium text-blue-400/80 hover:text-blue-400 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <ChevronRightIcon
+                  size={12}
+                  className={`transition-transform ${!collapsedSections.has('projects') ? 'rotate-90' : ''}`}
+                />
+                <span>Projects & Deep</span>
+              </div>
+              <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
+                {categorizedTasks.projects.length}
+              </span>
+            </button>
+            {!collapsedSections.has('projects') && (
+              <div className="space-y-2 ml-3">
+                {categorizedTasks.projects.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onDragStart={onDragStart}
+                    onSchedule={setSchedulingTask}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Quick Wins Section */}
+        {categorizedTasks.quickWins.length > 0 && (
+          <div className="space-y-2">
+            <button
+              onClick={() => toggleSection('quickWins')}
+              className="w-full flex items-center justify-between text-xs font-medium text-emerald-400/80 hover:text-emerald-400 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <ChevronRightIcon
+                  size={12}
+                  className={`transition-transform ${!collapsedSections.has('quickWins') ? 'rotate-90' : ''}`}
+                />
+                <span>Quick Wins</span>
+              </div>
+              <span className="text-zinc-600 bg-zinc-900 px-1.5 py-0.5 rounded text-[10px]">
+                {categorizedTasks.quickWins.length}
+              </span>
+            </button>
+            {!collapsedSections.has('quickWins') && (
+              <div className="space-y-2 ml-3">
+                {categorizedTasks.quickWins.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onDragStart={onDragStart}
+                    onSchedule={setSchedulingTask}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {tasks.length === 0 && (
+          <div className="text-center py-8 text-xs text-zinc-600">
+            No tasks in backlog
+          </div>
+        )}
       </div>
 
       {schedulingTask && (

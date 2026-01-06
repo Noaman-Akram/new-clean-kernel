@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta } from './types';
 import { loadState, saveState, subscribeToState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
@@ -388,6 +388,19 @@ const App: React.FC = () => {
     }) : null);
   };
 
+  const handleDayMetaUpdate = (dateKey: string, updates: Partial<DayMeta>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      dayMeta: {
+        ...(prev.dayMeta || {}),
+        [dateKey]: {
+          ...(prev.dayMeta?.[dateKey] || {}),
+          ...updates
+        }
+      }
+    }) : null);
+  };
+
   // --- BACKUP UTILS ---
   const handleExportBackup = () => {
     if (!state) return;
@@ -459,6 +472,7 @@ const App: React.FC = () => {
             onAdd={handleTaskAdd}
             onDelete={handleTaskDelete}
             onStickyNoteUpdate={handleStickyNoteUpdate}
+            onDayMetaUpdate={handleDayMetaUpdate}
           />
         );
       case Page.CRM:

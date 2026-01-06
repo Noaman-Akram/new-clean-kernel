@@ -296,6 +296,18 @@ export interface PrayerTime {
   icon: string; // Emoji icon for the prayer
 }
 
+export interface DayChecklistItem {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface DayMeta {
+  rituals?: Record<string, boolean>;
+  checklist?: DayChecklistItem[];
+  focus?: string;
+}
+
 export interface AppState {
   tasks: Task[];
   activities: Activity[];
@@ -313,6 +325,7 @@ export interface AppState {
   activeSession: ActiveSession;
   horizonGoals: HorizonGoal[];
   stickyNotes: Record<string, string>; // format: YYYY-MM-DD -> content
+  dayMeta: Record<string, DayMeta>; // format: YYYY-MM-DD -> metadata
   workoutSessions: WorkoutSession[];
   workoutTemplates: WorkoutTemplate[];
   exercises: Exercise[];

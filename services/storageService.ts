@@ -83,7 +83,8 @@ const INITIAL_STATE: AppState = {
   adhkarLog: {},
   chatHistory: [],
   horizonGoals: [],
-  stickyNotes: {}
+  stickyNotes: {},
+  dayMeta: {}
 };
 
 // --- DATA LAYER ---
@@ -141,7 +142,8 @@ export const loadState = async (): Promise<AppState> => {
           workoutSessions: data.workoutSessions || [],
           workoutTemplates: data.workoutTemplates || [],
           exercises: data.exercises || INITIAL_STATE.exercises,
-          stickyNotes: data.stickyNotes || {}
+          stickyNotes: data.stickyNotes || {},
+          dayMeta: data.dayMeta || {}
         } as AppState;
         return mergedData;
       } else {
@@ -183,7 +185,8 @@ export const subscribeToState = (onUpdate: (state: AppState) => void): Unsubscri
           workoutSessions: data.workoutSessions || INITIAL_STATE.workoutSessions,
           workoutTemplates: data.workoutTemplates || INITIAL_STATE.workoutTemplates,
           exercises: data.exercises || INITIAL_STATE.exercises,
-          stickyNotes: data.stickyNotes || INITIAL_STATE.stickyNotes
+          stickyNotes: data.stickyNotes || INITIAL_STATE.stickyNotes,
+          dayMeta: data.dayMeta || INITIAL_STATE.dayMeta
         } as AppState;
         onUpdate(mergedState);
       }

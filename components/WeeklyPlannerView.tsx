@@ -114,7 +114,7 @@ const HourSlot: React.FC<{
         } ${isCurrentHour ? 'bg-zinc-900/10' : ''}`}
       style={{ height: '56px' }}
     >
-      {/* Prayer Markers (Timeline Layer) */}
+      {/* Prayer Markers (Floating Info) */}
       {showPrayers && prayers.map(prayer => {
         const prayerDate = new Date(prayer.timestamp);
         const minutes = prayerDate.getMinutes();
@@ -123,16 +123,15 @@ const HourSlot: React.FC<{
         return (
           <div
             key={prayer.name}
-            className="absolute w-full left-0 pointer-events-none z-10"
-            style={{ top: `${topPercent}%` }}
+            className="absolute right-1 w-max pointer-events-none z-30 flex items-center gap-1.5 group/prayer"
+            style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
           >
-            {/* Timeline Line (Subtle) */}
-            <div className="w-full border-t border-emerald-500/20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]"></div>
-
-            {/* Icon + Label (Calm) */}
-            <div className="absolute right-0 -top-2.5 flex items-center gap-1.5 px-1 pr-0">
-              <span className="text-emerald-500/60 opacity-80 scale-75 filter saturate-50">
+            <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-[1px] rounded-full px-1.5 py-0.5 border border-transparent group-hover/prayer:border-emerald-500/20 transition-colors">
+              <span className="text-emerald-500/80">
                 {PRAYER_ICONS_MAP[prayer.icon] || <Sun size={10} />}
+              </span>
+              <span className="text-[9px] font-medium text-zinc-500 group-hover/prayer:text-zinc-300 transition-colors">
+                {prayer.name} <span className="text-zinc-600 font-normal opacity-70">{formatTimeAMPM(prayerDate.getHours(), minutes)}</span>
               </span>
             </div>
           </div>
@@ -438,11 +437,17 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     setCollapsedSections(prev => ({ ...prev, [type]: !prev[type] }));
   };
 
-  const expandAll = () => setCollapsedSections({});
+  const expandAll = () => {
+    setCollapsedSections({});
+    setUrgentCollapsed(false);
+  };
+
   const collapseAll = () => {
     const allCollapsed: Record<string, boolean> = {};
-    Object.keys(dockTasks).forEach(k => allCollapsed[k] = true);
+    // Use fixed keys to avoid closure ordering issues
+    ['ROUTINE', 'TEMPLATE', 'PROJECT', 'TODO', 'LATER', 'HABIT'].forEach(k => allCollapsed[k] = true);
     setCollapsedSections(allCollapsed);
+    setUrgentCollapsed(true);
   };
 
   useEffect(() => {
@@ -668,18 +673,9 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           <div className="h-full flex flex-col">
             <div className="h-12 border-b border-border flex items-center justify-between px-3">
               <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Dock</span>
-              <div className="flex items-center gap-1">
-                <button onClick={expandAll} className="p-1 hover:bg-zinc-800 rounded text-zinc-600 hover:text-zinc-300" title="Expand All">
-                  <ChevronRight size={12} className="rotate-90" />
-                </button>
-                <button onClick={collapseAll} className="p-1 hover:bg-zinc-800 rounded text-zinc-600 hover:text-zinc-300" title="Collapse All">
-                  <ChevronRight size={12} />
-                </button>
-                <div className="w-px h-3 bg-zinc-800 mx-1" />
-                <button onClick={() => setDockCollapsed(true)} className="text-zinc-600 hover:text-zinc-300">
-                  <ChevronLeft size={16} />
-                </button>
-              </div>
+              <button onClick={() => setDockCollapsed(true)} className="text-zinc-600 hover:text-zinc-300">
+                <ChevronLeft size={16} />
+              </button>
             </div>
 
             {/* Dock Controls */}
@@ -720,6 +716,30 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-3">
+              {/* Dock Global Actions */}
+              {/* Dock Global Actions */}
+              {/* Dock Global Actions */}
+              <div className="flex items-center justify-end px-2 mb-2 gap-2 opacity-60 hover:opacity-100 transition-opacity pt-1">
+                <button
+                  onClick={expandAll}
+                  title="Expand All"
+                  className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-zinc-800 text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  <ChevronRight size={10} className="rotate-90" />
+                  <span className="font-medium">Expand All</span>
+                </button>
+                <span className="text-zinc-800 text-[9px]">/</span>
+                <button
+                  onClick={collapseAll}
+                  title="Collapse All"
+                  className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-zinc-800 text-[9px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  <ChevronRight size={10} className="-rotate-90" />
+                  <span className="font-medium">Collapse All</span>
+                </button>
+              </div>
+
+
               {urgentTasks.length > 0 && (
                 <div className="space-y-1 pt-1">
                   <div
@@ -798,6 +818,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onDelete={onDelete}
                 onAdd={onAdd}
                 onSelect={(task) => setInspectorTask(task)}
+                collapsed={collapsedSections['PROJECT']}
+                onToggle={() => toggleSection('PROJECT')}
               />
 
               <DockSection
@@ -810,6 +832,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onDelete={onDelete}
                 onAdd={onAdd}
                 onSelect={(task) => setInspectorTask(task)}
+                collapsed={collapsedSections['TODO']}
+                onToggle={() => toggleSection('TODO')}
               />
 
               <DockSection
@@ -822,6 +846,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onDelete={onDelete}
                 onAdd={onAdd}
                 onSelect={(task) => setInspectorTask(task)}
+                collapsed={collapsedSections['LATER']}
+                onToggle={() => toggleSection('LATER')}
               />
 
               <DockSection
@@ -835,6 +861,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onAdd={onAdd}
                 onSelect={(task) => setInspectorTask(task)}
                 currentDate={currentTime.toISOString().split('T')[0]}
+                collapsed={collapsedSections['HABIT']}
+                onToggle={() => toggleSection('HABIT')}
               />
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { AppState, Task, DockSection, DayMeta, DayChecklistItem } from '../types';
 import { Category, TaskStatus } from '../types';
 import {
@@ -996,11 +996,24 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                   </button>
                 </div>
               </div>
-              {Array.from({ length: 24 }, (_, i) => i).map(hour => (
-                <div key={hour} className="h-14 border-b border-zinc-900/30 flex items-center justify-center">
-                  <span className="text-[10px] text-zinc-500 font-mono">{formatTimeAMPM(hour, 0)}</span>
-                </div>
-              ))}
+              {/* Time Labels (Smart Density) */}
+              <div className="flex-1 flex flex-col">
+                {Array.from({ length: 24 }).map((_, i) => {
+                  const isCompressed = !activeHours.has(i);
+                  const height = isCompressed ? 20 : 60;
+                  return (
+                    <div
+                      key={i}
+                      style={{ height: `${height}px` }}
+                      className={`border-b border-zinc-900/30 flex items-start justify-end pr-2 pt-1 transition-all ${isCompressed ? 'opacity-30 bg-zinc-950/20' : ''}`}
+                    >
+                      <span className="text-[10px] text-zinc-500 font-mono tracking-tighter">
+                        {formatTimeAMPM(i, 0).replace(' ', '')}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Days Grid */}

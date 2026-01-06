@@ -23,7 +23,8 @@ import {
   Archive,
   CheckCircle2,
   Edit2,
-  MoreVertical,
+  Calendar,
+  AlertCircle,
 } from 'lucide-react';
 import { getPrayerTimesForDate, formatTimeAMPM } from '../utils/prayerTimes';
 
@@ -47,13 +48,13 @@ interface WeekDay {
 
 const getPrayerIcon = (iconName: string) => {
   const iconMap: Record<string, React.ReactNode> = {
-    sunrise: <Sunrise size={11} />,
-    sun: <Sun size={11} />,
-    'cloud-sun': <CloudSun size={11} />,
-    sunset: <Sunset size={11} />,
-    moon: <Moon size={11} />,
+    sunrise: <Sunrise size={10} />,
+    sun: <Sun size={10} />,
+    'cloud-sun': <CloudSun size={10} />,
+    sunset: <Sunset size={10} />,
+    moon: <Moon size={10} />,
   };
-  return iconMap[iconName] || <Sun size={11} />;
+  return iconMap[iconName] || <Sun size={10} />;
 };
 
 const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate }) => {
@@ -62,7 +63,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const [dockCollapsed, setDockCollapsed] = useState(false);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
-  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [expandedHours, setExpandedHours] = useState<Set<string>>(new Set());
   const [expandingTemplate, setExpandingTemplate] = useState<Task | null>(null);
 
   useEffect(() => {
@@ -161,115 +163,106 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     setExpandingTemplate(null);
   };
 
+  const toggleHour = (dayStr: string, hour: number) => {
+    const key = `${dayStr}-${hour}`;
+    const newSet = new Set(expandedHours);
+    newSet.has(key) ? newSet.delete(key) : newSet.add(key);
+    setExpandedHours(newSet);
+  };
+
   return (
     <div className="flex h-full bg-background">
       {/* Dock */}
-      <div className={`border-r border-border bg-surface transition-all ${dockCollapsed ? 'w-12' : 'w-72'} flex-shrink-0`}>
+      <div className={`border-r border-border bg-surface transition-all ${dockCollapsed ? 'w-12' : 'w-64'} flex-shrink-0`}>
         {dockCollapsed ? (
           <button onClick={() => setDockCollapsed(false)} className="w-full h-12 flex items-center justify-center text-zinc-500 hover:text-zinc-300">
             <ChevronRight size={16} />
           </button>
         ) : (
           <div className="h-full flex flex-col">
-            <div className="h-12 border-b border-border flex items-center justify-between px-4">
+            <div className="h-12 border-b border-border flex items-center justify-between px-3">
               <span className="text-xs font-medium text-zinc-300">Dock</span>
               <button onClick={() => setDockCollapsed(true)} className="text-zinc-500 hover:text-zinc-300">
                 <ChevronLeft size={16} />
               </button>
             </div>
 
-            <div className="p-3 border-b border-border">
-              <QuickAdd onAdd={onAdd} />
-            </div>
+            <TypeButtons onAdd={onAdd} />
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-4">
-              {dockTasks.ROUTINE.length > 0 && (
-                <DockSection
-                  title="Routines"
-                  icon={<Repeat size={11} />}
-                  tasks={dockTasks.ROUTINE}
-                  onDragStart={handleDragStart}
-                  onUpdate={onUpdate}
-                  onDelete={onDelete}
-                  editingTask={editingTask}
-                  setEditingTask={setEditingTask}
-                />
-              )}
+            <div className="flex-1 overflow-y-auto p-2 space-y-3">
+              <DockSection
+                title="Routines"
+                icon={<Repeat size={10} />}
+                type="ROUTINE"
+                tasks={dockTasks.ROUTINE}
+                onDragStart={handleDragStart}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onAdd={onAdd}
+                onSelect={setSelectedTask}
+              />
 
-              {dockTasks.TEMPLATE.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 px-1 text-[10px] text-zinc-500 uppercase tracking-wider">
-                    <FileText size={11} />
-                    <span>Templates</span>
-                  </div>
-                  {dockTasks.TEMPLATE.map(task => (
-                    <TemplateCard
-                      key={task.id}
-                      task={task}
-                      onExpand={setExpandingTemplate}
-                      onUpdate={onUpdate}
-                      onDelete={onDelete}
-                    />
-                  ))}
-                </div>
-              )}
+              <DockSection
+                title="Templates"
+                icon={<FileText size={10} />}
+                type="TEMPLATE"
+                tasks={dockTasks.TEMPLATE}
+                onDragStart={handleDragStart}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onAdd={onAdd}
+                onSelect={setSelectedTask}
+                onExpand={setExpandingTemplate}
+              />
 
-              {dockTasks.PROJECT.length > 0 && (
-                <DockSection
-                  title="Projects"
-                  icon={<Mountain size={11} />}
-                  tasks={dockTasks.PROJECT}
-                  onDragStart={handleDragStart}
-                  onUpdate={onUpdate}
-                  onDelete={onDelete}
-                  editingTask={editingTask}
-                  setEditingTask={setEditingTask}
-                />
-              )}
+              <DockSection
+                title="Projects"
+                icon={<Mountain size={10} />}
+                type="PROJECT"
+                tasks={dockTasks.PROJECT}
+                onDragStart={handleDragStart}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onAdd={onAdd}
+                onSelect={setSelectedTask}
+              />
 
-              {dockTasks.TODO.length > 0 && (
-                <DockSection
-                  title="To Do"
-                  icon={<ListTodo size={11} />}
-                  tasks={dockTasks.TODO}
-                  onDragStart={handleDragStart}
-                  onUpdate={onUpdate}
-                  onDelete={onDelete}
-                  editingTask={editingTask}
-                  setEditingTask={setEditingTask}
-                />
-              )}
+              <DockSection
+                title="To Do"
+                icon={<ListTodo size={10} />}
+                type="TODO"
+                tasks={dockTasks.TODO}
+                onDragStart={handleDragStart}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onAdd={onAdd}
+                onSelect={setSelectedTask}
+              />
 
-              {dockTasks.LATER.length > 0 && (
-                <DockSection
-                  title="Later"
-                  icon={<Archive size={11} />}
-                  tasks={dockTasks.LATER}
-                  onDragStart={handleDragStart}
-                  onUpdate={onUpdate}
-                  onDelete={onDelete}
-                  editingTask={editingTask}
-                  setEditingTask={setEditingTask}
-                />
-              )}
+              <DockSection
+                title="Later"
+                icon={<Archive size={10} />}
+                type="LATER"
+                tasks={dockTasks.LATER}
+                onDragStart={handleDragStart}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onAdd={onAdd}
+                onSelect={setSelectedTask}
+              />
 
-              {dockTasks.HABIT.length > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 px-1 text-[10px] text-zinc-500 uppercase tracking-wider">
-                    <CheckCircle2 size={11} />
-                    <span>Habits</span>
-                  </div>
-                  {dockTasks.HABIT.map(task => (
-                    <HabitCard
-                      key={task.id}
-                      task={task}
-                      onUpdate={onUpdate}
-                      onDelete={onDelete}
-                      currentDate={currentTime.toISOString().split('T')[0]}
-                    />
-                  ))}
-                </div>
-              )}
+              <DockSection
+                title="Habits"
+                icon={<CheckCircle2 size={10} />}
+                type="HABIT"
+                tasks={dockTasks.HABIT}
+                onDragStart={handleDragStart}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onAdd={onAdd}
+                onSelect={setSelectedTask}
+                currentDate={currentTime.toISOString().split('T')[0]}
+              />
             </div>
           </div>
         )}
@@ -277,7 +270,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
 
       {/* Planner */}
       <div className="flex-1 flex flex-col">
-        <div className="h-12 border-b border-border flex items-center justify-between px-6">
+        <div className="h-12 border-b border-border flex items-center justify-between px-4">
           <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 text-zinc-500 hover:text-zinc-300">
             <ChevronLeft size={18} />
           </button>
@@ -289,36 +282,60 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           </button>
         </div>
 
-        <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-7 h-full">
-            {weekDays.map(day => (
-              <DayColumn
-                key={day.dateStr}
-                day={day}
-                tasks={state.tasks.filter(t => {
-                  if (!t.scheduledTime) return false;
-                  const taskDate = new Date(t.scheduledTime);
-                  taskDate.setHours(0, 0, 0, 0);
-                  return taskDate.getTime() === day.date.getTime();
-                })}
-                dragOverHour={dragOverHour}
-                onDrop={handleDrop}
-                onDragOver={setDragOverHour}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-                onStartSession={onStartSession}
-                activeTaskId={activeTaskId}
-                currentTime={currentTime}
-                onStickyNoteUpdate={onStickyNoteUpdate}
-                stickyNote={state.stickyNotes?.[day.dateStr]}
-                editingTask={editingTask}
-                setEditingTask={setEditingTask}
-                onAdd={onAdd}
-              />
+        <div className="flex-1 flex overflow-hidden">
+          {/* Time Rail */}
+          <div className="w-14 border-r border-border bg-surface flex-shrink-0">
+            <div className="h-12 border-b border-border" />
+            {Array.from({ length: 24 }, (_, i) => i).map(hour => (
+              <div key={hour} className="h-10 border-b border-border flex items-center justify-center">
+                <span className="text-[9px] text-zinc-600 font-mono">{formatTimeAMPM(hour, 0)}</span>
+              </div>
             ))}
+          </div>
+
+          {/* Days Grid */}
+          <div className="flex-1 overflow-auto">
+            <div className="grid grid-cols-7 min-h-full">
+              {weekDays.map(day => (
+                <DayColumn
+                  key={day.dateStr}
+                  day={day}
+                  tasks={state.tasks.filter(t => {
+                    if (!t.scheduledTime) return false;
+                    const taskDate = new Date(t.scheduledTime);
+                    taskDate.setHours(0, 0, 0, 0);
+                    return taskDate.getTime() === day.date.getTime();
+                  })}
+                  dragOverHour={dragOverHour}
+                  onDrop={handleDrop}
+                  onDragOver={setDragOverHour}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  onStartSession={onStartSession}
+                  activeTaskId={activeTaskId}
+                  currentTime={currentTime}
+                  onStickyNoteUpdate={onStickyNoteUpdate}
+                  stickyNote={state.stickyNotes?.[day.dateStr]}
+                  onAdd={onAdd}
+                  onSelect={setSelectedTask}
+                  expandedHours={expandedHours}
+                  onToggleHour={toggleHour}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Inspector Panel */}
+      {selectedTask && (
+        <Inspector
+          task={selectedTask}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          onClose={() => setSelectedTask(null)}
+        />
+      )}
 
       {/* Template Modal */}
       {expandingTemplate && (
@@ -347,53 +364,45 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   );
 };
 
-// Quick Add
-const QuickAdd: React.FC<{ onAdd: Props['onAdd'] }> = ({ onAdd }) => {
+// Type Buttons
+const TypeButtons: React.FC<{ onAdd: Props['onAdd'] }> = ({ onAdd }) => {
   const [input, setInput] = useState('');
-  const [section, setSection] = useState<DockSection>('TODO');
+  const [activeType, setActiveType] = useState<DockSection>('TODO');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAdd = (type: DockSection) => {
     if (!input.trim()) return;
-
-    let title = input.trim();
-    let urgent = false;
-
-    if (title.startsWith('!')) {
-      urgent = true;
-      title = title.slice(1).trim();
-    }
-
-    onAdd(title, Category.AGENCY, 'MED', { dockSection: section, urgent });
+    onAdd(input.trim(), Category.AGENCY, 'MED', { dockSection: type });
     setInput('');
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2">
+    <div className="p-2 border-b border-border space-y-2">
       <input
         value={input}
         onChange={e => setInput(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') handleAdd(activeType); }}
         placeholder="Quick add..."
-        className="w-full bg-zinc-900 border-0 rounded px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700"
+        className="w-full bg-zinc-900 border-0 rounded px-2 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700"
       />
-      <div className="flex items-center justify-between">
-        <select
-          value={section}
-          onChange={e => setSection(e.target.value as DockSection)}
-          className="text-[10px] bg-zinc-900 border-0 rounded px-2 py-1 text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-700"
-        >
-          <option value="TODO">To Do</option>
-          <option value="ROUTINE">Routine</option>
-          <option value="PROJECT">Project</option>
-          <option value="TEMPLATE">Template</option>
-          <option value="LATER">Later</option>
-          <option value="HABIT">Habit</option>
-        </select>
-        <button type="submit" className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs">
-          Add
-        </button>
+      <div className="flex flex-wrap gap-1">
+        {[
+          { type: 'TODO' as DockSection, label: 'Task', icon: '✓' },
+          { type: 'ROUTINE' as DockSection, label: 'Routine', icon: '↻' },
+          { type: 'PROJECT' as DockSection, label: 'Project', icon: '🏔' },
+          { type: 'TEMPLATE' as DockSection, label: 'Template', icon: '⧉' },
+          { type: 'HABIT' as DockSection, label: 'Habit', icon: '⟳' },
+        ].map(({ type, label, icon }) => (
+          <button
+            key={type}
+            onClick={() => { setActiveType(type); if (input.trim()) handleAdd(type); }}
+            className={`px-2 py-1 rounded text-[10px] transition-colors ${activeType === type ? 'bg-emerald-600 text-white' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'}`}
+          >
+            <span className="mr-1">{icon}</span>
+            {label}
+          </button>
+        ))}
       </div>
-    </form>
+    </div>
   );
 };
 
@@ -401,145 +410,111 @@ const QuickAdd: React.FC<{ onAdd: Props['onAdd'] }> = ({ onAdd }) => {
 const DockSection: React.FC<{
   title: string;
   icon: React.ReactNode;
+  type: DockSection;
   tasks: Task[];
   onDragStart: (task: Task) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
-  editingTask: string | null;
-  setEditingTask: (id: string | null) => void;
-}> = ({ title, icon, tasks, onDragStart, onUpdate, onDelete, editingTask, setEditingTask }) => {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5 px-1 text-[10px] text-zinc-500 uppercase tracking-wider">
-        {icon}
-        <span>{title}</span>
-        <span className="ml-auto text-zinc-700">{tasks.length}</span>
-      </div>
-      {tasks.map(task => (
-        <DockTaskCard
-          key={task.id}
-          task={task}
-          onDragStart={onDragStart}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          editing={editingTask === task.id}
-          setEditing={(editing) => setEditingTask(editing ? task.id : null)}
-        />
-      ))}
-    </div>
-  );
-};
+  onAdd: Props['onAdd'];
+  onSelect: (task: Task) => void;
+  onExpand?: (task: Task) => void;
+  currentDate?: string;
+}> = ({ title, icon, type, tasks, onDragStart, onUpdate, onDelete, onAdd, onSelect, onExpand, currentDate }) => {
+  const [adding, setAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
 
-// Dock Task Card
-const DockTaskCard: React.FC<{
-  task: Task;
-  onDragStart: (task: Task) => void;
-  onUpdate: (id: string, updates: Partial<Task>) => void;
-  onDelete: (id: string) => void;
-  editing: boolean;
-  setEditing: (editing: boolean) => void;
-}> = ({ task, onDragStart, onUpdate, onDelete, editing, setEditing }) => {
-  const [editValue, setEditValue] = useState(task.title);
-
-  const handleSave = () => {
-    if (editValue.trim() && editValue !== task.title) {
-      onUpdate(task.id, { title: editValue.trim() });
-    }
-    setEditing(false);
+  const handleAdd = () => {
+    if (!newTitle.trim()) return;
+    onAdd(newTitle.trim(), Category.AGENCY, 'MED', { dockSection: type });
+    setNewTitle('');
+    setAdding(false);
   };
 
-  if (editing) {
-    return (
-      <div className="bg-zinc-900 rounded px-2 py-1.5">
+  if (tasks.length === 0 && !adding) return null;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-1.5 text-[9px] text-zinc-500 uppercase tracking-wider">
+          {icon}
+          <span>{title}</span>
+          <span className="text-zinc-700">{tasks.length}</span>
+        </div>
+        <button onClick={() => setAdding(true)} className="text-zinc-600 hover:text-zinc-400">
+          <Plus size={12} />
+        </button>
+      </div>
+
+      {adding && (
         <input
-          value={editValue}
-          onChange={e => setEditValue(e.target.value)}
-          onBlur={handleSave}
-          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
-          className="w-full bg-zinc-800 border-0 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          value={newTitle}
+          onChange={e => setNewTitle(e.target.value)}
+          onBlur={handleAdd}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false); }}
+          placeholder={`New ${title.toLowerCase()}...`}
+          className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
           autoFocus
         />
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div
-      draggable
-      onDragStart={() => onDragStart(task)}
-      className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1.5 cursor-move transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        <GripVertical size={12} className="text-zinc-700 flex-shrink-0" />
-        <div className="flex-1 min-w-0 text-xs text-zinc-300 truncate">
-          {task.urgent && <span className="text-red-400 mr-1">!</span>}
-          {task.title}
-        </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-          <button onClick={() => setEditing(true)} className="text-zinc-600 hover:text-zinc-400">
-            <Edit2 size={11} />
-          </button>
-          <button onClick={() => onDelete(task.id)} className="text-zinc-600 hover:text-red-400">
-            <Trash2 size={11} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Template Card
-const TemplateCard: React.FC<{
-  task: Task;
-  onExpand: (task: Task) => void;
-  onUpdate: (id: string, updates: Partial<Task>) => void;
-  onDelete: (id: string) => void;
-}> = ({ task, onExpand, onUpdate, onDelete }) => {
-  return (
-    <div className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1.5">
-      <div className="flex items-center gap-2">
-        <FileText size={12} className="text-blue-400 flex-shrink-0" />
-        <div className="flex-1 min-w-0 text-xs text-zinc-300 truncate">{task.title}</div>
-        <button onClick={() => onExpand(task)} className="text-[10px] text-blue-400 hover:text-blue-300">
-          Apply
-        </button>
-        <button onClick={() => onDelete(task.id)} className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400">
-          <Trash2 size={11} />
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Habit Card
-const HabitCard: React.FC<{
-  task: Task;
-  onUpdate: (id: string, updates: Partial<Task>) => void;
-  onDelete: (id: string) => void;
-  currentDate: string;
-}> = ({ task, onUpdate, onDelete, currentDate }) => {
-  const isChecked = task.habitTracking?.[currentDate] || false;
-
-  const toggleCheck = () => {
-    const newTracking = { ...(task.habitTracking || {}), [currentDate]: !isChecked };
-    onUpdate(task.id, { habitTracking: newTracking });
-  };
-
-  return (
-    <div className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1.5">
-      <div className="flex items-center gap-2">
-        <button onClick={toggleCheck} className="flex-shrink-0">
-          {isChecked ? (
-            <CheckCircle2 size={14} className="text-emerald-500" />
-          ) : (
-            <div className="w-3.5 h-3.5 rounded-full border border-zinc-600" />
-          )}
-        </button>
-        <div className="flex-1 text-xs text-zinc-300">{task.title}</div>
-        <button onClick={() => onDelete(task.id)} className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400">
-          <Trash2 size={11} />
-        </button>
-      </div>
+      {tasks.map(task => (
+        type === 'TEMPLATE' ? (
+          <div
+            key={task.id}
+            onClick={() => onSelect(task)}
+            className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1 cursor-pointer"
+          >
+            <div className="flex items-center gap-1.5">
+              <FileText size={10} className="text-blue-400 flex-shrink-0" />
+              <div className="flex-1 text-xs text-zinc-300 truncate">{task.title}</div>
+              <button onClick={(e) => { e.stopPropagation(); onExpand?.(task); }} className="text-[9px] text-blue-400 hover:text-blue-300">
+                Apply
+              </button>
+            </div>
+          </div>
+        ) : type === 'HABIT' ? (
+          <div
+            key={task.id}
+            onClick={() => onSelect(task)}
+            className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1 cursor-pointer"
+          >
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const isChecked = task.habitTracking?.[currentDate!] || false;
+                  const newTracking = { ...(task.habitTracking || {}), [currentDate!]: !isChecked };
+                  onUpdate(task.id, { habitTracking: newTracking });
+                }}
+                className="flex-shrink-0"
+              >
+                {task.habitTracking?.[currentDate!] ? (
+                  <CheckCircle2 size={12} className="text-emerald-500" />
+                ) : (
+                  <div className="w-3 h-3 rounded-full border border-zinc-600" />
+                )}
+              </button>
+              <div className="flex-1 text-xs text-zinc-300 truncate">{task.title}</div>
+            </div>
+          </div>
+        ) : (
+          <div
+            key={task.id}
+            draggable
+            onDragStart={() => onDragStart(task)}
+            onClick={() => onSelect(task)}
+            className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1 cursor-move"
+          >
+            <div className="flex items-center gap-1.5">
+              <GripVertical size={10} className="text-zinc-700 flex-shrink-0" />
+              <div className="flex-1 text-xs text-zinc-300 truncate">
+                {task.urgent && <span className="text-red-400 mr-1">!</span>}
+                {task.title}
+              </div>
+            </div>
+          </div>
+        )
+      ))}
     </div>
   );
 };
@@ -558,10 +533,11 @@ const DayColumn: React.FC<{
   currentTime: Date;
   onStickyNoteUpdate: (dateKey: string, content: string) => void;
   stickyNote?: string;
-  editingTask: string | null;
-  setEditingTask: (id: string | null) => void;
   onAdd: Props['onAdd'];
-}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onStickyNoteUpdate, stickyNote, editingTask, setEditingTask, onAdd }) => {
+  onSelect: (task: Task) => void;
+  expandedHours: Set<string>;
+  onToggleHour: (dayStr: string, hour: number) => void;
+}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onStickyNoteUpdate, stickyNote, onAdd, onSelect, expandedHours, onToggleHour }) => {
   const cairoOffset = 2;
   const cairoTime = new Date(currentTime.getTime() + (cairoOffset * 60 * 60 * 1000));
   const cairoHours = cairoTime.getUTCHours();
@@ -569,73 +545,47 @@ const DayColumn: React.FC<{
 
   const prayers = getPrayerTimesForDate(day.date);
 
-  // Show comprehensive hours (6 AM to 11 PM)
-  const allHours = Array.from({ length: 18 }, (_, i) => i + 6);
-
   return (
     <div className={`border-r border-border flex flex-col ${day.isToday ? 'bg-emerald-950/5' : ''}`}>
-      <div className={`h-14 border-b border-border p-2 ${day.isToday ? 'bg-emerald-950/10' : ''}`}>
-        <div className="text-[9px] text-zinc-500 uppercase tracking-wide">{day.dayName}</div>
-        <div className={`text-xl font-light ${day.isToday ? 'text-emerald-400' : 'text-zinc-300'}`}>
+      <div className={`h-12 border-b border-border p-2 ${day.isToday ? 'bg-emerald-950/10' : ''}`}>
+        <div className="text-[8px] text-zinc-500 uppercase">{day.dayName}</div>
+        <div className={`text-lg font-light ${day.isToday ? 'text-emerald-400' : 'text-zinc-300'}`}>
           {day.dayNum}
         </div>
       </div>
 
-      <StickyNote day={day} value={stickyNote} onUpdate={onStickyNoteUpdate} />
+      <div className="flex-1">
+        {Array.from({ length: 24 }, (_, i) => i).map(hour => {
+          const hourTasks = tasks.filter(t => t.scheduledTime && new Date(t.scheduledTime).getHours() === hour);
+          const hourPrayers = prayers.filter(p => new Date(p.timestamp).getHours() === hour);
+          const isExpanded = expandedHours.has(`${day.dateStr}-${hour}`);
+          const hasContent = hourTasks.length > 0 || hourPrayers.length > 0;
 
-      <div className="flex-1 overflow-y-auto">
-        {allHours.map(hour => (
-          <HourSlot
-            key={hour}
-            hour={hour}
-            day={day}
-            tasks={tasks.filter(t => t.scheduledTime && new Date(t.scheduledTime).getHours() === hour)}
-            isDragOver={dragOverHour === hour}
-            onDrop={() => onDrop(day, hour)}
-            onDragOver={() => onDragOver(hour)}
-            onDragLeave={() => onDragOver(null)}
-            onUpdate={onUpdate}
-            onDelete={onDelete}
-            onStartSession={onStartSession}
-            activeTaskId={activeTaskId}
-            prayers={prayers.filter(p => new Date(p.timestamp).getHours() === hour)}
-            isCurrentHour={isCurrentDay && cairoHours === hour}
-            editingTask={editingTask}
-            setEditingTask={setEditingTask}
-            onAdd={onAdd}
-            dateStr={day.dateStr}
-          />
-        ))}
+          return (
+            <HourSlot
+              key={hour}
+              hour={hour}
+              day={day}
+              tasks={hourTasks}
+              prayers={hourPrayers}
+              isExpanded={isExpanded || hasContent}
+              onToggle={() => onToggleHour(day.dateStr, hour)}
+              isDragOver={dragOverHour === hour}
+              onDrop={() => onDrop(day, hour)}
+              onDragOver={() => onDragOver(hour)}
+              onDragLeave={() => onDragOver(null)}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+              onStartSession={onStartSession}
+              activeTaskId={activeTaskId}
+              isCurrentHour={isCurrentDay && cairoHours === hour}
+              onAdd={onAdd}
+              dateStr={day.dateStr}
+              onSelect={onSelect}
+            />
+          );
+        })}
       </div>
-    </div>
-  );
-};
-
-// Sticky Note
-const StickyNote: React.FC<{ day: WeekDay; value?: string; onUpdate: (dateKey: string, content: string) => void }> = ({ day, value, onUpdate }) => {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(value || '');
-
-  if (!editing && !value) return null;
-
-  if (editing) {
-    return (
-      <div className="mx-2 mt-2 mb-1 p-2 bg-amber-950/20 border border-amber-900/30 rounded">
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          onBlur={() => { onUpdate(day.dateStr, text); setEditing(false); }}
-          className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-300 resize-none focus:outline-none"
-          rows={2}
-          autoFocus
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div onClick={() => setEditing(true)} className="mx-2 mt-2 mb-1 p-2 bg-amber-950/20 border border-amber-900/30 rounded text-xs text-amber-400/80 cursor-pointer hover:text-amber-400">
-      {value}
     </div>
   );
 };
@@ -645,6 +595,9 @@ const HourSlot: React.FC<{
   hour: number;
   day: WeekDay;
   tasks: Task[];
+  prayers: Array<{ name: string; time: string; timestamp: number; icon: string }>;
+  isExpanded: boolean;
+  onToggle: () => void;
   isDragOver: boolean;
   onDrop: () => void;
   onDragOver: () => void;
@@ -653,137 +606,205 @@ const HourSlot: React.FC<{
   onDelete: (id: string) => void;
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
-  prayers: Array<{ name: string; time: string; timestamp: number; icon: string }>;
   isCurrentHour: boolean;
-  editingTask: string | null;
-  setEditingTask: (id: string | null) => void;
   onAdd: Props['onAdd'];
   dateStr: string;
-}> = ({ hour, tasks, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, onDelete, onStartSession, activeTaskId, prayers, isCurrentHour, editingTask, setEditingTask, onAdd, dateStr }) => {
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [quickAddText, setQuickAddText] = useState('');
+  onSelect: (task: Task) => void;
+}> = ({ hour, tasks, prayers, isExpanded, onToggle, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, onDelete, onStartSession, activeTaskId, isCurrentHour, onAdd, dateStr, onSelect }) => {
+  const [adding, setAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
 
-  const handleQuickAdd = () => {
-    if (!quickAddText.trim()) return;
+  const handleAdd = () => {
+    if (!newTitle.trim()) return;
     const scheduledDate = new Date(dateStr);
     scheduledDate.setHours(hour, 0, 0, 0);
-    onAdd(quickAddText.trim(), Category.AGENCY, 'MED', { scheduledTime: scheduledDate.getTime() });
-    setQuickAddText('');
-    setShowQuickAdd(false);
+    onAdd(newTitle.trim(), Category.AGENCY, 'MED', { scheduledTime: scheduledDate.getTime() });
+    setNewTitle('');
+    setAdding(false);
   };
+
+  if (!isExpanded && tasks.length === 0 && prayers.length === 0) {
+    return (
+      <div
+        onDrop={e => { e.preventDefault(); onDrop(); }}
+        onDragOver={e => { e.preventDefault(); onDragOver(); }}
+        onDragLeave={onDragLeave}
+        onClick={onToggle}
+        className={`h-10 border-b border-zinc-900/30 hover:bg-zinc-900/20 cursor-pointer ${isDragOver ? 'bg-emerald-950/20' : ''} ${isCurrentHour ? 'bg-emerald-950/5' : ''}`}
+      />
+    );
+  }
 
   return (
     <div
       onDrop={e => { e.preventDefault(); onDrop(); }}
       onDragOver={e => { e.preventDefault(); onDragOver(); }}
       onDragLeave={onDragLeave}
-      onDoubleClick={() => setShowQuickAdd(true)}
-      className={`group min-h-[48px] border-b border-zinc-900/50 p-1.5 transition-colors ${isDragOver ? 'bg-emerald-950/20 border-emerald-900/50' : ''} ${isCurrentHour ? 'bg-emerald-950/10' : ''} hover:bg-zinc-900/30`}
+      onDoubleClick={() => setAdding(true)}
+      className={`min-h-[40px] border-b border-zinc-900/50 p-1.5 transition-colors ${isDragOver ? 'bg-emerald-950/20' : ''} ${isCurrentHour ? 'bg-emerald-950/10' : ''} hover:bg-zinc-900/20`}
     >
-      <div className="flex gap-1.5">
-        <div className="text-[9px] text-zinc-600 font-mono w-10 flex-shrink-0 pt-0.5">{formatTimeAMPM(hour, 0)}</div>
-        <div className="flex-1 space-y-1">
-          {prayers.map(prayer => (
-            <div key={prayer.name} className="flex items-center gap-1 text-[9px] text-zinc-500">
-              {getPrayerIcon(prayer.icon)}
-              <span>{prayer.name}</span>
-              <span className="text-zinc-700">{prayer.time}</span>
+      <div className="space-y-0.5">
+        {prayers.map(prayer => (
+          <div key={prayer.name} className="flex items-center gap-1 text-[9px] text-zinc-500">
+            {getPrayerIcon(prayer.icon)}
+            <span>{prayer.name}</span>
+            <span className="text-zinc-700 ml-auto">{prayer.time}</span>
+          </div>
+        ))}
+
+        {tasks.map((task, idx) => (
+          <div
+            key={task.id}
+            onClick={() => onSelect(task)}
+            className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-zinc-900/50 cursor-pointer ${
+              task.impact === 'HIGH' ? 'text-red-400' : task.impact === 'LOW' ? 'text-blue-400' : 'text-amber-400'
+            } ${task.status === TaskStatus.DONE ? 'line-through opacity-50' : ''}`}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdate(task.id, { status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE });
+              }}
+              className="flex-shrink-0"
+            >
+              {task.status === TaskStatus.DONE ? (
+                <Check size={9} className="text-emerald-500" />
+              ) : (
+                <div className="w-2 h-2 rounded border border-current opacity-50" />
+              )}
+            </button>
+            <span className="text-[9px]">{idx > 0 ? '├' : '•'}</span>
+            <div className="flex-1 text-[10px] truncate">
+              {task.urgent && <span className="text-red-400 mr-1">!</span>}
+              {task.title}
+              {task.parentProject && <span className="opacity-60 ml-1">(s)</span>}
+              {task.duration && <span className="opacity-60 ml-1">{task.duration}m</span>}
             </div>
-          ))}
-          {tasks.map(task => (
-            <ScheduledTask
-              key={task.id}
-              task={task}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-              onStartSession={onStartSession}
-              isActive={task.id === activeTaskId}
-              editing={editingTask === task.id}
-              setEditing={(editing) => setEditingTask(editing ? task.id : null)}
-            />
-          ))}
-          {showQuickAdd && (
-            <input
-              value={quickAddText}
-              onChange={e => setQuickAddText(e.target.value)}
-              onBlur={handleQuickAdd}
-              onKeyDown={e => { if (e.key === 'Enter') handleQuickAdd(); if (e.key === 'Escape') setShowQuickAdd(false); }}
-              placeholder="Task..."
-              className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              autoFocus
-            />
-          )}
-        </div>
+          </div>
+        ))}
+
+        {adding && (
+          <input
+            value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+            onBlur={handleAdd}
+            onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false); }}
+            placeholder="Task..."
+            className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            autoFocus
+          />
+        )}
       </div>
     </div>
   );
 };
 
-// Scheduled Task
-const ScheduledTask: React.FC<{
+// Inspector Panel
+const Inspector: React.FC<{
   task: Task;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
-  onStartSession: (id: string) => void;
-  isActive: boolean;
-  editing: boolean;
-  setEditing: (editing: boolean) => void;
-}> = ({ task, onUpdate, onDelete, onStartSession, isActive, editing, setEditing }) => {
-  const [editValue, setEditValue] = useState(task.title);
+  onClose: () => void;
+}> = ({ task, onUpdate, onDelete, onClose }) => {
+  const [title, setTitle] = useState(task.title);
+  const [dockSection, setDockSection] = useState<DockSection>(task.dockSection || 'TODO');
+  const [urgent, setUrgent] = useState(task.urgent || false);
+  const [duration, setDuration] = useState(task.duration || 0);
+  const [impact, setImpact] = useState(task.impact);
 
   const handleSave = () => {
-    if (editValue.trim() && editValue !== task.title) {
-      onUpdate(task.id, { title: editValue.trim() });
-    }
-    setEditing(false);
+    onUpdate(task.id, { title, dockSection, urgent, duration, impact });
   };
-
-  const impactColors = {
-    HIGH: 'bg-red-950/20 text-red-400',
-    MED: 'bg-amber-950/20 text-amber-400',
-    LOW: 'bg-blue-950/20 text-blue-400',
-  };
-
-  if (editing) {
-    return (
-      <input
-        value={editValue}
-        onChange={e => setEditValue(e.target.value)}
-        onBlur={handleSave}
-        onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
-        className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-        autoFocus
-      />
-    );
-  }
 
   return (
-    <div className={`group rounded px-2 py-1 ${impactColors[task.impact]} ${isActive ? 'ring-1 ring-emerald-500/50' : ''}`}>
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => onUpdate(task.id, { status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE })}
-          className="flex-shrink-0"
-        >
-          {task.status === TaskStatus.DONE ? (
-            <Check size={11} className="text-emerald-500" />
-          ) : (
-            <div className="w-2.5 h-2.5 rounded border border-current opacity-50" />
-          )}
+    <div className="w-64 border-l border-border bg-surface flex-shrink-0 flex flex-col">
+      <div className="h-12 border-b border-border flex items-center justify-between px-3">
+        <span className="text-xs font-medium text-zinc-300">Inspector</span>
+        <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
+          <X size={16} />
         </button>
-        <div className={`flex-1 text-xs truncate ${task.status === TaskStatus.DONE ? 'line-through opacity-50' : ''}`} onDoubleClick={() => setEditing(true)}>
-          {task.urgent && <span className="text-red-400 mr-1">!</span>}
-          {task.title}
-          {task.parentProject && <span className="text-[9px] opacity-60 ml-1">(s)</span>}
-          {task.duration && <span className="text-[9px] opacity-60 ml-1">{task.duration}m</span>}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        <div className="space-y-1.5">
+          <label className="text-[9px] text-zinc-500 uppercase">Title</label>
+          <input
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            onBlur={handleSave}
+            className="w-full bg-zinc-900 border-0 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700"
+          />
         </div>
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
-          <button onClick={() => onStartSession(task.id)} className="text-emerald-400 hover:text-emerald-300">
-            <Play size={10} />
-          </button>
-          <button onClick={() => onDelete(task.id)} className="text-red-400 hover:text-red-300">
-            <Trash2 size={10} />
-          </button>
+
+        <div className="space-y-1.5">
+          <label className="text-[9px] text-zinc-500 uppercase">Type</label>
+          <select
+            value={dockSection}
+            onChange={e => { setDockSection(e.target.value as DockSection); handleSave(); }}
+            className="w-full bg-zinc-900 border-0 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700"
+          >
+            <option value="TODO">To Do</option>
+            <option value="ROUTINE">Routine</option>
+            <option value="PROJECT">Project</option>
+            <option value="TEMPLATE">Template</option>
+            <option value="LATER">Later</option>
+            <option value="HABIT">Habit</option>
+          </select>
         </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[9px] text-zinc-500 uppercase">Priority</label>
+          <div className="flex gap-1">
+            {(['LOW', 'MED', 'HIGH'] as const).map(level => (
+              <button
+                key={level}
+                onClick={() => { setImpact(level); handleSave(); }}
+                className={`flex-1 px-2 py-1 rounded text-[10px] ${impact === level ? 'bg-emerald-600 text-white' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'}`}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[9px] text-zinc-500 uppercase">Duration (min)</label>
+          <input
+            type="number"
+            value={duration}
+            onChange={e => setDuration(parseInt(e.target.value) || 0)}
+            onBlur={handleSave}
+            className="w-full bg-zinc-900 border-0 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-700"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={urgent}
+            onChange={e => { setUrgent(e.target.checked); handleSave(); }}
+            className="w-4 h-4"
+          />
+          <label className="text-xs text-zinc-300">Urgent</label>
+        </div>
+
+        {task.scheduledTime && (
+          <div className="space-y-1.5">
+            <label className="text-[9px] text-zinc-500 uppercase">Scheduled</label>
+            <div className="text-xs text-zinc-300">
+              {new Date(task.scheduledTime).toLocaleString('default', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-border p-3 space-y-2">
+        <button
+          onClick={() => { onDelete(task.id); onClose(); }}
+          className="w-full px-3 py-1.5 bg-red-950/30 hover:bg-red-950/50 text-red-400 rounded text-xs"
+        >
+          Delete
+        </button>
       </div>
     </div>
   );

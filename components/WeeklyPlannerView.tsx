@@ -132,8 +132,8 @@ const HourSlot: React.FC<{
       onDragLeave={onDragLeave}
       onContextMenu={onContextMenu}
       onClick={onClickHour}
-      className={`relative border-b border-zinc-900/40 px-1 py-1 transition-colors ${isDragOver ? 'bg-zinc-800/30' : 'hover:bg-zinc-900/20'
-        } ${isCurrentHour ? 'bg-zinc-900/10' : ''}`}
+      className={`relative border-b border-zinc-800/15 px-1 py-1 transition-colors ${isDragOver ? 'bg-zinc-800/30' : 'hover:bg-zinc-900/40'
+        } ${isCurrentHour ? 'bg-zinc-900/30' : ''}`}
       style={{ height: `${HEIGHT}px` }}
     >
       {/* Prayer Markers (Floating Info) */}
@@ -176,13 +176,13 @@ const HourSlot: React.FC<{
             key={task.id}
             onClick={(e) => { e.stopPropagation(); onSelect(task); }}
             className={`
-              flex items-center px-1.5 rounded-[1px] cursor-pointer border-l-[1.5px]
-              text-[9px] truncate transition-all hover:brightness-110
+              flex items-center px-1.5 rounded-[1px] cursor-pointer border-l-[2px]
+              text-[11px] truncate transition-all hover:brightness-110
               ${activeTaskId === task.id ? 'ring-1 ring-emerald-500/30 bg-zinc-800' : ''}
               ${getTaskTone(task)}
               ${task.status === TaskStatus.DONE ? 'opacity-40 grayscale decoration-zinc-500 line-through' : ''}
             `}
-            style={{ height: '18px', flexShrink: 0 }}
+            style={{ height: '22px', flexShrink: 0 }}
           >
             <button
               onClick={(e) => {
@@ -981,7 +981,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto" ref={scrollRef}>
+        <div className="flex-1 overflow-auto bg-[#020202]" ref={scrollRef}>
           <div className="min-w-[720px] flex">
             {/* Time Rail */}
             <div className="w-14 border-r border-border bg-surface flex-shrink-0 sticky left-0 z-10">
@@ -1005,9 +1005,9 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     <div
                       key={i}
                       style={{ height: `${height}px` }}
-                      className={`border-b border-zinc-900/30 flex items-start justify-end pr-2 pt-1 transition-all ${isCompressed ? 'opacity-30 bg-zinc-950/20' : ''}`}
+                      className={`border-b border-zinc-800/20 flex items-start justify-end pr-2 pt-1 transition-all ${isCompressed ? 'opacity-30 bg-zinc-950/20' : ''}`}
                     >
-                      <span className="text-[10px] text-zinc-500 font-mono tracking-tighter">
+                      <span className="text-[11px] text-zinc-400 font-sans font-medium">
                         {formatTimeAMPM(i, 0).replace(' ', '')}
                       </span>
                     </div>

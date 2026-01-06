@@ -111,7 +111,7 @@ const HourSlot: React.FC<{
 }> = ({ tasks, prayers, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, activeTaskId, isCurrentHour, onSelect, onContextMenu, onClickHour, getTaskTone, onUnschedule, onDelete, onSetStatus, showPrayers, isCompressed }) => {
   // Logic: Show max 2 tasks. If 3rd exists, show "More" button occupying the 3rd slot.
   // Capacity = 3 slots (56px height / 18px per item approx).
-  const HEIGHT = isCompressed ? 20 : 60; // Increased base height for readability, compressed really small
+  const HEIGHT = isCompressed ? 28 : 60; // Increased base height for readability, compressed really small
   const VISIBLE_LIMIT = isCompressed ? 0 : 2; // Hide tasks in compressed view? Or just show 1 small marker? 
   // Actually if it's compressed, it means NO tasks are scheduled across the week for this hour.
   // So 'tasks' should be empty here anyway!
@@ -146,7 +146,7 @@ const HourSlot: React.FC<{
           <React.Fragment key={prayer.name}>
             {/* Tiny Prayer Dot Indicator */}
             <div
-              className="absolute right-0 w-1 h-1 rounded-full bg-emerald-500/40 z-10 pointer-events-none"
+              className="absolute right-0 w-[3px] h-[3px] rounded-none bg-emerald-500/60 z-10 pointer-events-none"
               style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
             />
 
@@ -600,7 +600,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     // We must calc real offset if densities differ.
     let top = 64; // header
     for (let i = 0; i < hour; i++) {
-      top += activeHours.has(i) ? 60 : 20;
+      top += activeHours.has(i) ? 60 : 28;
     }
 
     scrollRef.current.scrollTo({ top: top - 24, behavior: 'smooth' });
@@ -1016,7 +1016,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               <div className="flex-1 flex flex-col">
                 {Array.from({ length: 24 }).map((_, i) => {
                   const isCompressed = !activeHours.has(i);
-                  const height = isCompressed ? 20 : 60;
+                  const height = isCompressed ? 28 : 60;
                   return (
                     <div
                       key={i}

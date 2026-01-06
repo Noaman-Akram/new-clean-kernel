@@ -76,14 +76,14 @@ const PRAYER_ICONS_MAP: Record<string, React.ReactNode> = {
 };
 
 const PRAYER_SHORT_NAMES: Record<string, string> = {
-  'Fajr': 'Fjr',
-  'Sunrise': 'Snr',
-  'Dhuhr': 'Dhr',
-  'Asr': 'Asr',
-  'Maghrib': 'Mgr',
-  'Isha': 'Ish',
-  'Midnight': 'Mdn',
-  'Last Third': 'Lst',
+  'Fajr': 'FJR',
+  'Sunrise': 'SNR',
+  'Dhuhr': 'DHR',
+  'Asr': 'ASR',
+  'Maghrib': 'MGR',
+  'Isha': 'ISH',
+  'Midnight': 'MDN',
+  'Last Third': 'LST',
 };
 
 const HourSlot: React.FC<{
@@ -135,18 +135,21 @@ const HourSlot: React.FC<{
         return (
           <div
             key={prayer.name}
-            className="absolute right-1 w-max pointer-events-auto z-30 flex items-center gap-1.5 group/prayer hover:opacity-10 hover:blur-[1px] transition-all duration-300"
+            className="absolute right-1 w-max pointer-events-auto z-30 flex flex-col items-end group/prayer hover:opacity-10 hover:blur-[1px] transition-all duration-300"
             style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
             title={`${prayer.name} ${formatTimeAMPM(prayerDate.getHours(), minutes)}`}
           >
-            <div className="flex items-center gap-1.5 px-1 py-0.5 rounded-full backdrop-blur-0 transition-colors">
+            <div className="flex items-center gap-1 leading-none">
               <span className="text-emerald-500/50 grayscale-[30%]">
                 {PRAYER_ICONS_MAP[prayer.icon] || <Sun size={9} />}
               </span>
-              <span className="text-[8px] font-medium text-zinc-600 opacity-80 group-hover/prayer:text-zinc-400 transition-colors font-mono tracking-tight">
-                {PRAYER_SHORT_NAMES[prayer.name] || prayer.name.slice(0, 3)} {formatTimeAMPM(prayerDate.getHours(), minutes)}
+              <span className="text-[8px] font-bold text-zinc-600 opacity-80 group-hover/prayer:text-zinc-400 font-mono tracking-tight uppercase">
+                {PRAYER_SHORT_NAMES[prayer.name] || prayer.name.slice(0, 3).toUpperCase()}
               </span>
             </div>
+            <span className="text-[7px] font-medium text-zinc-700/60 font-mono tracking-tighter pr-[1px]">
+              {formatTimeAMPM(prayerDate.getHours(), minutes)}
+            </span>
           </div>
         );
       })}

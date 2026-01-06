@@ -66,12 +66,24 @@ const WeeklyPlannerViewWrapper: React.FC<Props> = (props) => {
 };
 
 // Prayer Icon Mapping
+// Prayer Icon Mapping
 const PRAYER_ICONS_MAP: Record<string, React.ReactNode> = {
-  'sunrise': <Sunrise size={10} />,
-  'sun': <Sun size={10} />,
-  'cloud-sun': <CloudSun size={10} />,
-  'sunset': <Sunset size={10} />,
-  'moon': <Moon size={10} />,
+  'sunrise': <Sunrise size={9} />,
+  'sun': <Sun size={9} />,
+  'cloud-sun': <CloudSun size={9} />,
+  'sunset': <Sunset size={9} />,
+  'moon': <Moon size={9} />,
+};
+
+const PRAYER_SHORT_NAMES: Record<string, string> = {
+  'Fajr': 'Fjr',
+  'Sunrise': 'Snr',
+  'Dhuhr': 'Dhr',
+  'Asr': 'Asr',
+  'Maghrib': 'Mgr',
+  'Isha': 'Ish',
+  'Midnight': 'Mdn',
+  'Last Third': 'Lst',
 };
 
 const HourSlot: React.FC<{
@@ -123,15 +135,16 @@ const HourSlot: React.FC<{
         return (
           <div
             key={prayer.name}
-            className="absolute right-1 w-max pointer-events-none z-30 flex items-center gap-1.5 group/prayer"
+            className="absolute right-1 w-max pointer-events-auto z-30 flex items-center gap-1.5 group/prayer hover:opacity-10 hover:blur-[1px] transition-all duration-300"
             style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
+            title={`${prayer.name} ${formatTimeAMPM(prayerDate.getHours(), minutes)}`}
           >
-            <div className="flex items-center gap-1.5 bg-background/60 backdrop-blur-[1px] rounded-full px-1.5 py-0.5 border border-transparent group-hover/prayer:border-emerald-500/20 transition-colors">
-              <span className="text-emerald-500/80">
-                {PRAYER_ICONS_MAP[prayer.icon] || <Sun size={10} />}
+            <div className="flex items-center gap-1.5 px-1 py-0.5 rounded-full backdrop-blur-0 transition-colors">
+              <span className="text-emerald-500/50 grayscale-[30%]">
+                {PRAYER_ICONS_MAP[prayer.icon] || <Sun size={9} />}
               </span>
-              <span className="text-[9px] font-medium text-zinc-500 group-hover/prayer:text-zinc-300 transition-colors">
-                {prayer.name} <span className="text-zinc-600 font-normal opacity-70">{formatTimeAMPM(prayerDate.getHours(), minutes)}</span>
+              <span className="text-[8px] font-medium text-zinc-600 opacity-80 group-hover/prayer:text-zinc-400 transition-colors font-mono tracking-tight">
+                {PRAYER_SHORT_NAMES[prayer.name] || prayer.name.slice(0, 3)} {formatTimeAMPM(prayerDate.getHours(), minutes)}
               </span>
             </div>
           </div>

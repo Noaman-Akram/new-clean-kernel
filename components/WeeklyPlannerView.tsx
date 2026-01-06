@@ -143,24 +143,32 @@ const HourSlot: React.FC<{
         const topPercent = (minutes / 60) * 100;
 
         return (
-          <div
-            key={prayer.name}
-            className="absolute right-1 w-max pointer-events-auto z-30 flex flex-col items-end group/prayer hover:opacity-10 hover:blur-[1px] transition-all duration-300"
-            style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
-            title={`${prayer.name} ${formatTimeAMPM(prayerDate.getHours(), minutes)}`}
-          >
-            <div className="flex items-center gap-1 leading-none">
-              <span className="text-emerald-500/50 grayscale-[30%]">
-                {PRAYER_ICONS_MAP[prayer.icon] || <Sun size={9} />}
-              </span>
-              <span className="text-[8px] font-bold text-zinc-600 opacity-80 group-hover/prayer:text-zinc-400 font-mono tracking-tight uppercase">
-                {PRAYER_SHORT_NAMES[prayer.name] || prayer.name.slice(0, 3).toUpperCase()}
+          <React.Fragment key={prayer.name}>
+            {/* Subtle Prayer Guideline */}
+            <div
+              className="absolute left-0 w-full border-t border-emerald-500/10 z-0 pointer-events-none"
+              style={{ top: `${topPercent}%` }}
+            />
+
+            {/* Floating Info */}
+            <div
+              className="absolute right-1 w-max pointer-events-auto z-30 flex flex-col items-end group/prayer hover:opacity-10 hover:blur-[1px] transition-all duration-300"
+              style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
+              title={`${prayer.name} ${formatTimeAMPM(prayerDate.getHours(), minutes)}`}
+            >
+              <div className="flex items-center gap-1 leading-none">
+                <span className="text-emerald-500/50 grayscale-[30%]">
+                  {PRAYER_ICONS_MAP[prayer.icon] || <Sun size={9} />}
+                </span>
+                <span className="text-[8px] font-bold text-zinc-600 opacity-80 group-hover/prayer:text-zinc-400 font-mono tracking-tight uppercase">
+                  {PRAYER_SHORT_NAMES[prayer.name] || prayer.name.slice(0, 3).toUpperCase()}
+                </span>
+              </div>
+              <span className="text-[7px] font-medium text-zinc-700/60 font-mono tracking-tighter pr-[1px]">
+                {formatTimeAMPM(prayerDate.getHours(), minutes)}
               </span>
             </div>
-            <span className="text-[7px] font-medium text-zinc-700/60 font-mono tracking-tighter pr-[1px]">
-              {formatTimeAMPM(prayerDate.getHours(), minutes)}
-            </span>
-          </div>
+          </React.Fragment>
         );
       })}
 
@@ -535,6 +543,14 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
       if (dayDiff >= 0 && dayDiff <= 6) {
         active.add(d.getHours());
       }
+    });
+
+    // Also keep hours with Prayers active to avoid crushing them
+    weekDays.forEach(day => {
+      const prayers = getPrayerTimesForDate(day.date);
+      prayers.forEach(p => {
+        active.add(new Date(p.timestamp).getHours());
+      });
     });
 
     // Optional: Always keep "Current Hour" active

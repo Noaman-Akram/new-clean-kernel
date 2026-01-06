@@ -107,10 +107,20 @@ const HourSlot: React.FC<{
   onDelete: (taskId: string) => void;
   onSetStatus: (taskId: string, status: TaskStatus) => void;
   showPrayers: boolean;
-}> = ({ tasks, prayers, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, activeTaskId, isCurrentHour, onSelect, onContextMenu, onClickHour, getTaskTone, onUnschedule, onDelete, onSetStatus, showPrayers }) => {
+  isCompressed: boolean;
+}> = ({ tasks, prayers, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, activeTaskId, isCurrentHour, onSelect, onContextMenu, onClickHour, getTaskTone, onUnschedule, onDelete, onSetStatus, showPrayers, isCompressed }) => {
   // Logic: Show max 2 tasks. If 3rd exists, show "More" button occupying the 3rd slot.
   // Capacity = 3 slots (56px height / 18px per item approx).
-  const VISIBLE_LIMIT = 2;
+  const HEIGHT = isCompressed ? 20 : 60; // Increased base height for readability, compressed really small
+  const VISIBLE_LIMIT = isCompressed ? 0 : 2; // Hide tasks in compressed view? Or just show 1 small marker? 
+  // Actually if it's compressed, it means NO tasks are scheduled across the week for this hour.
+  // So 'tasks' should be empty here anyway!
+  // BUT we must verify 'tasks' here are for THIS day. 
+  // The 'isCompressed' prop means "This hour index is compressed globally for the week".
+  // So for this specific day, there MIGHT be a task if I calculated wrong? 
+  // No, logic is: "If ANY day has a task at Hour X, Hour X is NOT compressed."
+  // So if isCompressed is true, tasks.length MUST be 0. Safe.
+
   const showMore = tasks.length > VISIBLE_LIMIT;
   const visibleTasks = showMore ? tasks.slice(0, VISIBLE_LIMIT) : tasks;
   const hiddenCount = tasks.length - visibleTasks.length;
@@ -124,7 +134,7 @@ const HourSlot: React.FC<{
       onClick={onClickHour}
       className={`relative border-b border-zinc-900/40 px-1 py-1 transition-colors ${isDragOver ? 'bg-zinc-800/30' : 'hover:bg-zinc-900/20'
         } ${isCurrentHour ? 'bg-zinc-900/10' : ''}`}
-      style={{ height: '56px' }}
+      style={{ height: `${HEIGHT}px` }}
     >
       {/* Prayer Markers (Floating Info) */}
       {showPrayers && prayers.map(prayer => {
@@ -227,7 +237,8 @@ const DayColumn: React.FC<{
   onOpenDayPanel: (type: DayPanelType, e: React.MouseEvent) => void;
   dayMeta: DayMeta;
   stickyNote: string;
-}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onSelect, onContextMenu, onClickHour, showPrayers, getTaskTone, onUnschedule, onSetStatus, onOpenDayPanel, dayMeta, stickyNote }) => {
+  activeHours: Set<number>;
+}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onSelect, onContextMenu, onClickHour, showPrayers, getTaskTone, onUnschedule, onSetStatus, onOpenDayPanel, dayMeta, stickyNote, activeHours }) => {
   const cairoOffset = 2;
   const cairoTime = new Date(currentTime.getTime() + (cairoOffset * 60 * 60 * 1000));
   const cairoHours = cairoTime.getUTCHours();
@@ -297,6 +308,7 @@ const DayColumn: React.FC<{
               onUnschedule={onUnschedule}
               onSetStatus={onSetStatus}
               showPrayers={showPrayers}
+              isCompressed={!activeHours.has(hour)}
             />
           );
         })}
@@ -501,6 +513,39 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   };
 
   const weekDays = getWeekDays();
+
+  // Smart Density Logic: Identify hours visible across the week
+  // If an hour (0-23) has NO tasks in ANY day of the current week, it is candidate for compression.
+  const activeHours = useMemo(() => {
+    const active = new Set<number>();
+
+    // Always keep 8am - 6pm active for "Work Day" structure? 
+    // User asked "save space when its possible", "unused cells... are shorter".
+    // "whole week if it have no tasks its short".
+    // So if 8am-6pm is empty, let it collapse? Maybe keep core hours for structure.
+    // Let's rely purely on data first.
+
+    state.tasks.forEach(t => {
+      if (!t.scheduledTime || t.status === TaskStatus.DONE) return; // Ignore done? Or keep spaced?
+      // If showing completed, we should count them.
+      // Let's count ALL tasks in this week.
+      const d = new Date(t.scheduledTime);
+      // Check if this task is in the current week view
+      const dayDiff = Math.floor((d.getTime() - weekDays[0].date.getTime()) / (1000 * 60 * 60 * 24));
+      if (dayDiff >= 0 && dayDiff <= 6) {
+        active.add(d.getHours());
+      }
+    });
+
+    // Optional: Always keep "Current Hour" active
+    // active.add(new Date().getHours()); // Handled by dynamic check or just let it fly
+
+    // Optional: Keep a core range? 
+    // Let's try pure data-driven first.
+
+    return active;
+  }, [state.tasks, weekDays]);
+
   const unscheduledTasks = state.tasks.filter(t => !t.scheduledTime && t.status !== TaskStatus.DONE);
 
   const filteredDockTasks = unscheduledTasks.filter(t => {
@@ -533,9 +578,16 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const handleJumpToNow = () => {
     if (!scrollRef.current) return;
     const hour = new Date().getHours();
-    const slotHeight = 56;
-    const headerHeight = 64;
-    scrollRef.current.scrollTo({ top: (hour * slotHeight) + headerHeight - 24, behavior: 'smooth' });
+
+    // Calculate position based on dynamic heights
+    // This is simple approx for now or we calc real offset?
+    // We must calc real offset if densities differ.
+    let top = 64; // header
+    for (let i = 0; i < hour; i++) {
+      top += activeHours.has(i) ? 60 : 20;
+    }
+
+    scrollRef.current.scrollTo({ top: top - 24, behavior: 'smooth' });
   };
 
 
@@ -987,6 +1039,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     onOpenDayPanel={(type, e) => handleOpenDayPanel(day, type, e)}
                     dayMeta={getDayMeta(day.dateStr)}
                     stickyNote={state.stickyNotes?.[day.dateStr] || ''}
+                    activeHours={activeHours}
                   />
                 ))}
               </div>

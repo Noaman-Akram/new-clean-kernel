@@ -5,6 +5,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Minus,
+  Search,
   X,
   Check,
   Play,
@@ -63,23 +65,20 @@ const WeeklyPlannerViewWrapper: React.FC<Props> = (props) => {
   return <WeeklyPlannerView {...props} />;
 };
 
-const getPrayerIcon = (iconName: string) => {
-  const iconMap: Record<string, React.ReactNode> = {
-    sunrise: <Sunrise size={9} />,
-    sun: <Sun size={9} />,
-    'cloud-sun': <CloudSun size={9} />,
-    sunset: <Sunset size={9} />,
-    moon: <Moon size={9} />,
-  };
-  return iconMap[iconName] || <Sun size={9} />;
+// Prayer Icon Mapping
+const PRAYER_ICONS_MAP: Record<string, React.ReactNode> = {
+  'sunrise': <Sunrise size={10} />,
+  'sun': <Sun size={10} />,
+  'cloud-sun': <CloudSun size={10} />,
+  'sunset': <Sunset size={10} />,
+  'moon': <Moon size={10} />,
 };
 
-// Hour Slot (Fixed Height, Thin Tasks)
 const HourSlot: React.FC<{
   hour: number;
   day: WeekDay;
   tasks: Task[];
-  prayers: Array<{ name: string; time: string; timestamp: number; icon: string }>;
+  prayers: any[];
   isDragOver: boolean;
   onDrop: () => void;
   onDragOver: () => void;
@@ -95,11 +94,13 @@ const HourSlot: React.FC<{
   onUnschedule: (taskId: string) => void;
   onDelete: (taskId: string) => void;
   onSetStatus: (taskId: string, status: TaskStatus) => void;
-}> = ({ tasks, prayers, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, activeTaskId, isCurrentHour, onSelect, onContextMenu, onClickHour, getTaskTone, onUnschedule, onDelete, onSetStatus }) => {
-  // Logic to show "More" button if tasks exceed capacity (3 tasks max usually fit in 56px)
-  const MAX_TASKS = 3;
-  const showMore = tasks.length > MAX_TASKS;
-  const visibleTasks = showMore ? tasks.slice(0, MAX_TASKS - 1) : tasks;
+  showPrayers: boolean;
+}> = ({ tasks, prayers, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, activeTaskId, isCurrentHour, onSelect, onContextMenu, onClickHour, getTaskTone, onUnschedule, onDelete, onSetStatus, showPrayers }) => {
+  // Logic: Show max 2 tasks. If 3rd exists, show "More" button occupying the 3rd slot.
+  // Capacity = 3 slots (56px height / 18px per item approx).
+  const VISIBLE_LIMIT = 2;
+  const showMore = tasks.length > VISIBLE_LIMIT;
+  const visibleTasks = showMore ? tasks.slice(0, VISIBLE_LIMIT) : tasks;
   const hiddenCount = tasks.length - visibleTasks.length;
 
   return (
@@ -113,8 +114,8 @@ const HourSlot: React.FC<{
         } ${isCurrentHour ? 'bg-zinc-900/10' : ''}`}
       style={{ height: '56px' }}
     >
-      {/* Prayer Markers */}
-      {prayers.map(prayer => {
+      {/* Prayer Markers (Timeline Layer) */}
+      {showPrayers && prayers.map(prayer => {
         const prayerDate = new Date(prayer.timestamp);
         const minutes = prayerDate.getMinutes();
         const topPercent = (minutes / 60) * 100;
@@ -122,12 +123,17 @@ const HourSlot: React.FC<{
         return (
           <div
             key={prayer.name}
-            className="absolute left-0 right-0 z-0 flex items-center group/prayer pointer-events-none"
+            className="absolute w-full left-0 pointer-events-none z-10"
             style={{ top: `${topPercent}%` }}
           >
-            <div className="w-full h-px bg-emerald-500/20 group-hover/prayer:bg-emerald-500/40" />
-            <div className="absolute right-1 -translate-y-1/2 flex items-center gap-1 bg-background/80 backdrop-blur px-1 rounded text-[9px] text-emerald-600/70 border border-emerald-900/20 scale-75 origin-right opacity-0 group-hover/prayer:opacity-100 transition-opacity">
-              {prayer.icon} <span className="uppercase font-medium tracking-wide">{prayer.name}</span>
+            {/* Timeline Line (Subtle) */}
+            <div className="w-full border-t border-emerald-500/20 shadow-[0_1px_0_0_rgba(0,0,0,0.1)]"></div>
+
+            {/* Icon + Label (Calm) */}
+            <div className="absolute right-0 -top-2.5 flex items-center gap-1.5 px-1 pr-0">
+              <span className="text-emerald-500/60 opacity-80 scale-75 filter saturate-50">
+                {PRAYER_ICONS_MAP[prayer.icon] || <Sun size={10} />}
+              </span>
             </div>
           </div>
         );
@@ -275,6 +281,7 @@ const DayColumn: React.FC<{
               getTaskTone={getTaskTone}
               onUnschedule={onUnschedule}
               onSetStatus={onSetStatus}
+              showPrayers={showPrayers}
             />
           );
         })}
@@ -296,136 +303,114 @@ const DockSection: React.FC<{
   onSelect: (task: Task) => void;
   onExpand?: (task: Task) => void;
   currentDate?: string;
-}> = ({ title, icon, type, tasks, onDragStart, onUpdate, onDelete, onAdd, onSelect, onExpand, currentDate }) => {
+  collapsed: boolean;
+  onToggle: () => void;
+}> = ({ title, icon, type, tasks, onDragStart, onUpdate, onDelete, onAdd, onSelect, onExpand, currentDate, collapsed, onToggle }) => {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
 
   const handleAdd = () => {
-    if (!newTitle.trim()) return;
-    onAdd(newTitle.trim(), Category.AGENCY, 'MED', { dockSection: type });
-    setNewTitle('');
-    setAdding(false);
+    if (newTitle.trim()) {
+      onAdd(newTitle.trim(), Category.AGENCY, 'MED', { dockSection: type });
+      setNewTitle('');
+      setAdding(false);
+    }
   };
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-1.5 text-[8px] text-zinc-600 uppercase tracking-wider">
+      <div
+        className="flex items-center justify-between px-1 cursor-pointer hover:bg-zinc-900/50 rounded py-0.5 transition-colors group/header"
+        onClick={onToggle}
+      >
+        <div className="flex items-center gap-1.5 text-[8px] text-zinc-600 uppercase tracking-wider font-medium">
+          <span className={`transition-transform duration-200 ${collapsed ? '' : 'rotate-90'}`} >
+            <ChevronRight size={8} />
+          </span>
           {icon}
           <span>{title}</span>
-          {tasks.length > 0 && <span className="text-zinc-700">{tasks.length}</span>}
+          {tasks.length > 0 && <span className="text-zinc-700 bg-zinc-900 px-1 rounded-full">{tasks.length}</span>}
         </div>
-        <button onClick={() => setAdding(true)} className="text-zinc-700 hover:text-zinc-400">
+        <button
+          onClick={(e) => { e.stopPropagation(); setAdding(true); }}
+          className="text-zinc-700 hover:text-zinc-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
+        >
           <Plus size={10} />
         </button>
       </div>
 
-      {adding && (
-        <input
-          value={newTitle}
-          onChange={e => setNewTitle(e.target.value)}
-          onBlur={() => { if (!newTitle.trim()) setAdding(false); }}
-          onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false); }}
-          placeholder="..."
-          className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-600"
-          autoFocus
-        />
-      )}
+      {!collapsed && (
+        <div className="space-y-0.5 animate-in slide-in-from-top-1 duration-200 pl-3">
+          {adding && (
+            <input
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              onBlur={() => { if (!newTitle.trim()) setAdding(false); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false); }}
+              placeholder="..."
+              className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-600 mb-1"
+              autoFocus
+            />
+          )}
 
-      {tasks.map(task => (
-        type === 'TEMPLATE' ? (
-          <div
-            key={task.id}
-            onClick={() => onSelect(task)}
-            className="group bg-zinc-900/30 hover:bg-zinc-900 rounded px-2 py-1 cursor-pointer"
-          >
-            <div className="flex items-center gap-1.5">
-              <FileText size={9} className="text-blue-400 flex-shrink-0" />
-              <div className="flex-1 text-[10px] text-zinc-400 truncate">{task.title}</div>
-              <button
-                onClick={(e) => { e.stopPropagation(); onSelect(task); }}
-                className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300"
-              >
-                <Pencil size={10} />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400"
-              >
-                <Trash2 size={10} />
-              </button>
-              <button onClick={(e) => { e.stopPropagation(); onExpand?.(task); }} className="text-[8px] text-blue-400 hover:text-blue-300">
-                Apply
-              </button>
-            </div>
-          </div>
-        ) : type === 'HABIT' ? (
-          <div
-            key={task.id}
-            onClick={() => onSelect(task)}
-            className="group bg-zinc-900/30 hover:bg-zinc-900 rounded px-2 py-1 cursor-pointer"
-          >
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const isChecked = task.habitTracking?.[currentDate!] || false;
-                  const newTracking = { ...(task.habitTracking || {}), [currentDate!]: !isChecked };
-                  onUpdate(task.id, { habitTracking: newTracking });
-                }}
-                className="flex-shrink-0"
-              >
-                {task.habitTracking?.[currentDate!] ? (
-                  <CheckCircle2 size={10} className="text-emerald-500" />
-                ) : (
-                  <div className="w-2.5 h-2.5 rounded-full border border-zinc-600" />
-                )}
-              </button>
-              <div className="flex-1 text-[10px] text-zinc-400 truncate">{task.title}</div>
-              <button
-                onClick={(e) => { e.stopPropagation(); onSelect(task); }}
-                className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300"
-              >
-                <Pencil size={10} />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400"
-              >
-                <Trash2 size={10} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div
-            key={task.id}
-            draggable
-            onDragStart={() => onDragStart(task)}
-            onClick={() => onSelect(task)}
-            className="group bg-zinc-900/30 hover:bg-zinc-900 rounded px-2 py-1 cursor-move"
-          >
-            <div className="flex items-center gap-1.5">
-              <GripVertical size={8} className="text-zinc-700 flex-shrink-0" />
-              <div className="flex-1 text-[10px] text-zinc-400 truncate">
-                {task.urgent && <span className="text-red-400 mr-1">!</span>}
-                {task.title}
+          {tasks.map(task => {
+            // Common styles: Hybrid style (Card background + Clean structure)
+            const baseStyles = `group flex items-center gap-1.5 rounded px-2 py-1 cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900 border border-transparent hover:border-zinc-800`;
+
+            if (type === 'TEMPLATE') {
+              return (
+                <div key={task.id} onClick={() => onSelect(task)} className={baseStyles}>
+                  <FileText size={9} className="text-blue-400/70 flex-shrink-0" />
+                  <div className="flex-1 text-[10px] text-zinc-400 truncate group-hover:text-zinc-300 transition-colors">{task.title}</div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-zinc-300"><Pencil size={9} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-400"><Trash2 size={9} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); onExpand?.(task); }} className="text-[8px] text-blue-400 hover:text-blue-300 ml-1">Apply</button>
+                  </div>
+                </div>
+              );
+            }
+
+            if (type === 'HABIT') {
+              return (
+                <div key={task.id} onClick={() => onSelect(task)} className={baseStyles}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const isChecked = task.habitTracking?.[currentDate!] || false;
+                      const newTracking = { ...(task.habitTracking || {}), [currentDate!]: !isChecked };
+                      onUpdate(task.id, { habitTracking: newTracking });
+                    }}
+                    className="flex-shrink-0"
+                  >
+                    {task.habitTracking?.[currentDate!] ? <CheckCircle2 size={10} className="text-emerald-500" /> : <div className="w-2.5 h-2.5 rounded-full border border-zinc-700 hover:border-zinc-500" />}
+                  </button>
+                  <div className="flex-1 text-[10px] text-zinc-400 truncate group-hover:text-zinc-300 transition-colors">{task.title}</div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-zinc-300"><Pencil size={9} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-400"><Trash2 size={9} /></button>
+                  </div>
+                </div>
+              );
+            }
+
+            // Default standard/todo
+            return (
+              <div key={task.id} draggable onDragStart={() => onDragStart(task)} onClick={() => onSelect(task)} className={`${baseStyles} cursor-move`}>
+                <GripVertical size={8} className="text-zinc-700 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className={`flex-1 text-[10px] truncate group-hover:text-zinc-300 transition-colors ${task.urgent ? 'text-zinc-300 font-medium' : 'text-zinc-400'}`}>
+                  {task.urgent && <span className="text-red-500 mr-1 font-bold">!</span>}
+                  {task.title}
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-zinc-300"><Pencil size={9} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-400"><Trash2 size={9} /></button>
+                </div>
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); onSelect(task); }}
-                className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-zinc-300"
-              >
-                <Pencil size={10} />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-                className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400"
-              >
-                <Trash2 size={10} />
-              </button>
-            </div>
-          </div>
-        )
-      ))}
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -443,7 +428,22 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const [expandingTemplate, setExpandingTemplate] = useState<Task | null>(null);
   const [showPrayers, setShowPrayers] = useState(true);
   const [showCompleted, setShowCompleted] = useState(true);
+  const [dockSearch, setDockSearch] = useState('');
+  const [urgentCollapsed, setUrgentCollapsed] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [uiZoom, setUiZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const toggleSection = (type: string) => {
+    setCollapsedSections(prev => ({ ...prev, [type]: !prev[type] }));
+  };
+
+  const expandAll = () => setCollapsedSections({});
+  const collapseAll = () => {
+    const allCollapsed: Record<string, boolean> = {};
+    Object.keys(dockTasks).forEach(k => allCollapsed[k] = true);
+    setCollapsedSections(allCollapsed);
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -482,13 +482,18 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const weekDays = getWeekDays();
   const unscheduledTasks = state.tasks.filter(t => !t.scheduledTime && t.status !== TaskStatus.DONE);
 
+  const filteredDockTasks = unscheduledTasks.filter(t => {
+    if (!dockSearch.trim()) return true;
+    return t.title.toLowerCase().includes(dockSearch.toLowerCase());
+  });
+
   const dockTasks = {
-    ROUTINE: unscheduledTasks.filter(t => t.dockSection === 'ROUTINE'),
-    TEMPLATE: unscheduledTasks.filter(t => t.dockSection === 'TEMPLATE'),
-    PROJECT: unscheduledTasks.filter(t => t.dockSection === 'PROJECT'),
-    TODO: unscheduledTasks.filter(t => t.dockSection === 'TODO' || !t.dockSection),
-    LATER: unscheduledTasks.filter(t => t.dockSection === 'LATER'),
-    HABIT: unscheduledTasks.filter(t => t.dockSection === 'HABIT'),
+    ROUTINE: filteredDockTasks.filter(t => t.dockSection === 'ROUTINE'),
+    TEMPLATE: filteredDockTasks.filter(t => t.dockSection === 'TEMPLATE'),
+    PROJECT: filteredDockTasks.filter(t => t.dockSection === 'PROJECT'),
+    TODO: filteredDockTasks.filter(t => t.dockSection === 'TODO' || !t.dockSection),
+    LATER: filteredDockTasks.filter(t => t.dockSection === 'LATER'),
+    HABIT: filteredDockTasks.filter(t => t.dockSection === 'HABIT'),
   };
 
   // Get urgent tasks from ALL sections
@@ -645,7 +650,14 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
 
 
   return (
-    <div className="flex h-full bg-background relative">
+    <div className="flex h-full bg-background relative" style={{ zoom: uiZoom }}>
+      {/* UI Zoom Controls */}
+      <div className="absolute top-4 right-8 z-50 flex items-center gap-1 bg-zinc-900 border border-zinc-800 p-1 rounded-lg shadow-lg">
+        <button onClick={() => setUiZoom(z => Math.max(0.7, z - 0.1))} className="p-1 hover:text-white text-zinc-500"><Minus size={12} /></button>
+        <span className="text-[10px] w-8 text-center text-zinc-400">{Math.round(uiZoom * 100)}%</span>
+        <button onClick={() => setUiZoom(z => Math.min(1.5, z + 0.1))} className="p-1 hover:text-white text-zinc-500"><Plus size={12} /></button>
+      </div>
+
       {/* Dock */}
       <div className={`border-r border-border bg-surface transition-all ${dockCollapsed ? 'w-12' : 'w-60'} flex-shrink-0 z-10`}>
         {dockCollapsed ? (
@@ -656,64 +668,94 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           <div className="h-full flex flex-col">
             <div className="h-12 border-b border-border flex items-center justify-between px-3">
               <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Dock</span>
-              <button onClick={() => setDockCollapsed(true)} className="text-zinc-600 hover:text-zinc-300">
-                <ChevronLeft size={16} />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={expandAll} className="p-1 hover:bg-zinc-800 rounded text-zinc-600 hover:text-zinc-300" title="Expand All">
+                  <ChevronRight size={12} className="rotate-90" />
+                </button>
+                <button onClick={collapseAll} className="p-1 hover:bg-zinc-800 rounded text-zinc-600 hover:text-zinc-300" title="Collapse All">
+                  <ChevronRight size={12} />
+                </button>
+                <div className="w-px h-3 bg-zinc-800 mx-1" />
+                <button onClick={() => setDockCollapsed(true)} className="text-zinc-600 hover:text-zinc-300">
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
             </div>
 
-            {/* Global Quick Add */}
-            <div className="px-2 pt-3 pb-1">
-              <input
-                placeholder="Add to inbox..."
-                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700 placeholder:text-zinc-700"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const val = e.currentTarget.value;
-                    if (val.trim()) {
-                      onAdd(val.trim(), Category.AGENCY, 'MED', { dockSection: 'TODO' });
-                      e.currentTarget.value = '';
+            {/* Dock Controls */}
+            {/* Dock Controls */}
+            <div className="px-2 pt-3 pb-2 space-y-3 border-b border-border/40 bg-surface z-20 sticky top-0 backdrop-blur-sm">
+              {/* Search */}
+              <div className="relative group">
+                <Search size={10} className="absolute left-2 top-1.5 text-zinc-600 group-focus-within:text-emerald-500 transition-colors" />
+                <input
+                  value={dockSearch}
+                  onChange={(e) => setDockSearch(e.target.value)}
+                  placeholder="Search resources..."
+                  className="w-full bg-zinc-900/50 border border-zinc-800 rounded pl-6 pr-2 py-1 text-[10px] text-zinc-300 focus:outline-none focus:border-emerald-900/50 focus:bg-zinc-900 placeholder:text-zinc-700 transition-all"
+                />
+                {dockSearch && (
+                  <button onClick={() => setDockSearch('')} className="absolute right-1.5 top-1.5 text-zinc-600 hover:text-zinc-300">
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
+
+              {/* Quick Add (Separated) */}
+              <div className="border-t border-zinc-900/50 pt-2">
+                <input
+                  placeholder="+ Add to inbox..."
+                  className="w-full bg-transparent hover:bg-zinc-900/30 border border-transparent hover:border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-zinc-700 focus:text-zinc-200 placeholder:text-zinc-600 transition-all"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const val = e.currentTarget.value;
+                      if (val.trim()) {
+                        onAdd(val.trim(), Category.AGENCY, 'MED', { dockSection: 'TODO' });
+                        e.currentTarget.value = '';
+                      }
                     }
-                  }
-                }}
-              />
+                  }}
+                />
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-3">
               {urgentTasks.length > 0 && (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-1.5 text-[8px] text-red-400 uppercase tracking-wider">
-                      <AlertCircle size={9} />
-                      <span>Urgent Spotlight</span>
-                      <span className="text-red-600">({urgentTasks.length})</span>
+                <div className="space-y-1 pt-1">
+                  <div
+                    className="flex items-center justify-between px-2 mb-1 cursor-pointer hover:bg-zinc-900/50 rounded py-0.5"
+                    onClick={() => setUrgentCollapsed(!urgentCollapsed)}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`transition-transform duration-200 ${urgentCollapsed ? '' : 'rotate-90'}`}>
+                        <ChevronRight size={8} className="text-zinc-500" />
+                      </span>
+                      <span className="text-[9px] font-semibold text-zinc-500 uppercase tracking-wider">Urgent</span>
                     </div>
+                    <span className="text-[9px] text-zinc-600">{urgentTasks.length}</span>
                   </div>
-                  <div className="space-y-1">
-                    {urgentTasks.map(task => (
-                      <div
-                        key={task.id}
-                        draggable
-                        onDragStart={() => handleDragStart(task)}
-                        onClick={(e) => setInspectorTask(task)}
-                        className="group bg-red-950/10 hover:bg-red-950/20 border border-red-900/30 rounded px-2 py-1 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <GripVertical size={8} className="text-red-700 flex-shrink-0" />
-                          <div className="flex-1 text-[10px] text-red-300 truncate">
+
+                  {!urgentCollapsed && (
+                    <div className="space-y-0.5 pl-3 animate-in slide-in-from-top-1 duration-200">
+                      {urgentTasks.map(task => (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={() => handleDragStart(task)}
+                          onClick={(e) => setInspectorTask(task)}
+                          className="group flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20"
+                        >
+                          <span className="text-red-400 font-bold text-[10px] flex-shrink-0">!</span>
+                          <div className="flex-1 text-[10px] text-zinc-300 truncate group-hover:text-zinc-200">
                             {task.title}
                           </div>
-                          <span className="text-[8px] text-red-400 border border-red-900/40 rounded px-1 py-0.5 uppercase">
+                          <span className="text-[8px] text-zinc-500 uppercase opacity-60 group-hover:opacity-100 transition-opacity">
                             {getDockLabel(task.dockSection)}
                           </span>
                         </div>
-                        {task.scheduledTime && (
-                          <div className="text-[9px] text-red-600 mt-0.5">
-                            {new Date(task.scheduledTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -726,7 +768,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onUpdate={onUpdate}
                 onDelete={onDelete}
                 onAdd={onAdd}
-
+                collapsed={collapsedSections['ROUTINE']}
+                onToggle={() => toggleSection('ROUTINE')}
                 onSelect={(task) => setInspectorTask(task)}
               />
 
@@ -741,6 +784,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onAdd={onAdd}
                 onSelect={(task) => setInspectorTask(task)}
                 onExpand={setExpandingTemplate}
+                collapsed={collapsedSections['TEMPLATE']}
+                onToggle={() => toggleSection('TEMPLATE')}
               />
 
               <DockSection
@@ -844,7 +889,17 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           <div className="min-w-[720px] flex">
             {/* Time Rail */}
             <div className="w-14 border-r border-border bg-surface flex-shrink-0 sticky left-0 z-10">
-              <div className="h-16 border-b border-border" />
+              <div className="h-16 border-b border-border flex items-end justify-center pb-2 bg-background z-20">
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    onClick={() => setShowPrayers(!showPrayers)}
+                    className={`p-1 rounded transition-colors ${showPrayers ? 'text-emerald-500 bg-emerald-950/20' : 'text-zinc-600 hover:text-zinc-400'}`}
+                    title="Toggle Prayers"
+                  >
+                    <Moon size={12} />
+                  </button>
+                </div>
+              </div>
               {Array.from({ length: 24 }, (_, i) => i).map(hour => (
                 <div key={hour} className="h-14 border-b border-zinc-900/30 flex items-center justify-center">
                   <span className="text-[10px] text-zinc-500 font-mono">{formatTimeAMPM(hour, 0)}</span>
@@ -893,6 +948,9 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               </div>
             </div>
           </div>
+
+          {/* Actions Bar (Floating) */}
+
 
           {hourOverlay && (
             <HourOverlay

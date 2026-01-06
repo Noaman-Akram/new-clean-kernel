@@ -9,7 +9,6 @@ import {
   Play,
   Clock,
   GripVertical,
-  ChevronRight as ChevronRightIcon,
   Sunrise,
   Sun,
   CloudSun,
@@ -23,10 +22,10 @@ import {
   ListTodo,
   Archive,
   CheckCircle2,
-  MoreHorizontal,
+  Edit2,
+  MoreVertical,
 } from 'lucide-react';
 import { getPrayerTimesForDate, formatTimeAMPM } from '../utils/prayerTimes';
-import { generateId } from '../utils';
 
 interface Props {
   state: AppState;
@@ -48,13 +47,13 @@ interface WeekDay {
 
 const getPrayerIcon = (iconName: string) => {
   const iconMap: Record<string, React.ReactNode> = {
-    sunrise: <Sunrise size={12} />,
-    sun: <Sun size={12} />,
-    'cloud-sun': <CloudSun size={12} />,
-    sunset: <Sunset size={12} />,
-    moon: <Moon size={12} />,
+    sunrise: <Sunrise size={11} />,
+    sun: <Sun size={11} />,
+    'cloud-sun': <CloudSun size={11} />,
+    sunset: <Sunset size={11} />,
+    moon: <Moon size={11} />,
   };
-  return iconMap[iconName] || <Sun size={12} />;
+  return iconMap[iconName] || <Sun size={11} />;
 };
 
 const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate }) => {
@@ -63,8 +62,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const [dockCollapsed, setDockCollapsed] = useState(false);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
-  const [selectedDay, setSelectedDay] = useState<WeekDay | null>(null);
+  const [editingTask, setEditingTask] = useState<string | null>(null);
   const [expandingTemplate, setExpandingTemplate] = useState<Task | null>(null);
 
   useEffect(() => {
@@ -104,7 +102,6 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const weekDays = getWeekDays();
   const unscheduledTasks = state.tasks.filter(t => !t.scheduledTime && t.status !== TaskStatus.DONE);
 
-  // Organize by dock section
   const dockTasks = {
     ROUTINE: unscheduledTasks.filter(t => t.dockSection === 'ROUTINE'),
     TEMPLATE: unscheduledTasks.filter(t => t.dockSection === 'TEMPLATE'),
@@ -112,12 +109,6 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     TODO: unscheduledTasks.filter(t => t.dockSection === 'TODO' || !t.dockSection),
     LATER: unscheduledTasks.filter(t => t.dockSection === 'LATER'),
     HABIT: unscheduledTasks.filter(t => t.dockSection === 'HABIT'),
-  };
-
-  const toggleSection = (section: string) => {
-    const newSet = new Set(collapsedSections);
-    newSet.has(section) ? newSet.delete(section) : newSet.add(section);
-    setCollapsedSections(newSet);
   };
 
   const handleDragStart = (task: Task) => {
@@ -132,25 +123,20 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
 
     const section = draggedTask.dockSection;
 
-    // ROUTINE: Clone (original stays)
     if (section === 'ROUTINE') {
       onAdd(draggedTask.title, draggedTask.category, draggedTask.impact, {
         scheduledTime: scheduledDate.getTime(),
         duration: draggedTask.duration,
         urgent: draggedTask.urgent,
       });
-    }
-    // PROJECT: Spawn session (original stays)
-    else if (section === 'PROJECT') {
+    } else if (section === 'PROJECT') {
       onAdd(`${draggedTask.title} — Session`, draggedTask.category, draggedTask.impact, {
         scheduledTime: scheduledDate.getTime(),
         duration: draggedTask.duration || 60,
         parentProject: draggedTask.id,
         urgent: draggedTask.urgent,
       });
-    }
-    // TODO/LATER: Move (leaves dock)
-    else {
+    } else {
       onUpdate(draggedTask.id, { scheduledTime: scheduledDate.getTime() });
     }
 
@@ -161,7 +147,6 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const handleTemplateExpand = (template: Task, day: WeekDay) => {
     if (!template.templateSteps || template.templateSteps.length === 0) return;
 
-    // Create tasks for each step, starting at 9 AM
     let hour = 9;
     template.templateSteps.forEach((step, index) => {
       const scheduledDate = new Date(day.date);
@@ -174,71 +159,54 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     });
 
     setExpandingTemplate(null);
-    setSelectedDay(null);
   };
 
   return (
     <div className="flex h-full bg-background">
-      {/* Strategy Dock */}
-      <div className={`border-r border-border bg-surface transition-all ${dockCollapsed ? 'w-12' : 'w-80'} flex-shrink-0`}>
+      {/* Dock */}
+      <div className={`border-r border-border bg-surface transition-all ${dockCollapsed ? 'w-12' : 'w-72'} flex-shrink-0`}>
         {dockCollapsed ? (
           <button onClick={() => setDockCollapsed(false)} className="w-full h-12 flex items-center justify-center text-zinc-500 hover:text-zinc-300">
-            <ChevronRightIcon size={16} />
+            <ChevronRight size={16} />
           </button>
         ) : (
           <div className="h-full flex flex-col">
-            {/* Header */}
             <div className="h-12 border-b border-border flex items-center justify-between px-4">
-              <span className="text-xs font-medium text-zinc-400">Dock</span>
+              <span className="text-xs font-medium text-zinc-300">Dock</span>
               <button onClick={() => setDockCollapsed(true)} className="text-zinc-500 hover:text-zinc-300">
                 <ChevronLeft size={16} />
               </button>
             </div>
 
-            {/* Quick Add */}
-            <div className="p-4 border-b border-border">
+            <div className="p-3 border-b border-border">
               <QuickAdd onAdd={onAdd} />
             </div>
 
-            {/* Dock Sections */}
-            <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
-              {/* ROUTINES */}
-              <DockSection
-                title="Routines"
-                icon={<Repeat size={12} />}
-                hint="Drag to clone"
-                tasks={dockTasks.ROUTINE}
-                collapsed={collapsedSections.has('ROUTINE')}
-                onToggle={() => toggleSection('ROUTINE')}
-                onDragStart={handleDragStart}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-              />
+            <div className="flex-1 overflow-y-auto p-3 space-y-4">
+              {dockTasks.ROUTINE.length > 0 && (
+                <DockSection
+                  title="Routines"
+                  icon={<Repeat size={11} />}
+                  tasks={dockTasks.ROUTINE}
+                  onDragStart={handleDragStart}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  editingTask={editingTask}
+                  setEditingTask={setEditingTask}
+                />
+              )}
 
-              {/* TEMPLATES */}
               {dockTasks.TEMPLATE.length > 0 && (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => toggleSection('TEMPLATE')}
-                    className="w-full flex items-center justify-between text-xs font-medium text-blue-400 px-2 py-1.5 rounded border border-blue-900/30 hover:bg-zinc-900/50"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText size={12} />
-                      <ChevronRightIcon size={12} className={`transition-transform ${!collapsedSections.has('TEMPLATE') ? 'rotate-90' : ''}`} />
-                      <span>Templates</span>
-                    </div>
-                    <span className="text-[10px] text-zinc-600">{dockTasks.TEMPLATE.length}</span>
-                  </button>
-                  {!collapsedSections.has('TEMPLATE') && (
-                    <div className="ml-4 space-y-1 text-[10px] text-zinc-500 mb-1">
-                      <div>Apply to a day to expand</div>
-                    </div>
-                  )}
-                  {!collapsedSections.has('TEMPLATE') && dockTasks.TEMPLATE.map(task => (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 px-1 text-[10px] text-zinc-500 uppercase tracking-wider">
+                    <FileText size={11} />
+                    <span>Templates</span>
+                  </div>
+                  {dockTasks.TEMPLATE.map(task => (
                     <TemplateCard
                       key={task.id}
                       task={task}
-                      onExpand={(t) => setExpandingTemplate(t)}
+                      onExpand={setExpandingTemplate}
                       onUpdate={onUpdate}
                       onDelete={onDelete}
                     />
@@ -246,65 +214,52 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 </div>
               )}
 
-              {/* PROJECTS */}
-              <DockSection
-                title="Ongoing Projects"
-                icon={<Mountain size={12} />}
-                hint="Drag spawns session"
-                tasks={dockTasks.PROJECT}
-                collapsed={collapsedSections.has('PROJECT')}
-                onToggle={() => toggleSection('PROJECT')}
-                onDragStart={handleDragStart}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-              />
+              {dockTasks.PROJECT.length > 0 && (
+                <DockSection
+                  title="Projects"
+                  icon={<Mountain size={11} />}
+                  tasks={dockTasks.PROJECT}
+                  onDragStart={handleDragStart}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  editingTask={editingTask}
+                  setEditingTask={setEditingTask}
+                />
+              )}
 
-              {/* TO DO */}
-              <DockSection
-                title="To Do"
-                icon={<ListTodo size={12} />}
-                hint="Drag to schedule"
-                tasks={dockTasks.TODO}
-                collapsed={collapsedSections.has('TODO')}
-                onToggle={() => toggleSection('TODO')}
-                onDragStart={handleDragStart}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-              />
+              {dockTasks.TODO.length > 0 && (
+                <DockSection
+                  title="To Do"
+                  icon={<ListTodo size={11} />}
+                  tasks={dockTasks.TODO}
+                  onDragStart={handleDragStart}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  editingTask={editingTask}
+                  setEditingTask={setEditingTask}
+                />
+              )}
 
-              {/* LATER */}
-              <DockSection
-                title="Later"
-                icon={<Archive size={12} />}
-                hint="Parked ideas"
-                tasks={dockTasks.LATER}
-                collapsed={collapsedSections.has('LATER')}
-                onToggle={() => toggleSection('LATER')}
-                onDragStart={handleDragStart}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-              />
+              {dockTasks.LATER.length > 0 && (
+                <DockSection
+                  title="Later"
+                  icon={<Archive size={11} />}
+                  tasks={dockTasks.LATER}
+                  onDragStart={handleDragStart}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                  editingTask={editingTask}
+                  setEditingTask={setEditingTask}
+                />
+              )}
 
-              {/* HABITS */}
               {dockTasks.HABIT.length > 0 && (
-                <div className="space-y-2">
-                  <button
-                    onClick={() => toggleSection('HABIT')}
-                    className="w-full flex items-center justify-between text-xs font-medium text-emerald-400 px-2 py-1.5 rounded border border-emerald-900/30 hover:bg-zinc-900/50"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 size={12} />
-                      <ChevronRightIcon size={12} className={`transition-transform ${!collapsedSections.has('HABIT') ? 'rotate-90' : ''}`} />
-                      <span>Habits</span>
-                    </div>
-                    <span className="text-[10px] text-zinc-600">{dockTasks.HABIT.length}</span>
-                  </button>
-                  {!collapsedSections.has('HABIT') && (
-                    <div className="ml-4 space-y-1 text-[10px] text-zinc-500 mb-1">
-                      <div>Track daily, not scheduled</div>
-                    </div>
-                  )}
-                  {!collapsedSections.has('HABIT') && dockTasks.HABIT.map(task => (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5 px-1 text-[10px] text-zinc-500 uppercase tracking-wider">
+                    <CheckCircle2 size={11} />
+                    <span>Habits</span>
+                  </div>
+                  {dockTasks.HABIT.map(task => (
                     <HabitCard
                       key={task.id}
                       task={task}
@@ -320,9 +275,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         )}
       </div>
 
-      {/* Weekly Grid */}
+      {/* Planner */}
       <div className="flex-1 flex flex-col">
-        {/* Week Navigation */}
         <div className="h-12 border-b border-border flex items-center justify-between px-6">
           <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 text-zinc-500 hover:text-zinc-300">
             <ChevronLeft size={18} />
@@ -335,7 +289,6 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           </button>
         </div>
 
-        {/* Days Grid */}
         <div className="flex-1 overflow-auto">
           <div className="grid grid-cols-7 h-full">
             {weekDays.map(day => (
@@ -358,24 +311,26 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 currentTime={currentTime}
                 onStickyNoteUpdate={onStickyNoteUpdate}
                 stickyNote={state.stickyNotes?.[day.dateStr]}
+                editingTask={editingTask}
+                setEditingTask={setEditingTask}
+                onAdd={onAdd}
               />
             ))}
           </div>
         </div>
       </div>
 
-      {/* Template Expansion Modal */}
+      {/* Template Modal */}
       {expandingTemplate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setExpandingTemplate(null)}>
           <div className="bg-surface border border-border rounded-lg p-6 w-96" onClick={e => e.stopPropagation()}>
-            <div className="text-sm font-medium text-zinc-300 mb-4">Apply Template: {expandingTemplate.title}</div>
-            <div className="text-xs text-zinc-500 mb-4">Select a day to expand this template</div>
+            <div className="text-sm font-medium text-zinc-300 mb-4">Apply: {expandingTemplate.title}</div>
             <div className="grid grid-cols-7 gap-2 mb-4">
               {weekDays.map(day => (
                 <button
                   key={day.dateStr}
                   onClick={() => handleTemplateExpand(expandingTemplate, day)}
-                  className={`p-2 rounded text-xs ${day.isToday ? 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/50' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'}`}
+                  className={`p-2 rounded text-xs ${day.isToday ? 'bg-emerald-950/30 text-emerald-400' : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'}`}
                 >
                   <div className="text-[9px] opacity-60">{day.dayName}</div>
                   <div>{day.dayNum}</div>
@@ -392,10 +347,10 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   );
 };
 
-// Quick Add Component
+// Quick Add
 const QuickAdd: React.FC<{ onAdd: Props['onAdd'] }> = ({ onAdd }) => {
   const [input, setInput] = useState('');
-  const [dockSection, setDockSection] = useState<DockSection>('TODO');
+  const [section, setSection] = useState<DockSection>('TODO');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -404,88 +359,73 @@ const QuickAdd: React.FC<{ onAdd: Props['onAdd'] }> = ({ onAdd }) => {
     let title = input.trim();
     let urgent = false;
 
-    // Parse ! prefix
     if (title.startsWith('!')) {
       urgent = true;
       title = title.slice(1).trim();
     }
 
-    onAdd(title, Category.AGENCY, 'MED', { dockSection, urgent });
+    onAdd(title, Category.AGENCY, 'MED', { dockSection: section, urgent });
     setInput('');
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          placeholder="Add to dock... (!urgent)"
-          className="flex-1 bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700"
-        />
-        <button type="submit" className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-sm">
-          <Plus size={16} />
+      <input
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        placeholder="Quick add..."
+        className="w-full bg-zinc-900 border-0 rounded px-3 py-2 text-sm text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700"
+      />
+      <div className="flex items-center justify-between">
+        <select
+          value={section}
+          onChange={e => setSection(e.target.value as DockSection)}
+          className="text-[10px] bg-zinc-900 border-0 rounded px-2 py-1 text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-700"
+        >
+          <option value="TODO">To Do</option>
+          <option value="ROUTINE">Routine</option>
+          <option value="PROJECT">Project</option>
+          <option value="TEMPLATE">Template</option>
+          <option value="LATER">Later</option>
+          <option value="HABIT">Habit</option>
+        </select>
+        <button type="submit" className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs">
+          Add
         </button>
-      </div>
-      <div className="flex gap-1 text-[10px]">
-        {(['ROUTINE', 'TEMPLATE', 'PROJECT', 'TODO', 'LATER', 'HABIT'] as DockSection[]).map(section => (
-          <button
-            key={section}
-            type="button"
-            onClick={() => setDockSection(section)}
-            className={`px-2 py-1 rounded capitalize ${dockSection === section ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-900 text-zinc-500 hover:text-zinc-300'}`}
-          >
-            {section.toLowerCase()}
-          </button>
-        ))}
       </div>
     </form>
   );
 };
 
-// Dock Section Component
+// Dock Section
 const DockSection: React.FC<{
   title: string;
   icon: React.ReactNode;
-  hint: string;
   tasks: Task[];
-  collapsed: boolean;
-  onToggle: () => void;
   onDragStart: (task: Task) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
-}> = ({ title, icon, hint, tasks, collapsed, onToggle, onDragStart, onUpdate, onDelete }) => {
-  if (tasks.length === 0) return null;
-
+  editingTask: string | null;
+  setEditingTask: (id: string | null) => void;
+}> = ({ title, icon, tasks, onDragStart, onUpdate, onDelete, editingTask, setEditingTask }) => {
   return (
-    <div className="space-y-2">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between text-xs font-medium text-zinc-400 px-2 py-1.5 rounded border border-zinc-800 hover:bg-zinc-900/50"
-      >
-        <div className="flex items-center gap-2">
-          {icon}
-          <ChevronRightIcon size={12} className={`transition-transform ${!collapsed ? 'rotate-90' : ''}`} />
-          <span>{title}</span>
-        </div>
-        <span className="text-[10px] text-zinc-600">{tasks.length}</span>
-      </button>
-      {!collapsed && (
-        <>
-          <div className="ml-4 text-[10px] text-zinc-500">{hint}</div>
-          <div className="space-y-1">
-            {tasks.map(task => (
-              <DockTaskCard
-                key={task.id}
-                task={task}
-                onDragStart={onDragStart}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-              />
-            ))}
-          </div>
-        </>
-      )}
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5 px-1 text-[10px] text-zinc-500 uppercase tracking-wider">
+        {icon}
+        <span>{title}</span>
+        <span className="ml-auto text-zinc-700">{tasks.length}</span>
+      </div>
+      {tasks.map(task => (
+        <DockTaskCard
+          key={task.id}
+          task={task}
+          onDragStart={onDragStart}
+          onUpdate={onUpdate}
+          onDelete={onDelete}
+          editing={editingTask === task.id}
+          setEditing={(editing) => setEditingTask(editing ? task.id : null)}
+        />
+      ))}
     </div>
   );
 };
@@ -496,27 +436,53 @@ const DockTaskCard: React.FC<{
   onDragStart: (task: Task) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
-}> = ({ task, onDragStart, onUpdate, onDelete }) => {
+  editing: boolean;
+  setEditing: (editing: boolean) => void;
+}> = ({ task, onDragStart, onUpdate, onDelete, editing, setEditing }) => {
+  const [editValue, setEditValue] = useState(task.title);
+
+  const handleSave = () => {
+    if (editValue.trim() && editValue !== task.title) {
+      onUpdate(task.id, { title: editValue.trim() });
+    }
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="bg-zinc-900 rounded px-2 py-1.5">
+        <input
+          value={editValue}
+          onChange={e => setEditValue(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
+          className="w-full bg-zinc-800 border-0 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          autoFocus
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       draggable
       onDragStart={() => onDragStart(task)}
-      className="group relative bg-zinc-900 border border-zinc-800 rounded px-3 py-2 cursor-move hover:border-zinc-700"
+      className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1.5 cursor-move transition-colors"
     >
-      <div className="flex items-start gap-2">
-        <GripVertical size={14} className="text-zinc-600 mt-0.5 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="text-sm text-zinc-300 flex items-center gap-2">
-            {task.urgent && <span className="text-red-400 text-xs">!</span>}
-            {task.title}
-          </div>
+      <div className="flex items-center gap-2">
+        <GripVertical size={12} className="text-zinc-700 flex-shrink-0" />
+        <div className="flex-1 min-w-0 text-xs text-zinc-300 truncate">
+          {task.urgent && <span className="text-red-400 mr-1">!</span>}
+          {task.title}
         </div>
-        <button
-          onClick={() => onDelete(task.id)}
-          className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400"
-        >
-          <Trash2 size={14} />
-        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+          <button onClick={() => setEditing(true)} className="text-zinc-600 hover:text-zinc-400">
+            <Edit2 size={11} />
+          </button>
+          <button onClick={() => onDelete(task.id)} className="text-zinc-600 hover:text-red-400">
+            <Trash2 size={11} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -530,26 +496,15 @@ const TemplateCard: React.FC<{
   onDelete: (id: string) => void;
 }> = ({ task, onExpand, onUpdate, onDelete }) => {
   return (
-    <div className="group relative bg-zinc-900 border border-zinc-800 rounded px-3 py-2">
-      <div className="flex items-start gap-2">
-        <FileText size={14} className="text-blue-400 mt-0.5 flex-shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="text-sm text-zinc-300">{task.title}</div>
-          {task.templateSteps && task.templateSteps.length > 0 && (
-            <div className="text-[10px] text-zinc-500 mt-1">{task.templateSteps.length} steps</div>
-          )}
-        </div>
-        <button
-          onClick={() => onExpand(task)}
-          className="px-2 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded text-xs"
-        >
+    <div className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1.5">
+      <div className="flex items-center gap-2">
+        <FileText size={12} className="text-blue-400 flex-shrink-0" />
+        <div className="flex-1 min-w-0 text-xs text-zinc-300 truncate">{task.title}</div>
+        <button onClick={() => onExpand(task)} className="text-[10px] text-blue-400 hover:text-blue-300">
           Apply
         </button>
-        <button
-          onClick={() => onDelete(task.id)}
-          className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400"
-        >
-          <Trash2 size={14} />
+        <button onClick={() => onDelete(task.id)} className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400">
+          <Trash2 size={11} />
         </button>
       </div>
     </div>
@@ -571,28 +526,25 @@ const HabitCard: React.FC<{
   };
 
   return (
-    <div className="group relative bg-zinc-900 border border-zinc-800 rounded px-3 py-2">
+    <div className="group bg-zinc-900/50 hover:bg-zinc-900 rounded px-2 py-1.5">
       <div className="flex items-center gap-2">
         <button onClick={toggleCheck} className="flex-shrink-0">
           {isChecked ? (
-            <CheckCircle2 size={16} className="text-emerald-500" />
+            <CheckCircle2 size={14} className="text-emerald-500" />
           ) : (
-            <div className="w-4 h-4 rounded-full border border-zinc-600" />
+            <div className="w-3.5 h-3.5 rounded-full border border-zinc-600" />
           )}
         </button>
-        <div className="flex-1 text-sm text-zinc-300">{task.title}</div>
-        <button
-          onClick={() => onDelete(task.id)}
-          className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400"
-        >
-          <Trash2 size={14} />
+        <div className="flex-1 text-xs text-zinc-300">{task.title}</div>
+        <button onClick={() => onDelete(task.id)} className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400">
+          <Trash2 size={11} />
         </button>
       </div>
     </div>
   );
 };
 
-// Day Column Component
+// Day Column
 const DayColumn: React.FC<{
   day: WeekDay;
   tasks: Task[];
@@ -606,7 +558,10 @@ const DayColumn: React.FC<{
   currentTime: Date;
   onStickyNoteUpdate: (dateKey: string, content: string) => void;
   stickyNote?: string;
-}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onStickyNoteUpdate, stickyNote }) => {
+  editingTask: string | null;
+  setEditingTask: (id: string | null) => void;
+  onAdd: Props['onAdd'];
+}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onStickyNoteUpdate, stickyNote, editingTask, setEditingTask, onAdd }) => {
   const cairoOffset = 2;
   const cairoTime = new Date(currentTime.getTime() + (cairoOffset * 60 * 60 * 1000));
   const cairoHours = cairoTime.getUTCHours();
@@ -614,48 +569,14 @@ const DayColumn: React.FC<{
 
   const prayers = getPrayerTimesForDate(day.date);
 
-  const calculateRelevantHours = (): number[] => {
-    const hoursSet = new Set<number>();
-
-    tasks.forEach(task => {
-      if (task.scheduledTime) {
-        const hour = new Date(task.scheduledTime).getHours();
-        hoursSet.add(hour);
-        if (task.duration) {
-          const endHour = hour + Math.ceil(task.duration / 60);
-          for (let h = hour; h <= Math.min(endHour, 23); h++) {
-            hoursSet.add(h);
-          }
-        }
-      }
-    });
-
-    prayers.forEach(prayer => {
-      const hour = new Date(prayer.timestamp).getHours();
-      hoursSet.add(hour);
-    });
-
-    if (isCurrentDay) hoursSet.add(cairoHours);
-
-    if (hoursSet.size > 0) {
-      const hours = Array.from(hoursSet).sort((a, b) => a - b);
-      const first = hours[0];
-      const last = hours[hours.length - 1];
-      if (first > 0) hoursSet.add(first - 1);
-      if (last < 23) hoursSet.add(last + 1);
-      return Array.from(hoursSet).sort((a, b) => a - b);
-    }
-
-    return [6, 9, 12, 15, 18, 21];
-  };
-
-  const relevantHours = calculateRelevantHours();
+  // Show comprehensive hours (6 AM to 11 PM)
+  const allHours = Array.from({ length: 18 }, (_, i) => i + 6);
 
   return (
     <div className={`border-r border-border flex flex-col ${day.isToday ? 'bg-emerald-950/5' : ''}`}>
-      <div className={`h-16 border-b border-border p-2 ${day.isToday ? 'bg-emerald-950/10 border-emerald-900/30' : ''}`}>
-        <div className="text-[10px] text-zinc-500 uppercase tracking-wide">{day.dayName}</div>
-        <div className={`text-2xl font-light ${day.isToday ? 'text-emerald-400' : 'text-zinc-300'}`}>
+      <div className={`h-14 border-b border-border p-2 ${day.isToday ? 'bg-emerald-950/10' : ''}`}>
+        <div className="text-[9px] text-zinc-500 uppercase tracking-wide">{day.dayName}</div>
+        <div className={`text-xl font-light ${day.isToday ? 'text-emerald-400' : 'text-zinc-300'}`}>
           {day.dayNum}
         </div>
       </div>
@@ -663,7 +584,7 @@ const DayColumn: React.FC<{
       <StickyNote day={day} value={stickyNote} onUpdate={onStickyNoteUpdate} />
 
       <div className="flex-1 overflow-y-auto">
-        {relevantHours.map(hour => (
+        {allHours.map(hour => (
           <HourSlot
             key={hour}
             hour={hour}
@@ -679,6 +600,10 @@ const DayColumn: React.FC<{
             activeTaskId={activeTaskId}
             prayers={prayers.filter(p => new Date(p.timestamp).getHours() === hour)}
             isCurrentHour={isCurrentDay && cairoHours === hour}
+            editingTask={editingTask}
+            setEditingTask={setEditingTask}
+            onAdd={onAdd}
+            dateStr={day.dateStr}
           />
         ))}
       </div>
@@ -686,54 +611,36 @@ const DayColumn: React.FC<{
   );
 };
 
-// Sticky Note Component
+// Sticky Note
 const StickyNote: React.FC<{ day: WeekDay; value?: string; onUpdate: (dateKey: string, content: string) => void }> = ({ day, value, onUpdate }) => {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(value || '');
 
-  const handleSave = () => {
-    onUpdate(day.dateStr, text);
-    setEditing(false);
-  };
+  if (!editing && !value) return null;
 
-  if (!editing && !value) {
+  if (editing) {
     return (
-      <button onClick={() => setEditing(true)} className="mx-2 my-1 p-2 border border-dashed border-zinc-800 rounded text-xs text-zinc-600 hover:text-zinc-400 hover:border-zinc-700">
-        <StickyNoteIcon size={12} className="mx-auto" />
-      </button>
+      <div className="mx-2 mt-2 mb-1 p-2 bg-amber-950/20 border border-amber-900/30 rounded">
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onBlur={() => { onUpdate(day.dateStr, text); setEditing(false); }}
+          className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-300 resize-none focus:outline-none"
+          rows={2}
+          autoFocus
+        />
+      </div>
     );
   }
 
   return (
-    <div className="mx-2 my-1 p-2 bg-amber-950/20 border border-amber-900/30 rounded">
-      {editing ? (
-        <div className="space-y-1">
-          <textarea
-            value={text}
-            onChange={e => setText(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 resize-none"
-            rows={2}
-            autoFocus
-          />
-          <div className="flex gap-1">
-            <button onClick={handleSave} className="flex-1 px-2 py-1 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-xs">
-              Save
-            </button>
-            <button onClick={() => { setEditing(false); setText(value || ''); }} className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 rounded text-zinc-400 text-xs">
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div onClick={() => setEditing(true)} className="text-xs text-amber-400/80 cursor-pointer hover:text-amber-400">
-          {value}
-        </div>
-      )}
+    <div onClick={() => setEditing(true)} className="mx-2 mt-2 mb-1 p-2 bg-amber-950/20 border border-amber-900/30 rounded text-xs text-amber-400/80 cursor-pointer hover:text-amber-400">
+      {value}
     </div>
   );
 };
 
-// Hour Slot Component
+// Hour Slot
 const HourSlot: React.FC<{
   hour: number;
   day: WeekDay;
@@ -748,21 +655,39 @@ const HourSlot: React.FC<{
   activeTaskId: string | null;
   prayers: Array<{ name: string; time: string; timestamp: number; icon: string }>;
   isCurrentHour: boolean;
-}> = ({ hour, tasks, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, onDelete, onStartSession, activeTaskId, prayers, isCurrentHour }) => {
+  editingTask: string | null;
+  setEditingTask: (id: string | null) => void;
+  onAdd: Props['onAdd'];
+  dateStr: string;
+}> = ({ hour, tasks, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, onDelete, onStartSession, activeTaskId, prayers, isCurrentHour, editingTask, setEditingTask, onAdd, dateStr }) => {
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddText, setQuickAddText] = useState('');
+
+  const handleQuickAdd = () => {
+    if (!quickAddText.trim()) return;
+    const scheduledDate = new Date(dateStr);
+    scheduledDate.setHours(hour, 0, 0, 0);
+    onAdd(quickAddText.trim(), Category.AGENCY, 'MED', { scheduledTime: scheduledDate.getTime() });
+    setQuickAddText('');
+    setShowQuickAdd(false);
+  };
+
   return (
     <div
       onDrop={e => { e.preventDefault(); onDrop(); }}
       onDragOver={e => { e.preventDefault(); onDragOver(); }}
       onDragLeave={onDragLeave}
-      className={`min-h-[60px] border-b border-zinc-900/50 p-2 ${isDragOver ? 'bg-emerald-950/20 border-emerald-900/50' : ''} ${isCurrentHour ? 'bg-emerald-950/10' : ''}`}
+      onDoubleClick={() => setShowQuickAdd(true)}
+      className={`group min-h-[48px] border-b border-zinc-900/50 p-1.5 transition-colors ${isDragOver ? 'bg-emerald-950/20 border-emerald-900/50' : ''} ${isCurrentHour ? 'bg-emerald-950/10' : ''} hover:bg-zinc-900/30`}
     >
-      <div className="flex items-start gap-2">
-        <div className="text-[10px] text-zinc-600 font-mono w-12 flex-shrink-0">{formatTimeAMPM(hour, 0)}</div>
+      <div className="flex gap-1.5">
+        <div className="text-[9px] text-zinc-600 font-mono w-10 flex-shrink-0 pt-0.5">{formatTimeAMPM(hour, 0)}</div>
         <div className="flex-1 space-y-1">
           {prayers.map(prayer => (
-            <div key={prayer.name} className="flex items-center gap-1 text-[10px] text-zinc-500">
+            <div key={prayer.name} className="flex items-center gap-1 text-[9px] text-zinc-500">
               {getPrayerIcon(prayer.icon)}
               <span>{prayer.name}</span>
+              <span className="text-zinc-700">{prayer.time}</span>
             </div>
           ))}
           {tasks.map(task => (
@@ -773,60 +698,90 @@ const HourSlot: React.FC<{
               onDelete={onDelete}
               onStartSession={onStartSession}
               isActive={task.id === activeTaskId}
+              editing={editingTask === task.id}
+              setEditing={(editing) => setEditingTask(editing ? task.id : null)}
             />
           ))}
+          {showQuickAdd && (
+            <input
+              value={quickAddText}
+              onChange={e => setQuickAddText(e.target.value)}
+              onBlur={handleQuickAdd}
+              onKeyDown={e => { if (e.key === 'Enter') handleQuickAdd(); if (e.key === 'Escape') setShowQuickAdd(false); }}
+              placeholder="Task..."
+              className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              autoFocus
+            />
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-// Scheduled Task Component
+// Scheduled Task
 const ScheduledTask: React.FC<{
   task: Task;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
   onStartSession: (id: string) => void;
   isActive: boolean;
-}> = ({ task, onUpdate, onDelete, onStartSession, isActive }) => {
-  const impactColors = {
-    HIGH: 'border-red-900/30 bg-red-950/20 text-red-400',
-    MED: 'border-amber-900/30 bg-amber-950/20 text-amber-400',
-    LOW: 'border-blue-900/30 bg-blue-950/20 text-blue-400',
+  editing: boolean;
+  setEditing: (editing: boolean) => void;
+}> = ({ task, onUpdate, onDelete, onStartSession, isActive, editing, setEditing }) => {
+  const [editValue, setEditValue] = useState(task.title);
+
+  const handleSave = () => {
+    if (editValue.trim() && editValue !== task.title) {
+      onUpdate(task.id, { title: editValue.trim() });
+    }
+    setEditing(false);
   };
 
+  const impactColors = {
+    HIGH: 'bg-red-950/20 text-red-400',
+    MED: 'bg-amber-950/20 text-amber-400',
+    LOW: 'bg-blue-950/20 text-blue-400',
+  };
+
+  if (editing) {
+    return (
+      <input
+        value={editValue}
+        onChange={e => setEditValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setEditing(false); }}
+        className="w-full bg-zinc-900 border-0 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+        autoFocus
+      />
+    );
+  }
+
   return (
-    <div className={`group relative border rounded px-2 py-1.5 ${impactColors[task.impact]} ${isActive ? 'ring-2 ring-emerald-500/50' : ''}`}>
-      <div className="flex items-start gap-2">
+    <div className={`group rounded px-2 py-1 ${impactColors[task.impact]} ${isActive ? 'ring-1 ring-emerald-500/50' : ''}`}>
+      <div className="flex items-center gap-1.5">
         <button
           onClick={() => onUpdate(task.id, { status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE })}
-          className="mt-0.5 flex-shrink-0"
+          className="flex-shrink-0"
         >
           {task.status === TaskStatus.DONE ? (
-            <Check size={14} className="text-emerald-500" />
+            <Check size={11} className="text-emerald-500" />
           ) : (
-            <div className="w-3.5 h-3.5 rounded border border-current opacity-50" />
+            <div className="w-2.5 h-2.5 rounded border border-current opacity-50" />
           )}
         </button>
-        <div className="flex-1 min-w-0">
-          <div className={`text-xs flex items-center gap-1 ${task.status === TaskStatus.DONE ? 'line-through opacity-50' : ''}`}>
-            {task.urgent && <span className="text-red-400">!</span>}
-            {task.title}
-            {task.parentProject && <span className="text-[9px] opacity-60">(session)</span>}
-          </div>
-          {task.duration && (
-            <div className="flex items-center gap-1 text-[10px] opacity-60 mt-0.5">
-              <Clock size={10} />
-              <span>{task.duration}m</span>
-            </div>
-          )}
+        <div className={`flex-1 text-xs truncate ${task.status === TaskStatus.DONE ? 'line-through opacity-50' : ''}`} onDoubleClick={() => setEditing(true)}>
+          {task.urgent && <span className="text-red-400 mr-1">!</span>}
+          {task.title}
+          {task.parentProject && <span className="text-[9px] opacity-60 ml-1">(s)</span>}
+          {task.duration && <span className="text-[9px] opacity-60 ml-1">{task.duration}m</span>}
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
           <button onClick={() => onStartSession(task.id)} className="text-emerald-400 hover:text-emerald-300">
-            <Play size={12} />
+            <Play size={10} />
           </button>
           <button onClick={() => onDelete(task.id)} className="text-red-400 hover:text-red-300">
-            <Trash2 size={12} />
+            <Trash2 size={10} />
           </button>
         </div>
       </div>

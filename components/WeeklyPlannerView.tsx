@@ -132,7 +132,7 @@ const HourSlot: React.FC<{
       onDragLeave={onDragLeave}
       onContextMenu={onContextMenu}
       onClick={onClickHour}
-      className={`relative border-b border-zinc-800 px-1 py-1 transition-colors ${isDragOver ? 'bg-zinc-800/30' : 'hover:bg-zinc-900/40'
+      className={`relative border-b border-zinc-900/50 px-1 py-1 transition-colors ${isDragOver ? 'bg-zinc-800/30' : 'hover:bg-zinc-900/40'
         } ${isCurrentHour ? 'bg-zinc-900/30' : ''}`}
       style={{ height: `${HEIGHT}px` }}
     >
@@ -144,10 +144,10 @@ const HourSlot: React.FC<{
 
         return (
           <React.Fragment key={prayer.name}>
-            {/* Subtle Prayer Guideline */}
+            {/* Tiny Prayer Dot Indicator */}
             <div
-              className="absolute left-0 w-full border-t border-emerald-500/10 z-0 pointer-events-none"
-              style={{ top: `${topPercent}%` }}
+              className="absolute left-0 w-1 h-1 rounded-full bg-emerald-500/40 z-10 pointer-events-none"
+              style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
             />
 
             {/* Floating Info */}
@@ -1021,7 +1021,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     <div
                       key={i}
                       style={{ height: `${height}px` }}
-                      className={`border-b border-zinc-800 flex items-start justify-end pr-2 pt-1 transition-all ${isCompressed ? 'opacity-30 bg-zinc-950/20' : ''}`}
+                      className={`border-b border-zinc-900/50 flex items-center justify-center pt-0 transition-all ${isCompressed ? 'opacity-30 bg-zinc-950/20' : ''}`}
                     >
                       <span className="text-[10px] text-zinc-500 font-mono tracking-tighter">
                         {formatTimeAMPM(i, 0).replace(' ', '')}

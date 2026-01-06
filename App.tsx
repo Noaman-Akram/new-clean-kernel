@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, TaskType } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise } from './types';
 import { loadState, saveState, subscribeToState } from './services/storageService';
 import { db } from './services/firebase';
 import { generateId } from './utils';
@@ -113,31 +113,27 @@ const App: React.FC = () => {
     title: string,
     category: Category,
     impact: 'LOW' | 'MED' | 'HIGH',
-    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus; scheduledTime?: number; type?: TaskType }
+    options?: any
   ) => {
     const newTask: Task = {
       id: generateId(),
       title,
-      status: options?.status ?? TaskStatus.TODO, // Default to TODO if not provided
+      status: options?.status ?? TaskStatus.TODO,
       category,
       createdAt: Date.now(),
       impact
     };
-    if (options?.deadline) {
-      newTask.deadline = options.deadline;
-    }
-    if (options?.scheduledTime) {
-      newTask.scheduledTime = options.scheduledTime;
-    }
-    if (options?.slot) {
-      newTask.slot = options.slot;
-    }
-    if (options?.pillar) {
-      newTask.pillar = options.pillar;
-    }
-    if (options?.type) {
-      newTask.type = options.type;
-    }
+    if (options?.deadline) newTask.deadline = options.deadline;
+    if (options?.scheduledTime) newTask.scheduledTime = options.scheduledTime;
+    if (options?.slot) newTask.slot = options.slot;
+    if (options?.pillar) newTask.pillar = options.pillar;
+    if (options?.dockSection) newTask.dockSection = options.dockSection;
+    if (options?.urgent) newTask.urgent = options.urgent;
+    if (options?.duration) newTask.duration = options.duration;
+    if (options?.templateSteps) newTask.templateSteps = options.templateSteps;
+    if (options?.habitTracking) newTask.habitTracking = options.habitTracking;
+    if (options?.parentProject) newTask.parentProject = options.parentProject;
+
     setState(prev => prev ? ({ ...prev, tasks: [newTask, ...prev.tasks] }) : null);
   };
 

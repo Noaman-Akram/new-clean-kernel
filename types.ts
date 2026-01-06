@@ -13,14 +13,6 @@ export enum TaskStatus {
   DONE = 'DONE'
 }
 
-export enum TaskType {
-  URGENT = 'URGENT',
-  DEEP = 'DEEP',
-  RECURRING = 'RECURRING',
-  TEMPLATE = 'TEMPLATE',
-  STANDARD = 'STANDARD'
-}
-
 export type Weekday = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 
 export interface TaskSlot {
@@ -47,6 +39,8 @@ export enum Page {
 }
 
 export type Severity = 'LOW' | 'MED' | 'HIGH';
+
+export type DockSection = 'ROUTINE' | 'TEMPLATE' | 'PROJECT' | 'TODO' | 'LATER' | 'HABIT';
 
 // Network / CRM Types
 export type EntityContext = 'NEMO' | 'PERSONAL';
@@ -102,14 +96,18 @@ export interface Task {
   status: TaskStatus;
   category: Category;
   createdAt: number;
-  deadline?: number; // Timestamp
+  deadline?: number;
   impact: Severity;
-  type?: TaskType; // NEW: Task type for organizing and behavior
+  dockSection?: DockSection; // Where it lives in the Dock (behavior type)
+  urgent?: boolean; // ! flag for emphasis
   notes?: string;
   slot?: TaskSlot;
   pillar?: Pillar;
-  scheduledTime?: number | null; // Timestamp for time-based planning (exact time, not just date)
+  scheduledTime?: number | null; // Timestamp for scheduled execution
   duration?: number; // Duration in minutes
+  templateSteps?: string[]; // For TEMPLATE items
+  habitTracking?: { [dateKey: string]: boolean }; // For HABIT tracking
+  parentProject?: string; // For sessions spawned from projects
 }
 
 export interface Client { // Acts as "Entity" (Person or Company)

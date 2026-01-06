@@ -68,12 +68,17 @@ const InspectorPanel: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, on
             />
 
             {/* Panel */}
-            <div className="absolute top-0 right-0 h-full w-96 bg-surface border-l border-border z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+            <div className="absolute top-0 right-0 h-full w-96 bg-surface border-l border-border z-50 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out translate-x-0 animate-in slide-in-from-right">
 
                 {/* Header */}
                 <div className="h-14 border-b border-border flex items-center justify-between px-4 bg-zinc-900/50">
-                    <div className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                        Inspector
+                    <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${task.scheduledTime ? 'bg-emerald-950 text-emerald-500 border border-emerald-900/50' : 'bg-blue-950 text-blue-500 border border-blue-900/50'}`}>
+                            {task.scheduledTime ? 'PLANNER' : 'DOCK'}
+                        </span>
+                        <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                            Inspector
+                        </span>
                     </div>
                     <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300">
                         <X size={16} />
@@ -97,8 +102,8 @@ const InspectorPanel: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, on
                             <button
                                 onClick={() => onUpdate(task.id, { urgent: !task.urgent })}
                                 className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium border transition-colors ${task.urgent
-                                        ? 'bg-red-950/30 border-red-900/50 text-red-400'
-                                        : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                                    ? 'bg-red-950/30 border-red-900/50 text-red-400'
+                                    : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'
                                     }`}
                             >
                                 <AlertCircle size={10} />

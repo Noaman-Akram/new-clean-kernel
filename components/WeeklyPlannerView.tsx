@@ -96,6 +96,12 @@ const HourSlot: React.FC<{
   onDelete: (taskId: string) => void;
   onSetStatus: (taskId: string, status: TaskStatus) => void;
 }> = ({ tasks, prayers, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, activeTaskId, isCurrentHour, onSelect, onContextMenu, onClickHour, getTaskTone, onUnschedule, onDelete, onSetStatus }) => {
+  // Logic to show "More" button if tasks exceed capacity (3 tasks max usually fit in 56px)
+  const MAX_TASKS = 3;
+  const showMore = tasks.length > MAX_TASKS;
+  const visibleTasks = showMore ? tasks.slice(0, MAX_TASKS - 1) : tasks;
+  const hiddenCount = tasks.length - visibleTasks.length;
+
   return (
     <div
       onDrop={e => { e.preventDefault(); onDrop(); }}
@@ -107,28 +113,41 @@ const HourSlot: React.FC<{
         } ${isCurrentHour ? 'bg-zinc-900/10' : ''}`}
       style={{ height: '56px' }}
     >
-      {/* Prayers (Background) */}
-      {prayers.map(prayer => (
-        <div key={prayer.name} className="absolute inset-0 flex items-center justify-center -z-10 opacity-20 pointer-events-none">
-          <span className="text-xl">{prayer.icon}</span>
-        </div>
-      ))}
+      {/* Prayer Markers */}
+      {prayers.map(prayer => {
+        const prayerDate = new Date(prayer.timestamp);
+        const minutes = prayerDate.getMinutes();
+        const topPercent = (minutes / 60) * 100;
+
+        return (
+          <div
+            key={prayer.name}
+            className="absolute left-0 right-0 z-0 flex items-center group/prayer pointer-events-none"
+            style={{ top: `${topPercent}%` }}
+          >
+            <div className="w-full h-px bg-emerald-500/20 group-hover/prayer:bg-emerald-500/40" />
+            <div className="absolute right-1 -translate-y-1/2 flex items-center gap-1 bg-background/80 backdrop-blur px-1 rounded text-[9px] text-emerald-600/70 border border-emerald-900/20 scale-75 origin-right opacity-0 group-hover/prayer:opacity-100 transition-opacity">
+              {prayer.icon} <span className="uppercase font-medium tracking-wide">{prayer.name}</span>
+            </div>
+          </div>
+        );
+      })}
 
       {/* Current Hour Indicator */}
       {isCurrentHour && (
-        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-500/30" />
+        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-500/30 z-0" />
       )}
 
       {/* Tasks Stack */}
-      <div className="absolute inset-x-1 top-1 bottom-1 flex flex-col gap-0.5 overflow-hidden">
-        {tasks.map(task => (
+      <div className="absolute inset-x-1 top-1 bottom-1 flex flex-col gap-0.5 overflow-hidden z-20">
+        {visibleTasks.map(task => (
           <div
             key={task.id}
             onClick={(e) => { e.stopPropagation(); onSelect(task); }}
             className={`
-              flex items-center px-1.5 rounded-[1px] cursor-pointer border-l-2
+              flex items-center px-1.5 rounded-[1px] cursor-pointer border-l-[1.5px]
               text-[9px] truncate transition-all hover:brightness-110
-              ${activeTaskId === task.id ? 'ring-1 ring-emerald-500/50' : ''}
+              ${activeTaskId === task.id ? 'ring-1 ring-emerald-500/30 bg-zinc-800' : ''}
               ${getTaskTone(task)}
               ${task.status === TaskStatus.DONE ? 'opacity-40 grayscale decoration-zinc-500 line-through' : ''}
             `}
@@ -139,15 +158,27 @@ const HourSlot: React.FC<{
                 e.stopPropagation();
                 onSetStatus(task.id, task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE);
               }}
-              className={`w-2 h-2 rounded-full border mr-1.5 flex-shrink-0 transition-colors ${task.status === TaskStatus.DONE
-                  ? 'bg-emerald-500 border-emerald-500'
-                  : 'border-zinc-500 hover:border-zinc-300'
+              className={`w-1.5 h-1.5 rounded-full border mr-1.5 flex-shrink-0 transition-colors ${task.status === TaskStatus.DONE
+                ? 'bg-emerald-500 border-emerald-500'
+                : 'border-zinc-600 hover:border-zinc-400'
                 }`}
             />
-            <span className="truncate font-medium flex-1">{task.title}</span>
-            {task.urgent && <span className="text-[8px] text-red-400 ml-1">!</span>}
+            <span className="truncate font-medium flex-1 text-zinc-300">
+              {task.title.replace(' — session', '')}
+              {task.title.includes(' — session') && <span className="text-zinc-600 font-normal ml-1">session</span>}
+            </span>
+            {task.urgent && <div className="w-1 h-1 rounded-full bg-red-500/80 ml-1" />}
           </div>
         ))}
+
+        {showMore && (
+          <div
+            className="flex items-center justify-center h-[17px] rounded-[1px] bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800/50 cursor-pointer text-[9px] text-zinc-500 transition-colors"
+            onClick={onClickHour}
+          >
+            +{hiddenCount} more items
+          </div>
+        )}
       </div>
     </div>
   );
@@ -194,26 +225,26 @@ const DayColumn: React.FC<{
 
   return (
     <div className={`border-r border-border flex flex-col ${day.isToday ? 'bg-emerald-950/5' : ''}`}>
-      <div className={`border-b border-border px-2 py-1 ${day.isToday ? 'bg-emerald-950/10' : ''}`}>
+      <div className={`h-16 border-b border-border px-2 py-1 flex flex-col justify-between ${day.isToday ? 'bg-emerald-950/10' : ''}`}>
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-[7px] text-zinc-600 uppercase">{day.dayName}</div>
-            <div className={`text-sm font-light ${day.isToday ? 'text-emerald-400' : 'text-zinc-400'}`}>
+            <div className="text-[7px] text-zinc-600 uppercase font-bold tracking-wider">{day.dayName}</div>
+            <div className={`text-base font-light ${day.isToday ? 'text-emerald-400' : 'text-zinc-300'}`}>
               {day.dayNum}
             </div>
           </div>
           {dayMeta.focus && (
-            <span className="text-[9px] text-emerald-300 border border-emerald-900/40 rounded px-1 py-0.5">
+            <span className="text-[8px] text-zinc-500 border border-zinc-800 rounded px-1 py-0.5 opacity-60">
               {dayMeta.focus}
             </span>
           )}
         </div>
-        <div className="mt-1 flex justify-between px-1">
-          <button onClick={(e) => onOpenDayPanel('notes', e)} className={`${hasMeta('notes') ? 'text-zinc-300' : 'text-zinc-800'} hover:text-zinc-400`}><FileText size={10} /></button>
-          <button onClick={(e) => onOpenDayPanel('habits', e)} className="text-zinc-800 hover:text-emerald-400"><CheckCircle2 size={10} /></button>
-          <button onClick={(e) => onOpenDayPanel('checklist', e)} className={`${hasMeta('checklist') ? 'text-blue-400' : 'text-zinc-800'} hover:text-blue-400`}><ListTodo size={10} /></button>
-          <button onClick={(e) => onOpenDayPanel('focus', e)} className={`${hasMeta('focus') ? 'text-purple-400' : 'text-zinc-800'} hover:text-purple-400`}><GripVertical size={10} /></button>
-          <button onClick={(e) => onOpenDayPanel('actions', e)} className="text-zinc-800 hover:text-zinc-400"><MoreHorizontal size={10} /></button>
+        <div className="flex justify-between px-0.5 opacity-40 hover:opacity-100 transition-opacity">
+          <button onClick={(e) => onOpenDayPanel('notes', e)} className={`${hasMeta('notes') ? 'text-zinc-200 opacity-100' : 'text-zinc-700'} hover:text-zinc-300`}><FileText size={10} /></button>
+          <button onClick={(e) => onOpenDayPanel('habits', e)} className="text-zinc-700 hover:text-emerald-400"><CheckCircle2 size={10} /></button>
+          <button onClick={(e) => onOpenDayPanel('checklist', e)} className={`${hasMeta('checklist') ? 'text-blue-400 opacity-100' : 'text-zinc-700'} hover:text-blue-400`}><ListTodo size={10} /></button>
+          <button onClick={(e) => onOpenDayPanel('focus', e)} className={`${hasMeta('focus') ? 'text-purple-400 opacity-100' : 'text-zinc-700'} hover:text-purple-400`}><GripVertical size={10} /></button>
+          <button onClick={(e) => onOpenDayPanel('actions', e)} className="text-zinc-700 hover:text-zinc-400"><MoreHorizontal size={10} /></button>
         </div>
       </div>
 
@@ -624,10 +655,27 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         ) : (
           <div className="h-full flex flex-col">
             <div className="h-12 border-b border-border flex items-center justify-between px-3">
-              <span className="text-xs font-medium text-zinc-400">Dock</span>
-              <button onClick={() => setDockCollapsed(true)} className="text-zinc-500 hover:text-zinc-300">
+              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Dock</span>
+              <button onClick={() => setDockCollapsed(true)} className="text-zinc-600 hover:text-zinc-300">
                 <ChevronLeft size={16} />
               </button>
+            </div>
+
+            {/* Global Quick Add */}
+            <div className="px-2 pt-3 pb-1">
+              <input
+                placeholder="Add to inbox..."
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-zinc-700 placeholder:text-zinc-700"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = e.currentTarget.value;
+                    if (val.trim()) {
+                      onAdd(val.trim(), Category.AGENCY, 'MED', { dockSection: 'TODO' });
+                      e.currentTarget.value = '';
+                    }
+                  }
+                }}
+              />
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-3">

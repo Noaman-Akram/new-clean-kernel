@@ -146,7 +146,7 @@ const HourSlot: React.FC<{
           <React.Fragment key={prayer.name}>
             {/* Tiny Prayer Dot Indicator */}
             <div
-              className="absolute left-0 w-1 h-1 rounded-full bg-emerald-500/40 z-10 pointer-events-none"
+              className="absolute right-0 w-1 h-1 rounded-full bg-emerald-500/40 z-10 pointer-events-none"
               style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
             />
 

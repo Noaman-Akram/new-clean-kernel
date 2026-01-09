@@ -22,7 +22,8 @@ import {
   Loader2,
   Megaphone,
   MapPin,
-  Dumbbell
+  Dumbbell,
+  Calendar
 } from 'lucide-react';
 
 // Views
@@ -37,6 +38,7 @@ import ResourcesView from './components/ResourcesView';
 import MarketingView from './components/MarketingView';
 import ActivitiesView from './components/ActivitiesView';
 import WeeklyPlannerView from './components/WeeklyPlannerView';
+import DayView from './components/DayView';
 import GymView from './components/GymView';
 
 const App: React.FC = () => {
@@ -113,7 +115,7 @@ const App: React.FC = () => {
     title: string,
     category: Category,
     impact: 'LOW' | 'MED' | 'HIGH',
-    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus; scheduledTime?: number }
+    options?: { deadline?: number; slot?: TaskSlot; pillar?: Pillar; status?: TaskStatus; scheduledTime?: number; duration?: number }
   ) => {
     const newTask: Task = {
       id: generateId(),
@@ -128,6 +130,9 @@ const App: React.FC = () => {
     }
     if (options?.scheduledTime) {
       newTask.scheduledTime = options.scheduledTime;
+    }
+    if (options?.duration) {
+      newTask.duration = options.duration;
     }
     if (options?.slot) {
       newTask.slot = options.slot;
@@ -462,6 +467,20 @@ const App: React.FC = () => {
             onStickyNoteUpdate={handleStickyNoteUpdate}
           />
         );
+      case Page.DAY:
+        return (
+          <DayView
+            state={state}
+            onTaskUpdate={handleTaskUpdate}
+            onTaskAdd={handleTaskAdd}
+            onTaskDelete={handleTaskDelete}
+            onStartSession={startSession}
+            onStickyNoteUpdate={handleStickyNoteUpdate}
+            onPrayerToggle={handlePrayerToggle}
+            onAdhkarToggle={handleAdhkarToggle}
+            activeTaskId={state.activeSession.taskId}
+          />
+        );
       case Page.CRM:
         return <CRMView state={state} onUpdate={handleClientUpdate} onAdd={handleClientAdd} onDelete={handleClientDelete} />;
       case Page.NETWORK:
@@ -572,6 +591,13 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.WEEKLY)}
             icon={<Layers size={18} />}
             label="Weekly"
+            setHover={setHoveredNav}
+          />
+          <NavIcon
+            active={currentPage === Page.DAY}
+            onClick={() => handleNavigate(Page.DAY)}
+            icon={<Calendar size={18} />}
+            label="Day"
             setHover={setHoveredNav}
           />
           <NavIcon
@@ -773,6 +799,7 @@ const App: React.FC = () => {
       <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center justify-around px-2 z-50 fixed bottom-0 left-0 right-0 pb-safe">
         <MobileNavIcon active={currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
         <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
+        <MobileNavIcon active={currentPage === Page.DAY} onClick={() => handleNavigate(Page.DAY)} icon={<Calendar size={20} />} label="Day" />
         <MobileNavIcon active={currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
         <MobileNavIcon active={currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Marketing" />
 
@@ -795,6 +822,7 @@ const App: React.FC = () => {
       <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center gap-4 px-4 overflow-x-auto no-scrollbar z-50 fixed bottom-0 left-0 right-0 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
         <MobileNavIcon active={currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
         <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
+        <MobileNavIcon active={currentPage === Page.DAY} onClick={() => handleNavigate(Page.DAY)} icon={<Calendar size={20} />} label="Day" />
         <MobileNavIcon active={currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
         <MobileNavIcon active={currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Mktg" />
         <MobileNavIcon active={currentPage === Page.NETWORK} onClick={() => handleNavigate(Page.NETWORK)} icon={<Users size={20} />} label="Network" />

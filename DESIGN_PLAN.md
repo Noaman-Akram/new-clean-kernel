@@ -1,4 +1,13 @@
 # Noeman Kernel — Design + Implementation Playbook
+DESIGN PHILOSOPHY (Aesthetic AWWWWARDS level, clean and miniamal. 
+- **Vibe:** "Grey.co" meets "Linear". Ultra-minimal, high data density, monochromatic (Black, White, Greys).
+Nexo.com dashbaord. 
+0auth dashbaord great UI UX minimal cool smooth transations and animations 
+
+- **Shapes:** Sharp borders (`rounded-sm`), thin lines (`border-neutral-200`), consistent padding.
+
+- **Typography:** the family of fonts used in great web design like in awwwards, pleas eonly use the websites from awwwards as references. 
+
 
 ## Visual Philosophy
 - **Influences**: Grey.co minimalism, Linear’s system rigor, Nexo dashboard composure.

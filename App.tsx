@@ -1,11 +1,11 @@
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta } from './types';
-import { loadState, saveState, subscribeToState } from './services/storageService';
-import { db } from './services/firebase';
+import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
+import { auth } from './services/firebase';
 import { generateId } from './utils';
-import { Unsubscribe } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from 'firebase/auth';
 import {
   LayoutGrid,
   Layers,
@@ -42,22 +42,66 @@ import GymView from './components/GymView';
 const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [email, setEmail] = useState<string>(() => localStorage.getItem('noeman_auth_email') || '');
+  const [password, setPassword] = useState<string>('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const expectedUid = import.meta.env.VITE_FIREBASE_USER_UID as string | undefined;
 
   // UI State - Local Only (Not Synced)
   const [currentPage, setCurrentPage] = useState<Page>(Page.COCKPIT);
   const [showBackupMenu, setShowBackupMenu] = useState(false);
 
   const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'SAVED' | 'ERROR' | 'SYNCED'>('IDLE');
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
+  const [lastRemoteAt, setLastRemoteAt] = useState<number | null>(null);
   const [hoveredNav, setHoveredNav] = useState<{ label: string, top: number } | null>(null);
+  const pendingRemoteRef = useRef<{ state: AppState; meta: SnapshotMeta } | null>(null);
+  const isApplyingRemoteRef = useRef(false);
+  const isDirtyRef = useRef(false);
+  const hasHydratedRef = useRef(false);
+  const lastRemoteVersionRef = useRef(0);
+
+  // --- AUTH ---
+  useEffect(() => {
+    if (!auth) {
+      setAuthReady(true);
+      setAuthUser(null);
+      setCurrentUser(null);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && expectedUid && user.uid !== expectedUid) {
+        setAuthError('This account is not authorized for this app.');
+        signOut(auth).catch(() => undefined);
+        setAuthUser(null);
+        setAuthReady(true);
+        return;
+      }
+      setAuthUser(user);
+      setAuthReady(true);
+      setCurrentUser(user?.uid || null);
+    });
+
+    return () => unsubscribe();
+  }, [expectedUid]);
 
   // --- INITIALIZATION & REAL-TIME SYNC ---
   useEffect(() => {
-    let unsubscribe: Unsubscribe | null = null;
+    if (!authReady) return;
+    if (auth && !authUser) {
+      setLoading(false);
+      return;
+    }
 
     const init = async () => {
-      // 1. Initial Load (Fast)
+      setLoading(true);
       const data = await loadState();
       setState(data);
+      lastRemoteVersionRef.current = getSnapshotMeta().version;
 
       // Load local view preference if exists
       const savedPage = localStorage.getItem('noeman_local_page');
@@ -66,40 +110,81 @@ const App: React.FC = () => {
       }
 
       setLoading(false);
-
-      // 2. Real-time Subscription (Live)
-      if (db) {
-        unsubscribe = subscribeToState((newState) => {
-          setState(newState);
-          // Visual feedback that update came from cloud
-          setSyncStatus('SYNCED');
-          setTimeout(() => setSyncStatus('IDLE'), 2000);
-        });
-      }
     };
+
     init();
+  }, [authReady, authUser]);
+
+  useEffect(() => {
+    if (!authUser) return;
+    const unsubscribe = subscribeToRemoteState((remoteState, meta) => {
+      const clientId = getClientId();
+      if (meta.clientId && meta.clientId === clientId) return;
+      const localVersion = getSnapshotMeta().version;
+      if (meta.version && meta.version <= localVersion) return;
+      if (meta.version && meta.version <= lastRemoteVersionRef.current) return;
+      if (isDirtyRef.current) {
+        pendingRemoteRef.current = { state: remoteState, meta };
+        return;
+      }
+      isApplyingRemoteRef.current = true;
+      lastRemoteVersionRef.current = meta.version || lastRemoteVersionRef.current;
+      applyRemoteState(remoteState, meta);
+      setState(remoteState);
+      setSyncStatus('SYNCED');
+      setLastRemoteAt(meta.updatedAt || Date.now());
+      setTimeout(() => setSyncStatus('IDLE'), 2000);
+    });
 
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, []);
+  }, [authUser]);
 
   // --- PERSISTENCE ---
   useEffect(() => {
-    if (state && !loading) {
-      setSyncStatus('SAVING');
-      // We debounce save to avoid spamming the DB on every keystroke
-      const timer = setTimeout(async () => {
-        try {
-          await saveState(state);
-          setSyncStatus('SAVED');
-          setTimeout(() => setSyncStatus('IDLE'), 2000);
-        } catch (e) {
-          setSyncStatus('ERROR');
-        }
-      }, 1000);
-      return () => clearTimeout(timer);
+    if (!state || loading) return;
+    if (!hasHydratedRef.current) {
+      hasHydratedRef.current = true;
+      return;
     }
+    if (isApplyingRemoteRef.current) {
+      isApplyingRemoteRef.current = false;
+      return;
+    }
+
+    isDirtyRef.current = true;
+    setSyncStatus('SAVING');
+    // We debounce save to avoid spamming the DB on every keystroke
+    const timer = setTimeout(async () => {
+      try {
+        await saveState(state);
+        setSyncStatus('SAVED');
+        setLastSavedAt(Date.now());
+        setTimeout(() => setSyncStatus('IDLE'), 2000);
+      } catch (e) {
+        console.error('Sync error:', e);
+        setSyncStatus('ERROR');
+      } finally {
+        isDirtyRef.current = false;
+        if (pendingRemoteRef.current) {
+          const pending = pendingRemoteRef.current;
+          pendingRemoteRef.current = null;
+          const localVersion = getSnapshotMeta().version;
+          if (!pending.meta.version || pending.meta.version <= localVersion) {
+            return;
+          }
+          isApplyingRemoteRef.current = true;
+          lastRemoteVersionRef.current = pending.meta.version || lastRemoteVersionRef.current;
+          applyRemoteState(pending.state, pending.meta);
+          setState(pending.state);
+          setSyncStatus('SYNCED');
+          setLastRemoteAt(pending.meta.updatedAt || Date.now());
+          setTimeout(() => setSyncStatus('IDLE'), 2000);
+        }
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
   }, [state, loading]);
 
   // --- ACTIONS ---
@@ -438,6 +523,51 @@ const App: React.FC = () => {
     }
   }
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth) {
+      setAuthError('Firebase auth is not configured.');
+      return;
+    }
+    if (!email.trim() || !password) return;
+    setIsLoggingIn(true);
+    setAuthError(null);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      localStorage.setItem('noeman_auth_email', email.trim());
+      setPassword('');
+    } catch (error: any) {
+      setAuthError(error?.message || 'Login failed.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const formatSyncTime = (time: number | null) => {
+    if (!time) return '';
+    return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const syncLabel = () => {
+    if (!auth) return 'LOCAL ONLY';
+    if (!authUser) return 'SIGNED OUT';
+    if (syncStatus === 'SAVING') return 'Saving...';
+    if (syncStatus === 'ERROR') return 'Sync error';
+    if (syncStatus === 'SYNCED' && lastRemoteAt) return `Remote ${formatSyncTime(lastRemoteAt)}`;
+    if (lastSavedAt) return `Saved ${formatSyncTime(lastSavedAt)}`;
+    return 'Up to date';
+  };
+
+  const syncLabelShort = () => {
+    if (!auth) return 'LOCAL';
+    if (!authUser) return 'OUT';
+    if (syncStatus === 'SAVING') return 'SAVE';
+    if (syncStatus === 'ERROR') return 'ERR';
+    if (syncStatus === 'SYNCED') return 'REMOTE';
+    if (lastSavedAt) return 'SAVED';
+    return 'OK';
+  };
+
 
   // --- RENDER ---
 
@@ -543,6 +673,62 @@ const App: React.FC = () => {
     }
     return () => clearInterval(interval);
   }, [state?.activeSession?.startTime]);
+
+  if (!authReady) {
+    return (
+      <div className="h-screen w-screen bg-background flex flex-col items-center justify-center text-zinc-500 gap-4">
+        <Loader2 size={32} className="animate-spin text-zinc-400" />
+        <div className="text-xs font-mono uppercase tracking-widest">Auth Initializing...</div>
+      </div>
+    );
+  }
+
+  if (auth && !authUser) {
+    return (
+      <div className="h-screen w-screen bg-background flex items-center justify-center text-zinc-300">
+        <div className="w-full max-w-sm bg-surface border border-border rounded-lg p-6 shadow-2xl">
+          <div className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-3">Secure Access</div>
+          <div className="text-lg font-semibold text-zinc-100 mb-6">Sign in to your kernel</div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600"
+                placeholder="you@email.com"
+                autoComplete="email"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-zinc-200 outline-none focus:border-zinc-600"
+                placeholder="••••••••"
+                autoComplete="current-password"
+                required
+              />
+            </div>
+            {authError && (
+              <div className="text-[11px] text-red-400 font-mono">{authError}</div>
+            )}
+            <button
+              type="submit"
+              disabled={isLoggingIn}
+              className="w-full py-2 rounded-md bg-emerald-500 text-black text-xs font-bold hover:bg-emerald-400 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isLoggingIn ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || !state) {
     return (
@@ -683,7 +869,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
             <span className="text-zinc-300 font-medium">{currentPage}</span>
             <span className="opacity-30">/</span>
-            <span>{db ? 'CLOUD_SYNC' : 'LOCAL_ENV'}</span>
+            <span>{authUser ? 'CLOUD_SYNC' : 'LOCAL_ENV'}</span>
           </div>
           <div className="flex items-center gap-3">
             {/* BACKUP MENU */}
@@ -707,20 +893,17 @@ const App: React.FC = () => {
             {/* Sync Indicator */}
             {!loading && (
               <div className="flex items-center gap-1.5 px-2 py-1 bg-surface border border-border rounded text-[10px] font-mono">
-                <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'SAVING' ? 'bg-amber-500 animate-pulse' :
-                  syncStatus === 'SAVED' ? 'bg-emerald-500' :
-                    syncStatus === 'ERROR' ? 'bg-red-500' :
-                      'bg-zinc-600'
+                <div className={`w-1.5 h-1.5 rounded-full ${!authUser ? 'bg-zinc-600' :
+                  syncStatus === 'SAVING' ? 'bg-amber-500 animate-pulse' :
+                    syncStatus === 'SAVED' || syncStatus === 'SYNCED' ? 'bg-emerald-500' :
+                      syncStatus === 'ERROR' ? 'bg-red-500' :
+                        'bg-zinc-600'
                   }`} />
                 <span className="text-zinc-500 hidden sm:inline">
-                  {syncStatus === 'SAVING' ? 'SAVING...' :
-                    syncStatus === 'SAVED' ? 'SYNCED' :
-                      syncStatus === 'ERROR' ? 'SYNC_FAIL' : 'READY'}
+                  {syncLabel()}
                 </span>
                 <span className="text-zinc-500 sm:hidden">
-                  {syncStatus === 'SAVING' ? 'SAV...' :
-                    syncStatus === 'SAVED' ? 'OK' :
-                      syncStatus === 'ERROR' ? 'ERR' : 'OK'}
+                  {syncLabelShort()}
                 </span>
               </div>
             )}
@@ -817,18 +1000,6 @@ const App: React.FC = () => {
         <MobileNavIcon active={currentPage === Page.GYM} onClick={() => handleNavigate(Page.GYM)} icon={<Dumbbell size={20} />} label="Gym" />
       </div>
 
-      {/* --- OFFLINE WARNING BANNER --- */}
-      {
-        !db && (
-          <div className="fixed bottom-[70px] md:bottom-0 left-0 right-0 bg-red-600/90 text-white text-xs font-mono py-2 px-4 flex items-center justify-between z-[40] backdrop-blur-md">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              <span className="font-bold hidden sm:inline">OFFLINE MODE: LOCAL DATA ONLY</span>
-              <span className="font-bold sm:hidden">OFFLINE</span>
-            </div>
-            <span className="hidden sm:inline">You must create a .env file with firebase keys to sync with deployed site.</span>
-          </div>
-        )}
     </div>
   );
 };

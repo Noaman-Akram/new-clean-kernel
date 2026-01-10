@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Task, Category, TaskStatus } from '../types';
+import { AppState, Task, Category, TaskStatus, Severity } from '../types';
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,18 +22,22 @@ import {
   LayoutGrid,
   Trash2,
   StickyNote,
+  Calendar,
 } from 'lucide-react';
 import { getPrayerTimesForDate, formatTime, formatTimeAMPM, PRAYER_ICONS } from '../utils/prayerTimes';
 import { generateId } from '../utils';
+import DayView from './DayView';
 
 interface Props {
   state: AppState;
-  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH', options?: { scheduledTime?: number }) => void;
+  onAdd: (title: string, category: Category, impact: 'LOW' | 'MED' | 'HIGH', options?: { scheduledTime?: number; duration?: number }) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onStartSession: (id: string) => void;
   activeTaskId: string | null;
   onDelete: (id: string) => void;
   onStickyNoteUpdate: (dateKey: string, content: string) => void;
+  onPrayerToggle?: (key: string) => void;
+  onAdhkarToggle?: (key: string) => void;
 }
 
 interface WeekDay {
@@ -56,7 +60,8 @@ const getPrayerIcon = (iconName: string) => {
   return iconMap[iconName] || <Sun size={12} />;
 };
 
-const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate }) => {
+const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onPrayerToggle, onAdhkarToggle }) => {
+  const [plannerView, setPlannerView] = useState<'week' | 'day'>('week');
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [backlogCollapsed, setBacklogCollapsed] = useState(false);
@@ -214,7 +219,31 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
-            {weekOffset === 0 && (
+            {/* Planner View Toggle - Week/Day */}
+            <div className="flex items-center gap-0.5 bg-zinc-900 rounded p-0.5">
+              <button
+                onClick={() => setPlannerView('week')}
+                className={`px-3 py-1.5 rounded transition-colors text-[10px] md:text-xs font-medium ${plannerView === 'week'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-zinc-600 hover:text-zinc-400'
+                  }`}
+                title="Week View"
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setPlannerView('day')}
+                className={`px-3 py-1.5 rounded transition-colors text-[10px] md:text-xs font-medium ${plannerView === 'day'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-zinc-600 hover:text-zinc-400'
+                  }`}
+                title="Day View"
+              >
+                Day
+              </button>
+            </div>
+
+            {plannerView === 'week' && weekOffset === 0 && (
               <button
                 onClick={scrollToNow}
                 className="text-[10px] md:text-xs font-mono px-2 md:px-3 py-1 md:py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded transition-colors"
@@ -222,7 +251,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 Now
               </button>
             )}
-            {weekOffset !== 0 && (
+            {plannerView === 'week' && weekOffset !== 0 && (
               <button
                 onClick={() => setWeekOffset(0)}
                 className="text-[10px] md:text-xs font-mono px-2 md:px-3 py-1 md:py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded transition-colors"
@@ -231,68 +260,87 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               </button>
             )}
 
-            {/* View Mode Toggle - Icon Based */}
-            <div className="flex items-center gap-0.5 bg-zinc-900 rounded p-0.5">
-              <button
-                onClick={() => setViewMode('stacked')}
-                className={`p-1.5 rounded transition-colors ${viewMode === 'stacked'
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'text-zinc-600 hover:text-zinc-400'
-                  }`}
-                title="Stacked View"
-              >
-                <AlignLeft size={14} />
-              </button>
-              <button
-                onClick={() => setViewMode('inline')}
-                className={`p-1.5 rounded transition-colors ${viewMode === 'inline'
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'text-zinc-600 hover:text-zinc-400'
-                  }`}
-                title="Inline View"
-              >
-                <LayoutGrid size={14} />
-              </button>
-            </div>
+            {/* View Mode Toggle - Icon Based (only for week view) */}
+            {plannerView === 'week' && (
+              <div className="flex items-center gap-0.5 bg-zinc-900 rounded p-0.5">
+                <button
+                  onClick={() => setViewMode('stacked')}
+                  className={`p-1.5 rounded transition-colors ${viewMode === 'stacked'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'text-zinc-600 hover:text-zinc-400'
+                    }`}
+                  title="Stacked View"
+                >
+                  <AlignLeft size={14} />
+                </button>
+                <button
+                  onClick={() => setViewMode('inline')}
+                  className={`p-1.5 rounded transition-colors ${viewMode === 'inline'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'text-zinc-600 hover:text-zinc-400'
+                    }`}
+                  title="Inline View"
+                >
+                  <LayoutGrid size={14} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
-          <div className="h-full flex min-w-max">{weekDays.map((day) => (
-            <DayColumn
-              key={day.dateStr}
-              day={day}
-              tasks={getTasksForDay(day)}
-              unscheduledTasks={getUnscheduledTasksForDay(day)}
-              currentTime={currentTime}
-              onAdd={onAdd}
-              onUpdate={onUpdate}
-              onStartSession={onStartSession}
-              activeTaskId={activeTaskId}
-              allTasks={state.tasks}
-              backlogTasks={getBacklogTasks()}
-              draggedTask={draggedTask}
-              onDragStart={setDraggedTask}
-              onDragOver={(hour) => {
-                setDragOverDay(day.dateStr);
-                setDragOverHour(hour);
-              }}
-              onDragLeave={() => {
-                setDragOverDay(null);
-                setDragOverHour(null);
-              }}
-              showDropIndicator={dragOverDay === day.dateStr}
-              dropHour={dragOverHour}
-              editingTaskId={editingTaskId}
-              onEditingChange={setEditingTaskId}
-              viewMode={viewMode}
-              onStickyNoteUpdate={onStickyNoteUpdate}
-              stickyNoteContent={state.stickyNotes?.[day.dateStr] || ''}
-              ref={(el) => (dayRefs.current[day.dateStr] = el)}
-            />
-          ))}
+        {/* Conditional rendering based on plannerView */}
+        {plannerView === 'week' ? (
+          <div className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory">
+            <div className="h-full flex min-w-max">{weekDays.map((day) => (
+              <DayColumn
+                key={day.dateStr}
+                day={day}
+                tasks={getTasksForDay(day)}
+                unscheduledTasks={getUnscheduledTasksForDay(day)}
+                currentTime={currentTime}
+                onAdd={onAdd}
+                onUpdate={onUpdate}
+                onStartSession={onStartSession}
+                activeTaskId={activeTaskId}
+                allTasks={state.tasks}
+                backlogTasks={getBacklogTasks()}
+                draggedTask={draggedTask}
+                onDragStart={setDraggedTask}
+                onDragOver={(hour) => {
+                  setDragOverDay(day.dateStr);
+                  setDragOverHour(hour);
+                }}
+                onDragLeave={() => {
+                  setDragOverDay(null);
+                  setDragOverHour(null);
+                }}
+                showDropIndicator={dragOverDay === day.dateStr}
+                dropHour={dragOverHour}
+                editingTaskId={editingTaskId}
+                onEditingChange={setEditingTaskId}
+                viewMode={viewMode}
+                onStickyNoteUpdate={onStickyNoteUpdate}
+                stickyNoteContent={state.stickyNotes?.[day.dateStr] || ''}
+                ref={(el) => (dayRefs.current[day.dateStr] = el)}
+              />
+            ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 overflow-hidden">
+            <DayView
+              state={state}
+              onTaskUpdate={onUpdate}
+              onTaskAdd={onAdd}
+              onTaskDelete={onDelete}
+              onStartSession={onStartSession}
+              onStickyNoteUpdate={onStickyNoteUpdate}
+              onPrayerToggle={onPrayerToggle || (() => {})}
+              onAdhkarToggle={onAdhkarToggle || (() => {})}
+              activeTaskId={activeTaskId}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

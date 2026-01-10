@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { AppState, Task, DockSection, DayMeta, DayChecklistItem } from '../types';
-import { Category, TaskStatus } from '../types';
+import { Category, TaskStatus, Severity } from '../types';
 import {
   ChevronLeft,
   ChevronRight,
@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import InspectorPanel from './InspectorPanel';
 import HourOverlay from './HourOverlay';
+import DayView from './DayView';
 import { getPrayerTimesForDate, formatTimeAMPM } from '../utils/prayerTimes';
 import { generateId } from '../utils';
 
@@ -45,6 +46,8 @@ interface Props {
   onDelete: (id: string) => void;
   onStickyNoteUpdate: (dateKey: string, content: string) => void;
   onDayMetaUpdate: (dateKey: string, updates: Partial<DayMeta>) => void;
+  onPrayerToggle?: (prayerKey: string) => void;
+  onAdhkarToggle?: (adhkarKey: string) => void;
 }
 
 interface WeekDay {
@@ -450,7 +453,8 @@ const DockSection: React.FC<{
   );
 };
 
-const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onDayMetaUpdate }) => {
+const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onDayMetaUpdate, onPrayerToggle, onAdhkarToggle }) => {
+  const [plannerView, setPlannerView] = useState<'week' | 'day'>('week');
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [dockCollapsed, setDockCollapsed] = useState(false);
@@ -956,9 +960,34 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
       {/* Planner */}
       <div className="flex-1 flex flex-col relative">
         <div className="h-12 border-b border-border flex items-center justify-between px-4 z-10 bg-background">
-          <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 text-zinc-500 hover:text-zinc-300">
-            <ChevronLeft size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Week/Day Toggle */}
+            <div className="flex items-center gap-0.5 bg-zinc-900 rounded p-0.5">
+              <button
+                onClick={() => setPlannerView('week')}
+                className={`px-3 py-1.5 rounded transition-colors text-[10px] md:text-xs font-medium ${
+                  plannerView === 'week'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setPlannerView('day')}
+                className={`px-3 py-1.5 rounded transition-colors text-[10px] md:text-xs font-medium ${
+                  plannerView === 'day'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+              >
+                Day
+              </button>
+            </div>
+            <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-2 text-zinc-500 hover:text-zinc-300">
+              <ChevronLeft size={18} />
+            </button>
+          </div>
           <div className="flex items-center gap-4">
             <div className="text-sm font-medium text-zinc-300">
               {weekDays[0].dayNum} {weekDays[0].date.toLocaleString('default', { month: 'short' })} - {weekDays[6].dayNum} {weekDays[6].date.toLocaleString('default', { month: 'short' })}
@@ -997,23 +1026,25 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto bg-[#020202]" ref={scrollRef}>
-          <div className="min-w-[720px] flex">
-            {/* Time Rail */}
-            <div className="w-14 border-r border-border bg-surface flex-shrink-0 sticky left-0 z-10">
-              <div className="h-16 border-b border-border flex items-end justify-center pb-2 bg-background z-20">
-                <div className="flex flex-col gap-0.5">
-                  <button
-                    onClick={() => setShowPrayers(!showPrayers)}
-                    className={`p-1 rounded transition-colors ${showPrayers ? 'text-emerald-500 bg-emerald-950/20' : 'text-zinc-600 hover:text-zinc-400'}`}
-                    title="Toggle Prayers"
-                  >
-                    <Moon size={12} />
-                  </button>
+        {plannerView === 'week' ? (
+          <>
+          <div className="flex-1 overflow-auto bg-[#020202]" ref={scrollRef}>
+            <div className="min-w-[720px] flex">
+              {/* Time Rail */}
+              <div className="w-14 border-r border-border bg-surface flex-shrink-0 sticky left-0 z-10">
+                <div className="h-16 border-b border-border flex items-end justify-center pb-2 bg-background z-20">
+                  <div className="flex flex-col gap-0.5">
+                    <button
+                      onClick={() => setShowPrayers(!showPrayers)}
+                      className={`p-1 rounded transition-colors ${showPrayers ? 'text-emerald-500 bg-emerald-950/20' : 'text-zinc-600 hover:text-zinc-400'}`}
+                      title="Toggle Prayers"
+                    >
+                      <Moon size={12} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              {/* Time Labels (Smart Density) */}
-              <div className="flex-1 flex flex-col">
+                {/* Time Labels (Smart Density) */}
+                <div className="flex-1 flex flex-col">
                 {Array.from({ length: 24 }).map((_, i) => {
                   const isCompressed = !activeHours.has(i);
                   const height = isCompressed ? 28 : 60;
@@ -1029,12 +1060,12 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     </div>
                   );
                 })}
+                </div>
               </div>
-            </div>
 
-            {/* Days Grid */}
-            <div className="flex-1">
-              <div className="grid grid-cols-7">
+              {/* Days Grid */}
+              <div className="flex-1">
+                <div className="grid grid-cols-7">
                 {weekDays.map(day => (
                   <DayColumn
                     key={day.dateStr}
@@ -1071,13 +1102,12 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     activeHours={activeHours}
                   />
                 ))}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Actions Bar (Floating) */}
-
-
+          {/* Week View Overlays */}
           {hourOverlay && (
             <HourOverlay
               date={hourOverlay.day.date}
@@ -1300,7 +1330,25 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               </div>
             )
           }
-        </div>
+          </>
+        ) : (
+          /* Day View */
+          <div className="flex-1 overflow-hidden">
+            <DayView
+              state={state}
+              onTaskUpdate={onUpdate}
+              onTaskAdd={(title: string, category: Category, impact: Severity, options?: { scheduledTime?: number; duration?: number }) =>
+                onAdd(title, category, impact === 'HIGH' ? 'HIGH' : impact === 'LOW' ? 'LOW' : 'MED', options)
+              }
+              onTaskDelete={onDelete}
+              onStartSession={onStartSession}
+              onStickyNoteUpdate={onStickyNoteUpdate}
+              onPrayerToggle={onPrayerToggle || (() => {})}
+              onAdhkarToggle={onAdhkarToggle || (() => {})}
+              activeTaskId={activeTaskId}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

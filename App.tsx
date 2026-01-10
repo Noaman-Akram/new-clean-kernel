@@ -603,6 +603,8 @@ const App: React.FC = () => {
             onDelete={handleTaskDelete}
             onStickyNoteUpdate={handleStickyNoteUpdate}
             onDayMetaUpdate={handleDayMetaUpdate}
+            onPrayerToggle={handlePrayerToggle}
+            onAdhkarToggle={handleAdhkarToggle}
           />
         );
       case Page.CRM:

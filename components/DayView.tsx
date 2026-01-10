@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { AppState, Task, TaskStatus, Category, Severity, PrayerName } from '../types';
 import { getPrayerTimesForDate } from '../utils/prayerTimes';
 import {
   Plus, Check, X, Circle, CheckCircle2, Clock, ChevronLeft, ChevronRight,
-  Sunrise, Sun, CloudSun, Sunset, Moon, Play
+  Sunrise, Sun, CloudSun, Sunset, Moon, Play, Pause, MoreHorizontal,
+  Edit2, Calendar as CalendarIcon, Zap, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 interface Props {
@@ -26,6 +27,12 @@ const PRAYER_ICONS: Record<PrayerName, React.ReactNode> = {
   Isha: <Moon size={12} className="text-indigo-400/70" />
 };
 
+const CATEGORY_COLORS: Record<Category, string> = {
+  [Category.ZOHO]: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  [Category.FREELANCE]: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+  [Category.AGENCY]: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+};
+
 const DayView: React.FC<Props> = ({
   state,
   onTaskUpdate,
@@ -39,7 +46,14 @@ const DayView: React.FC<Props> = ({
 }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [inputValue, setInputValue] = useState('');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
+  const [editingTime, setEditingTime] = useState('');
+  const [editingTaskMenu, setEditingTaskMenu] = useState<string | null>(null);
+  const [showMobileRituals, setShowMobileRituals] = useState(false);
+  const [showAllMissed, setShowAllMissed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   const dateKey = selectedDate.toISOString().split('T')[0];
   const today = new Date().toISOString().split('T')[0];
@@ -66,7 +80,7 @@ const DayView: React.FC<Props> = ({
       return taskDate < today;
     }
     return false;
-  });
+  }).sort((a, b) => (b.scheduledTime || 0) - (a.scheduledTime || 0));
 
   // Prayer times
   const prayerTimes = getPrayerTimesForDate(selectedDate);
@@ -99,21 +113,6 @@ const DayView: React.FC<Props> = ({
 
   const goToToday = () => {
     setSelectedDate(new Date());
-  };
-
-  // Get task count for date
-  const getTaskCountForDate = (date: Date) => {
-    const dateKey = date.toISOString().split('T')[0];
-    const tasks = state.tasks.filter(task => {
-      if (task.scheduledTime) {
-        const taskDate = new Date(task.scheduledTime).toISOString().split('T')[0];
-        return taskDate === dateKey;
-      }
-      return false;
-    });
-    const completed = tasks.filter(t => t.status === TaskStatus.DONE).length;
-    const total = tasks.length;
-    return { completed, total };
   };
 
   // Handle quick add
@@ -152,6 +151,48 @@ const DayView: React.FC<Props> = ({
     onTaskUpdate(task.id, { status: newStatus });
   };
 
+  // Handle inline edit
+  const startEditing = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditingTitle(task.title);
+    setEditingTime(task.scheduledTime ? formatTime(task.scheduledTime) : '');
+    setEditingTaskMenu(null);
+  };
+
+  const saveEdit = () => {
+    if (editingTaskId && editingTitle.trim()) {
+      const updates: Partial<Task> = { title: editingTitle };
+
+      // Parse time if changed
+      if (editingTime) {
+        const timeMatch = editingTime.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)?/i);
+        if (timeMatch) {
+          let hours = parseInt(timeMatch[1]);
+          const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+          const ampm = timeMatch[3]?.toLowerCase();
+
+          if (ampm === 'pm' && hours !== 12) hours += 12;
+          if (ampm === 'am' && hours === 12) hours = 0;
+
+          const scheduleDate = new Date(selectedDate);
+          scheduleDate.setHours(hours, minutes, 0, 0);
+          updates.scheduledTime = scheduleDate.getTime();
+        }
+      }
+
+      onTaskUpdate(editingTaskId, updates);
+    }
+    setEditingTaskId(null);
+    setEditingTitle('');
+    setEditingTime('');
+  };
+
+  const cancelEdit = () => {
+    setEditingTaskId(null);
+    setEditingTitle('');
+    setEditingTime('');
+  };
+
   // Handle add missed to today
   const handleAddToToday = (task: Task) => {
     const todayDate = new Date();
@@ -164,6 +205,34 @@ const DayView: React.FC<Props> = ({
     onTaskUpdate(task.id, { scheduledTime: todayDate.getTime() });
   };
 
+  // Handle reschedule
+  const handleReschedule = (task: Task, daysOffset: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + daysOffset);
+
+    if (task.scheduledTime) {
+      const oldTime = new Date(task.scheduledTime);
+      newDate.setHours(oldTime.getHours(), oldTime.getMinutes());
+    } else {
+      newDate.setHours(12, 0);
+    }
+
+    onTaskUpdate(task.id, { scheduledTime: newDate.getTime() });
+    setEditingTaskMenu(null);
+  };
+
+  // Handle category change
+  const handleCategoryChange = (taskId: string, category: Category) => {
+    onTaskUpdate(taskId, { category });
+    setEditingTaskMenu(null);
+  };
+
+  // Handle impact change
+  const handleImpactChange = (taskId: string, impact: Severity) => {
+    onTaskUpdate(taskId, { impact });
+    setEditingTaskMenu(null);
+  };
+
   // Format time
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -174,16 +243,37 @@ const DayView: React.FC<Props> = ({
     return `${displayHours}:${minutes.toString().padStart(2, '0')}${ampm}`;
   };
 
-  const yesterday = new Date(selectedDate);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const tomorrow = new Date(selectedDate);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  // Get relative date
+  const getRelativeDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const dateKey = date.toISOString().split('T')[0];
+    const daysDiff = Math.floor((new Date(today).getTime() - new Date(dateKey).getTime()) / (1000 * 60 * 60 * 24));
 
-  const yesterdayStats = getTaskCountForDate(yesterday);
-  const tomorrowStats = getTaskCountForDate(tomorrow);
+    if (daysDiff === 1) return 'Yesterday';
+    if (daysDiff === 2) return '2 days ago';
+    if (daysDiff <= 7) return `${daysDiff} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
 
   const pendingTasks = daysTasks.filter(t => t.status !== TaskStatus.DONE);
   const completedTasks = daysTasks.filter(t => t.status === TaskStatus.DONE);
+  const activeTask = pendingTasks.find(t => t.id === activeTaskId);
+
+  useEffect(() => {
+    if (editingTaskId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingTaskId]);
+
+  // Close menu on click outside
+  useEffect(() => {
+    const handleClick = () => setEditingTaskMenu(null);
+    if (editingTaskMenu) {
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
+    }
+  }, [editingTaskMenu]);
 
   return (
     <div className="h-full flex bg-background">
@@ -203,14 +293,22 @@ const DayView: React.FC<Props> = ({
               <h1 className="text-base font-normal text-zinc-300">
                 {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </h1>
-              {!isToday && (
+              <div className="flex items-center gap-3 justify-center mt-1">
+                {!isToday && (
+                  <button
+                    onClick={goToToday}
+                    className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                  >
+                    Today
+                  </button>
+                )}
                 <button
-                  onClick={goToToday}
-                  className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors mt-1"
+                  onClick={() => setShowMobileRituals(!showMobileRituals)}
+                  className="lg:hidden text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
                 >
-                  Go to today
+                  Rituals {completedRituals}/{totalRituals}
                 </button>
-              )}
+              </div>
             </div>
 
             <button
@@ -222,25 +320,129 @@ const DayView: React.FC<Props> = ({
           </div>
         </div>
 
+        {/* Mobile Rituals */}
+        {showMobileRituals && (
+          <div className="lg:hidden shrink-0 px-8 py-4 border-b border-border/30 bg-surface/10 animate-fade-in">
+            <div className="max-w-2xl mx-auto space-y-4">
+              {/* Progress */}
+              <div className="h-1 bg-surface rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-600/40 transition-all duration-300"
+                  style={{ width: `${(completedRituals / totalRituals) * 100}%` }}
+                />
+              </div>
+
+              {/* Compact rituals */}
+              <div className="flex flex-wrap gap-2">
+                {prayerTimes.map(prayer => {
+                  const prayerKey = `${dateKey}-${prayer.name}`;
+                  const isCompleted = state.prayerLog[prayerKey] || false;
+                  return (
+                    <button
+                      key={prayer.name}
+                      onClick={() => onPrayerToggle(prayerKey)}
+                      className={`px-2 py-1 rounded text-xs transition-colors ${
+                        isCompleted ? 'bg-emerald-600/20 text-emerald-400' : 'bg-surface/50 text-zinc-500'
+                      }`}
+                    >
+                      {prayer.name}
+                    </button>
+                  );
+                })}
+                {athkarList.map(athkar => {
+                  const athkarKey = `${dateKey}-${athkar.replace(/\s+/g, '-')}`;
+                  const isCompleted = state.adhkarLog[athkarKey] || false;
+                  return (
+                    <button
+                      key={athkar}
+                      onClick={() => onAdhkarToggle(athkarKey)}
+                      className={`px-2 py-1 rounded text-xs transition-colors ${
+                        isCompleted ? 'bg-emerald-600/20 text-emerald-400' : 'bg-surface/50 text-zinc-500'
+                      }`}
+                    >
+                      {athkar.replace(' Athkar', '').replace(' Reading', '')}
+                    </button>
+                  );
+                })}
+                {habitsList.map(habit => {
+                  const habitKey = `${dateKey}-${habit}`;
+                  const isCompleted = state.adhkarLog[habitKey] || false;
+                  return (
+                    <button
+                      key={habit}
+                      onClick={() => onAdhkarToggle(habitKey)}
+                      className={`px-2 py-1 rounded text-xs transition-colors ${
+                        isCompleted ? 'bg-emerald-600/20 text-emerald-400' : 'bg-surface/50 text-zinc-500'
+                      }`}
+                    >
+                      {habit}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tasks */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          <div className="max-w-2xl mx-auto space-y-8">
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* Active task banner */}
+            {activeTask && (
+              <div className="bg-emerald-950/30 border border-emerald-900/50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs text-emerald-400/70 uppercase tracking-wider">Active</span>
+                </div>
+                <h3 className="text-sm text-zinc-200 mb-3">{activeTask.title}</h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggleComplete(activeTask)}
+                    className="px-3 py-1.5 bg-emerald-500 text-black text-xs font-medium rounded hover:bg-emerald-400 transition-colors"
+                  >
+                    Complete
+                  </button>
+                  <button
+                    onClick={() => onTaskUpdate(activeTask.id, { status: TaskStatus.TODO })}
+                    className="px-3 py-1.5 bg-surface text-zinc-400 text-xs rounded hover:bg-zinc-800 transition-colors"
+                  >
+                    Pause
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Missed tasks */}
             {isToday && missedTasks.length > 0 && (
               <div className="space-y-1">
-                <div className="text-xs text-amber-500/60 mb-3 px-1">
-                  {missedTasks.length} from previous days
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <span className="text-xs text-amber-500/60">
+                    {missedTasks.length} from previous days
+                  </span>
+                  {missedTasks.length > 3 && (
+                    <button
+                      onClick={() => setShowAllMissed(!showAllMissed)}
+                      className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+                    >
+                      {showAllMissed ? 'Show less' : 'Show all'}
+                    </button>
+                  )}
                 </div>
-                {missedTasks.slice(0, 3).map(task => (
+                {(showAllMissed ? missedTasks : missedTasks.slice(0, 3)).map(task => (
                   <div
                     key={task.id}
                     className="group flex items-center gap-3 py-2 px-1 hover:bg-surface/30 rounded transition-colors"
                   >
                     <Circle size={14} className="text-zinc-700 shrink-0" strokeWidth={1.5} />
-                    <span className="text-sm text-zinc-500 flex-1">{task.title}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-zinc-500 block truncate">{task.title}</span>
+                      <span className="text-xs text-zinc-700">
+                        {task.scheduledTime && getRelativeDate(task.scheduledTime)}
+                      </span>
+                    </div>
                     <button
                       onClick={() => handleAddToToday(task)}
-                      className="opacity-0 group-hover:opacity-100 text-xs text-zinc-600 hover:text-zinc-400 transition-all"
+                      className="opacity-0 group-hover:opacity-100 text-xs text-zinc-600 hover:text-zinc-400 transition-all px-2 py-1"
                     >
                       Add
                     </button>
@@ -252,11 +454,6 @@ const DayView: React.FC<Props> = ({
                     </button>
                   </div>
                 ))}
-                {missedTasks.length > 3 && (
-                  <div className="text-xs text-zinc-700 px-1 pt-1">
-                    +{missedTasks.length - 3} more
-                  </div>
-                )}
               </div>
             )}
 
@@ -270,10 +467,13 @@ const DayView: React.FC<Props> = ({
               <div className="space-y-1">
                 {pendingTasks.map(task => {
                   const isActive = task.id === activeTaskId;
+                  const isEditing = editingTaskId === task.id;
+                  const hasMenu = editingTaskMenu === task.id;
+
                   return (
                     <div
                       key={task.id}
-                      className={`group flex items-center gap-3 py-2.5 px-1 rounded transition-colors ${
+                      className={`group relative flex items-center gap-3 py-2.5 px-1 rounded transition-colors ${
                         isActive ? 'bg-emerald-950/20' : 'hover:bg-surface/30'
                       }`}
                     >
@@ -284,31 +484,127 @@ const DayView: React.FC<Props> = ({
                         <Circle size={16} className="text-zinc-600 hover:text-zinc-400 transition-colors" strokeWidth={1.5} />
                       </button>
 
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-zinc-200">{task.title}</p>
-                        {task.scheduledTime && (
-                          <p className="text-xs text-zinc-700 mt-0.5">{formatTime(task.scheduledTime)}</p>
-                        )}
-                      </div>
+                      {isEditing ? (
+                        <div className="flex-1 flex flex-col gap-1">
+                          <input
+                            ref={editInputRef}
+                            type="text"
+                            value={editingTitle}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit();
+                              if (e.key === 'Escape') cancelEdit();
+                            }}
+                            onBlur={saveEdit}
+                            className="w-full bg-transparent border-none outline-none text-sm text-zinc-200"
+                          />
+                          <input
+                            type="text"
+                            value={editingTime}
+                            onChange={(e) => setEditingTime(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit();
+                              if (e.key === 'Escape') cancelEdit();
+                            }}
+                            placeholder="Time (e.g., 2pm)"
+                            className="w-full bg-transparent border-none outline-none text-xs text-zinc-500"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="text-sm text-zinc-200">{task.title}</p>
+                              {task.impact === 'HIGH' && (
+                                <Zap size={10} className="text-amber-500" fill="currentColor" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {task.scheduledTime && (
+                                <span className="text-xs text-zinc-700">{formatTime(task.scheduledTime)}</span>
+                              )}
+                              {task.duration && (
+                                <span className="text-xs text-zinc-700">{task.duration}m</span>
+                              )}
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${CATEGORY_COLORS[task.category]}`}>
+                                {task.category}
+                              </span>
+                            </div>
+                          </div>
 
-                      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 shrink-0 transition-opacity">
-                        {!isActive && (
-                          <button
-                            onClick={() => onStartSession(task.id)}
-                            className="p-1 text-zinc-600 hover:text-zinc-400 transition-colors"
-                            title="Start"
-                          >
-                            <Play size={12} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => onTaskDelete(task.id)}
-                          className="p-1 text-zinc-700 hover:text-zinc-500 transition-colors"
-                          title="Delete"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
+                          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 shrink-0 transition-opacity">
+                            <button
+                              onClick={() => startEditing(task)}
+                              className="p-1 text-zinc-600 hover:text-zinc-400 transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            {!isActive && (
+                              <button
+                                onClick={() => onStartSession(task.id)}
+                                className="p-1 text-zinc-600 hover:text-zinc-400 transition-colors"
+                                title="Start"
+                              >
+                                <Play size={12} />
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTaskMenu(hasMenu ? null : task.id);
+                              }}
+                              className="p-1 text-zinc-600 hover:text-zinc-400 transition-colors"
+                              title="More"
+                            >
+                              <MoreHorizontal size={12} />
+                            </button>
+                          </div>
+
+                          {/* Task menu */}
+                          {hasMenu && (
+                            <div className="absolute right-1 top-full mt-1 w-48 bg-surface border border-border rounded-md shadow-lg z-10 py-1">
+                              <div className="px-3 py-1.5 text-[10px] text-zinc-600 uppercase tracking-wider">Reschedule</div>
+                              <button
+                                onClick={() => handleReschedule(task, 1)}
+                                className="w-full px-3 py-1.5 text-xs text-left text-zinc-300 hover:bg-surface-hover transition-colors"
+                              >
+                                Tomorrow
+                              </button>
+                              <button
+                                onClick={() => handleReschedule(task, 2)}
+                                className="w-full px-3 py-1.5 text-xs text-left text-zinc-300 hover:bg-surface-hover transition-colors"
+                              >
+                                In 2 days
+                              </button>
+                              <button
+                                onClick={() => handleReschedule(task, 7)}
+                                className="w-full px-3 py-1.5 text-xs text-left text-zinc-300 hover:bg-surface-hover transition-colors"
+                              >
+                                Next week
+                              </button>
+                              <div className="h-px bg-border my-1"></div>
+                              <div className="px-3 py-1.5 text-[10px] text-zinc-600 uppercase tracking-wider">Priority</div>
+                              {(['HIGH', 'MED', 'LOW'] as Severity[]).map(impact => (
+                                <button
+                                  key={impact}
+                                  onClick={() => handleImpactChange(task.id, impact)}
+                                  className="w-full px-3 py-1.5 text-xs text-left text-zinc-300 hover:bg-surface-hover transition-colors"
+                                >
+                                  {impact} {task.impact === impact && '✓'}
+                                </button>
+                              ))}
+                              <div className="h-px bg-border my-1"></div>
+                              <button
+                                onClick={() => onTaskDelete(task.id)}
+                                className="w-full px-3 py-1.5 text-xs text-left text-red-400 hover:bg-surface-hover transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -353,7 +649,7 @@ const DayView: React.FC<Props> = ({
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
-              placeholder="Add task..."
+              placeholder="Add task... (@2pm for time)"
               className="w-full bg-transparent border-none outline-none text-sm text-zinc-300 placeholder:text-zinc-700 py-2"
             />
           </div>

@@ -29,12 +29,18 @@ import {
   ArrowRight,
   ArrowLeft,
   Pencil,
-  MoreHorizontal
+  MoreHorizontal,
+  StickyNote,
+  Calendar,
+  ChevronDown,
+  AlignLeft,
+  LayoutGrid
 } from 'lucide-react';
 import InspectorPanel from './InspectorPanel';
 import HourOverlay from './HourOverlay';
 import { getPrayerTimesForDate, formatTimeAMPM } from '../utils/prayerTimes';
 import { generateId } from '../utils';
+import DayView from './DayView';
 
 interface Props {
   state: AppState;
@@ -45,6 +51,8 @@ interface Props {
   onDelete: (id: string) => void;
   onStickyNoteUpdate: (dateKey: string, content: string) => void;
   onDayMetaUpdate: (dateKey: string, updates: Partial<DayMeta>) => void;
+  onPrayerToggle?: (key: string) => void;
+  onAdhkarToggle?: (key: string) => void;
 }
 
 interface WeekDay {
@@ -65,8 +73,6 @@ const WeeklyPlannerViewWrapper: React.FC<Props> = (props) => {
   return <WeeklyPlannerView {...props} />;
 };
 
-// Prayer Icon Mapping
-// Prayer Icon Mapping
 const PRAYER_ICONS_MAP: Record<string, React.ReactNode> = {
   'sunrise': <Sunrise size={9} />,
   'sun': <Sun size={9} />,
@@ -109,18 +115,8 @@ const HourSlot: React.FC<{
   showPrayers: boolean;
   isCompressed: boolean;
 }> = ({ tasks, prayers, isDragOver, onDrop, onDragOver, onDragLeave, onUpdate, activeTaskId, isCurrentHour, onSelect, onContextMenu, onClickHour, getTaskTone, onUnschedule, onDelete, onSetStatus, showPrayers, isCompressed }) => {
-  // Logic: Show max 2 tasks. If 3rd exists, show "More" button occupying the 3rd slot.
-  // Capacity = 3 slots (56px height / 18px per item approx).
-  const HEIGHT = isCompressed ? 28 : 60; // Increased base height for readability, compressed really small
-  const VISIBLE_LIMIT = isCompressed ? 0 : 2; // Hide tasks in compressed view? Or just show 1 small marker? 
-  // Actually if it's compressed, it means NO tasks are scheduled across the week for this hour.
-  // So 'tasks' should be empty here anyway!
-  // BUT we must verify 'tasks' here are for THIS day. 
-  // The 'isCompressed' prop means "This hour index is compressed globally for the week".
-  // So for this specific day, there MIGHT be a task if I calculated wrong? 
-  // No, logic is: "If ANY day has a task at Hour X, Hour X is NOT compressed."
-  // So if isCompressed is true, tasks.length MUST be 0. Safe.
-
+  const HEIGHT = isCompressed ? 28 : 60;
+  const VISIBLE_LIMIT = isCompressed ? 0 : 2;
   const showMore = tasks.length > VISIBLE_LIMIT;
   const visibleTasks = showMore ? tasks.slice(0, VISIBLE_LIMIT) : tasks;
   const hiddenCount = tasks.length - visibleTasks.length;
@@ -132,11 +128,10 @@ const HourSlot: React.FC<{
       onDragLeave={onDragLeave}
       onContextMenu={onContextMenu}
       onClick={onClickHour}
-      className={`relative border-b border-zinc-900/50 px-1 py-1 transition-colors ${isDragOver ? 'bg-zinc-800/30' : 'hover:bg-zinc-900/40'
-        } ${isCurrentHour ? 'bg-zinc-900/30' : ''}`}
+      className={`relative border-b border-zinc-900/50 px-1 py-1 transition-colors ${isDragOver ? 'bg-zinc-800/30' : 'hover:bg-zinc-900/40'} ${isCurrentHour ? 'bg-zinc-900/30' : ''}`}
       style={{ height: `${HEIGHT}px` }}
     >
-      {/* Prayer Markers (Floating Info) */}
+      {/* Prayer Markers */}
       {showPrayers && prayers.map(prayer => {
         const prayerDate = new Date(prayer.timestamp);
         const minutes = prayerDate.getMinutes();
@@ -144,13 +139,10 @@ const HourSlot: React.FC<{
 
         return (
           <React.Fragment key={prayer.name}>
-            {/* Tiny Prayer Dot Indicator */}
             <div
               className="absolute right-0 w-[3px] h-[3px] rounded-none bg-emerald-500/60 z-10 pointer-events-none"
               style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
             />
-
-            {/* Floating Info */}
             <div
               className="absolute right-1 w-max pointer-events-auto z-30 flex flex-col items-end group/prayer hover:opacity-10 hover:blur-[1px] transition-all duration-300"
               style={{ top: `${topPercent}%`, transform: 'translateY(-50%)' }}
@@ -209,7 +201,6 @@ const HourSlot: React.FC<{
             {task.urgent && <div className="w-1 h-1 rounded-full bg-red-500/80 ml-1" />}
           </div>
         ))}
-
         {showMore && (
           <div
             className="flex items-center justify-center h-[17px] rounded-[1px] bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800/50 cursor-pointer text-[9px] text-zinc-500 transition-colors"
@@ -223,7 +214,6 @@ const HourSlot: React.FC<{
   );
 };
 
-// Day Column
 const DayColumn: React.FC<{
   day: WeekDay;
   tasks: Task[];
@@ -247,17 +237,15 @@ const DayColumn: React.FC<{
   stickyNote: string;
   activeHours: Set<number>;
 }> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onSelect, onContextMenu, onClickHour, showPrayers, getTaskTone, onUnschedule, onSetStatus, onOpenDayPanel, dayMeta, stickyNote, activeHours }) => {
-  const cairoOffset = 2;
+  const cairoOffset = 2; // Fixed example offset, adjust as needed
   const cairoTime = new Date(currentTime.getTime() + (cairoOffset * 60 * 60 * 1000));
   const cairoHours = cairoTime.getUTCHours();
   const isCurrentDay = day.isToday;
-
   const prayers = getPrayerTimesForDate(day.date);
 
-  // Helper to check if icon should be lit
   const hasMeta = (type: DayPanelType) => {
     if (type === 'notes') return !!stickyNote;
-    if (type === 'habits') return false; // Check logic later
+    if (type === 'habits') return false;
     if (type === 'checklist') return (dayMeta.checklist || []).length > 0;
     if (type === 'focus') return !!dayMeta.focus;
     return false;
@@ -287,12 +275,10 @@ const DayColumn: React.FC<{
           <button onClick={(e) => onOpenDayPanel('actions', e)} className="text-zinc-700 hover:text-zinc-400"><MoreHorizontal size={10} /></button>
         </div>
       </div>
-
       <div>
         {Array.from({ length: 24 }, (_, i) => i).map(hour => {
           const hourTasks = tasks.filter(t => t.scheduledTime && new Date(t.scheduledTime).getHours() === hour);
           const hourPrayers = showPrayers ? prayers.filter(p => new Date(p.timestamp).getHours() === hour) : [];
-
           return (
             <HourSlot
               key={hour}
@@ -305,7 +291,7 @@ const DayColumn: React.FC<{
               onDragOver={() => onDragOver(hour)}
               onDragLeave={() => onDragOver(null)}
               onUpdate={onUpdate}
-              onDelete={onDelete}
+              onDelete={() => { }} // Not implemented in this view
               onStartSession={onStartSession}
               activeTaskId={activeTaskId}
               isCurrentHour={isCurrentDay && cairoHours === hour}
@@ -325,7 +311,6 @@ const DayColumn: React.FC<{
   );
 };
 
-// Dock Section
 const DockSection: React.FC<{
   title: string;
   icon: React.ReactNode;
@@ -373,7 +358,6 @@ const DockSection: React.FC<{
           <Plus size={10} />
         </button>
       </div>
-
       {!collapsed && (
         <div className="space-y-0.5 animate-in slide-in-from-top-1 duration-200 pl-3">
           {adding && (
@@ -387,11 +371,8 @@ const DockSection: React.FC<{
               autoFocus
             />
           )}
-
           {tasks.map(task => {
-            // Common styles: Hybrid style (Card background + Clean structure)
             const baseStyles = `group flex items-center gap-1.5 rounded px-2 py-1 cursor-pointer transition-colors bg-zinc-900/40 hover:bg-zinc-900 border border-transparent hover:border-zinc-800`;
-
             if (type === 'TEMPLATE') {
               return (
                 <div key={task.id} onClick={() => onSelect(task)} className={baseStyles}>
@@ -405,7 +386,6 @@ const DockSection: React.FC<{
                 </div>
               );
             }
-
             if (type === 'HABIT') {
               return (
                 <div key={task.id} onClick={() => onSelect(task)} className={baseStyles}>
@@ -428,8 +408,6 @@ const DockSection: React.FC<{
                 </div>
               );
             }
-
-            // Default standard/todo
             return (
               <div key={task.id} draggable onDragStart={() => onDragStart(task)} onClick={() => onSelect(task)} className={`${baseStyles} cursor-move`}>
                 <GripVertical size={8} className="text-zinc-700 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -450,12 +428,17 @@ const DockSection: React.FC<{
   );
 };
 
-const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onDayMetaUpdate }) => {
+const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onDayMetaUpdate, onPrayerToggle, onAdhkarToggle }) => {
+  const [plannerView, setPlannerView] = useState<'week' | 'day'>('week');
   const [weekOffset, setWeekOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [dockCollapsed, setDockCollapsed] = useState(false);
+  const [backlogCollapsed, setBacklogCollapsed] = useState(false);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'inline' | 'stacked'>('stacked');
+  const [dockCollapsed, setDockCollapsed] = useState(false);
   const [inspectorTask, setInspectorTask] = useState<Task | null>(null);
   const [hourOverlay, setHourOverlay] = useState<{ day: WeekDay; hour: number; anchor: HTMLElement } | null>(null);
   const [dayPanel, setDayPanel] = useState<{ day: WeekDay; type: DayPanelType; x: number; y: number } | null>(null);
@@ -468,6 +451,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const [uiZoom, setUiZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const dayRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const toggleSection = (type: string) => {
     setCollapsedSections(prev => ({ ...prev, [type]: !prev[type] }));
@@ -971,6 +955,28 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
             </button>
           </div>
           <div className="flex items-center gap-2">
+            {/* View Switcher */}
+            <div className="flex items-center gap-0.5 bg-zinc-900 rounded p-0.5 mr-4">
+              <button
+                onClick={() => setPlannerView('week')}
+                className={`px-3 py-1.5 rounded transition-colors text-[10px] md:text-xs font-medium ${plannerView === 'week'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-zinc-600 hover:text-zinc-400'
+                  }`}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setPlannerView('day')}
+                className={`px-3 py-1.5 rounded transition-colors text-[10px] md:text-xs font-medium ${plannerView === 'day'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-zinc-600 hover:text-zinc-400'
+                  }`}
+              >
+                Day
+              </button>
+            </div>
+
             <button
               onClick={handleJumpToNow}
               className="px-3 py-1.5 text-xs text-zinc-300 bg-zinc-900 border border-zinc-800 rounded hover:bg-zinc-800"
@@ -998,82 +1004,98 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         </div>
 
         <div className="flex-1 overflow-auto bg-[#020202]" ref={scrollRef}>
-          <div className="min-w-[720px] flex">
-            {/* Time Rail */}
-            <div className="w-14 border-r border-border bg-surface flex-shrink-0 sticky left-0 z-10">
-              <div className="h-16 border-b border-border flex items-end justify-center pb-2 bg-background z-20">
-                <div className="flex flex-col gap-0.5">
-                  <button
-                    onClick={() => setShowPrayers(!showPrayers)}
-                    className={`p-1 rounded transition-colors ${showPrayers ? 'text-emerald-500 bg-emerald-950/20' : 'text-zinc-600 hover:text-zinc-400'}`}
-                    title="Toggle Prayers"
-                  >
-                    <Moon size={12} />
-                  </button>
+          {plannerView === 'week' ? (
+            <div className="min-w-[720px] flex">
+              {/* Time Rail */}
+              <div className="w-14 border-r border-border bg-surface flex-shrink-0 sticky left-0 z-10">
+                <div className="h-16 border-b border-border flex items-end justify-center pb-2 bg-background z-20">
+                  <div className="flex flex-col gap-0.5">
+                    <button
+                      onClick={() => setShowPrayers(!showPrayers)}
+                      className={`p-1 rounded transition-colors ${showPrayers ? 'text-emerald-500 bg-emerald-950/20' : 'text-zinc-600 hover:text-zinc-400'}`}
+                      title="Toggle Prayers"
+                    >
+                      <Moon size={12} />
+                    </button>
+                  </div>
+                </div>
+                {/* Time Labels (Smart Density) */}
+                <div className="flex-1 flex flex-col">
+                  {Array.from({ length: 24 }).map((_, i) => {
+                    const isCompressed = !activeHours.has(i);
+                    const height = isCompressed ? 28 : 60;
+                    return (
+                      <div
+                        key={i}
+                        style={{ height: `${height}px` }}
+                        className={`border-b border-zinc-900/50 flex items-center justify-center pt-0 transition-all ${isCompressed ? 'opacity-30 bg-zinc-950/20' : ''}`}
+                      >
+                        <span className="text-[10px] text-zinc-500 font-mono tracking-tighter">
+                          {formatTimeAMPM(i, 0).replace(' ', '')}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-              {/* Time Labels (Smart Density) */}
-              <div className="flex-1 flex flex-col">
-                {Array.from({ length: 24 }).map((_, i) => {
-                  const isCompressed = !activeHours.has(i);
-                  const height = isCompressed ? 28 : 60;
-                  return (
-                    <div
-                      key={i}
-                      style={{ height: `${height}px` }}
-                      className={`border-b border-zinc-900/50 flex items-center justify-center pt-0 transition-all ${isCompressed ? 'opacity-30 bg-zinc-950/20' : ''}`}
-                    >
-                      <span className="text-[10px] text-zinc-500 font-mono tracking-tighter">
-                        {formatTimeAMPM(i, 0).replace(' ', '')}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Days Grid */}
-            <div className="flex-1">
-              <div className="grid grid-cols-7">
-                {weekDays.map(day => (
-                  <DayColumn
-                    key={day.dateStr}
-                    day={day}
-                    tasks={state.tasks.filter(t => {
-                      if (!t.scheduledTime) return false;
-                      if (!showCompleted && t.status === TaskStatus.DONE) return false;
-                      const taskDate = new Date(t.scheduledTime);
-                      taskDate.setHours(0, 0, 0, 0);
-                      return taskDate.getTime() === day.date.getTime();
-                    })}
-                    dragOverHour={dragOverHour}
-                    onDrop={handleDrop}
-                    onDragOver={setDragOverHour}
-                    onUpdate={onUpdate}
-                    onDelete={onDelete}
-                    onStartSession={onStartSession}
-                    activeTaskId={activeTaskId}
-                    currentTime={currentTime}
-                    onSelect={(task) => setInspectorTask(task)}
-                    showPrayers={showPrayers}
-                    onContextMenu={(hour, e) => {
-                      e.preventDefault();
-                    }}
-                    onClickHour={(hour, e) => {
-                      handleOpenHourOverlay(day, hour, e.currentTarget);
-                    }}
-                    getTaskTone={getTaskTone}
-                    onUnschedule={(taskId) => onUpdate(taskId, { scheduledTime: null })}
-                    onSetStatus={(taskId, status) => onUpdate(taskId, { status })}
-                    onOpenDayPanel={(type, e) => handleOpenDayPanel(day, type, e)}
-                    dayMeta={getDayMeta(day.dateStr)}
-                    stickyNote={state.stickyNotes?.[day.dateStr] || ''}
-                    activeHours={activeHours}
-                  />
-                ))}
+              {/* Days Grid */}
+              <div className="flex-1">
+                <div className="grid grid-cols-7">
+                  {weekDays.map(day => (
+                    <DayColumn
+                      key={day.dateStr}
+                      day={day}
+                      tasks={state.tasks.filter(t => {
+                        if (!t.scheduledTime) return false;
+                        if (!showCompleted && t.status === TaskStatus.DONE) return false;
+                        const taskDate = new Date(t.scheduledTime);
+                        taskDate.setHours(0, 0, 0, 0);
+                        return taskDate.getTime() === day.date.getTime();
+                      })}
+                      dragOverHour={dragOverHour}
+                      onDrop={handleDrop}
+                      onDragOver={setDragOverHour}
+                      onUpdate={onUpdate}
+                      onDelete={onDelete}
+                      onStartSession={onStartSession}
+                      activeTaskId={activeTaskId}
+                      currentTime={currentTime}
+                      onSelect={(task) => setInspectorTask(task)}
+                      showPrayers={showPrayers}
+                      onContextMenu={(hour, e) => {
+                        e.preventDefault();
+                      }}
+                      onClickHour={(hour, e) => {
+                        handleOpenHourOverlay(day, hour, e.currentTarget);
+                      }}
+                      getTaskTone={getTaskTone}
+                      onUnschedule={(taskId) => onUpdate(taskId, { scheduledTime: null })}
+                      onSetStatus={(taskId, status) => onUpdate(taskId, { status })}
+                      onOpenDayPanel={(type, e) => handleOpenDayPanel(day, type, e)}
+                      dayMeta={getDayMeta(day.dateStr)}
+                      stickyNote={state.stickyNotes?.[day.dateStr] || ''}
+                      activeHours={activeHours}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="h-full">
+              <DayView
+                state={state}
+                onTaskUpdate={onUpdate}
+                onTaskAdd={onAdd}
+                onTaskDelete={onDelete}
+                onStartSession={onStartSession}
+                onStickyNoteUpdate={onStickyNoteUpdate}
+                onPrayerToggle={onPrayerToggle || (() => { })}
+                onAdhkarToggle={onAdhkarToggle || (() => { })}
+                activeTaskId={activeTaskId}
+              />
+            </div>
+          )}
 
           {/* Actions Bar (Floating) */}
 

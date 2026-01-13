@@ -22,7 +22,8 @@ import {
   Loader2,
   Megaphone,
   MapPin,
-  Dumbbell
+  Dumbbell,
+  Calendar
 } from 'lucide-react';
 
 // Views
@@ -37,6 +38,7 @@ import ResourcesView from './components/ResourcesView';
 import MarketingView from './components/MarketingView';
 import ActivitiesView from './components/ActivitiesView';
 import WeeklyPlannerView from './components/WeeklyPlannerView';
+import DayView from './components/DayView';
 import GymView from './components/GymView';
 
 const App: React.FC = () => {
@@ -603,6 +605,9 @@ const App: React.FC = () => {
             onDelete={handleTaskDelete}
             onStickyNoteUpdate={handleStickyNoteUpdate}
             onDayMetaUpdate={handleDayMetaUpdate}
+            onPrayerToggle={handlePrayerToggle}
+            onAdhkarToggle={handleAdhkarToggle}
+            onDelete={handleTaskDelete}
           />
         );
       case Page.CRM:
@@ -770,7 +775,7 @@ const App: React.FC = () => {
             active={currentPage === Page.WEEKLY}
             onClick={() => handleNavigate(Page.WEEKLY)}
             icon={<Layers size={18} />}
-            label="Weekly"
+            label="Planner"
             setHover={setHoveredNav}
           />
           <NavIcon
@@ -968,7 +973,7 @@ const App: React.FC = () => {
       {/* --- MOBILE NAVIGATION BAR --- */}
       <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center justify-around px-2 z-50 fixed bottom-0 left-0 right-0 pb-safe">
         <MobileNavIcon active={currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
-        <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
+        <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Planner" />
         <MobileNavIcon active={currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
         <MobileNavIcon active={currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Marketing" />
 
@@ -990,7 +995,7 @@ const App: React.FC = () => {
       {/* Redoing Mobile Nav to be scrollable horizontal list instead of "More" menu for simplicity and speed */}
       <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center gap-4 px-4 overflow-x-auto no-scrollbar z-50 fixed bottom-0 left-0 right-0 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
         <MobileNavIcon active={currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
-        <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Weekly" />
+        <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Planner" />
         <MobileNavIcon active={currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
         <MobileNavIcon active={currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Mktg" />
         <MobileNavIcon active={currentPage === Page.NETWORK} onClick={() => handleNavigate(Page.NETWORK)} icon={<Users size={20} />} label="Network" />

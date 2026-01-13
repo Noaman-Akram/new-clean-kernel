@@ -34,6 +34,7 @@ export enum Page {
   INTEL = 'INTEL',
   ARSENAL = 'ARSENAL',
   WEEKLY = 'WEEKLY',
+  DAY = 'DAY',
   GYM = 'GYM',
   CRM = 'CRM'
 }

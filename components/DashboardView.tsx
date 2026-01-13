@@ -319,7 +319,7 @@ const QuickInput: React.FC<{ onAdd: any }> = ({ onAdd }) => {
 
         const isHigh = val.includes('!');
         // Auto-assign today's deadline if added from Cockpit
-        onAdd(val.replace('!', '').trim(), Category.AGENCY, isHigh ? 'HIGH' : 'MED');
+        onAdd(val.replace('!', '').trim(), Category.SERVICE, isHigh ? 'HIGH' : 'MED');
         setVal('');
     }
     return (

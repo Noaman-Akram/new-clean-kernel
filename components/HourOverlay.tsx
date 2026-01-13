@@ -76,7 +76,7 @@ const HourOverlay: React.FC<Props> = ({
         if (!newItemTitle.trim()) return;
         const scheduledTime = new Date(date);
         scheduledTime.setHours(hour, 0, 0, 0);
-        onAdd(newItemTitle.trim(), Category.AGENCY, 'MED', { scheduledTime: scheduledTime.getTime() });
+        onAdd(newItemTitle.trim(), Category.SERVICE, 'MED', { scheduledTime: scheduledTime.getTime() });
         setNewItemTitle('');
         // Stay in HOUR tab to see result?
     };

@@ -1,9 +1,15 @@
 
 
 export enum Category {
-  ZOHO = 'CORP',
-  FREELANCE = 'DEV',
-  AGENCY = 'VENTURE'
+  CORE = 'CORE',
+  GROWTH = 'GROWTH',
+  SERVICE = 'SERVICE'
+}
+
+export interface SubTask {
+  id: string;
+  title: string;
+  done: boolean;
 }
 
 export enum TaskStatus {
@@ -109,6 +115,7 @@ export interface Task {
   templateSteps?: string[]; // For TEMPLATE items
   habitTracking?: { [dateKey: string]: boolean }; // For HABIT tracking
   parentProject?: string; // For sessions spawned from projects
+  subtasks?: SubTask[]; // NEW: For breaking down major tasks
 }
 
 export interface Client { // Acts as "Entity" (Person or Company)

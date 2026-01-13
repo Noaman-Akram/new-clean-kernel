@@ -31,9 +31,9 @@ type WeekDay = {
 };
 
 const CATEGORY_LABELS: Record<Category, string> = {
-    [Category.ZOHO]: 'Corp',
-    [Category.FREELANCE]: 'Freelance',
-    [Category.AGENCY]: 'Nemo'
+    [Category.CORE]: 'Core',
+    [Category.GROWTH]: 'Growth',
+    [Category.SERVICE]: 'Service'
 };
 
 const DAY_TAGS = ['@MON', '@TUE', '@WED', '@THU', '@FRI', '@SAT', '@SUN'];
@@ -173,7 +173,7 @@ const PlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, 
         const { text, severity, scheduledDay } = parseCommandDraft(commandDraft, weekDays);
         if (!text) return;
         const options = scheduledDay ? { deadline: scheduledDay.end } : undefined;
-        onAdd(text, Category.AGENCY, severity, options);
+        onAdd(text, Category.SERVICE, severity, options);
         setCommandDraft('');
     };
 
@@ -189,7 +189,7 @@ const PlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, 
         const draft = dayDrafts[day.start] || '';
         if (!draft.trim()) return;
         const severity: Severity = draft.includes('!') ? 'HIGH' : 'MED';
-        onAdd(draft.replace(/!/g, '').trim(), Category.AGENCY, severity, { deadline: day.end });
+        onAdd(draft.replace(/!/g, '').trim(), Category.SERVICE, severity, { deadline: day.end });
         setDayDrafts(prev => ({ ...prev, [day.start]: '' }));
     };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Category, DockSection } from '../types';
-import { X, Trash2, Copy, ArrowLeft, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { X, Trash2, Copy, ArrowLeft, Calendar, Clock, AlertCircle, CheckCircle2, Circle, Plus } from 'lucide-react';
 
 interface Props {
     task: Task;
@@ -115,8 +115,30 @@ const InspectorPanel: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, on
                                 onChange={(e) => onUpdate(task.id, { dockSection: e.target.value as DockSection })}
                                 className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] rounded px-2 py-1 focus:ring-1 focus:ring-zinc-700 outline-none"
                             >
-                                {dockSections.map(s => (
-                                    <option key={s} value={s}>{s}</option>
+                                {dockSections.map(s => {
+                                    const labels: Record<DockSection, string> = {
+                                        'ROUTINE': 'Routines',
+                                        'TEMPLATE': 'Templates',
+                                        'PROJECT': 'Projects',
+                                        'TODO': 'To Do',
+                                        'LATER': 'Later',
+                                        'HABIT': 'Habits'
+                                    };
+                                    return (
+                                        <option key={s} value={s}>{labels[s]}</option>
+                                    );
+                                })}
+                            </select>
+
+                            <select
+                                value={task.category}
+                                onChange={(e) => onUpdate(task.id, { category: e.target.value as Category })}
+                                className="bg-zinc-900 border border-zinc-800 text-zinc-400 text-[10px] rounded px-2 py-1 focus:ring-1 focus:ring-zinc-700 outline-none"
+                            >
+                                {Object.values(Category).map(c => (
+                                    <option key={c} value={c}>
+                                        {c.charAt(0) + c.slice(1).toLowerCase()}
+                                    </option>
                                 ))}
                             </select>
                         </div>
@@ -132,6 +154,62 @@ const InspectorPanel: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, on
                             className="w-full h-32 bg-zinc-900/50 border border-zinc-800 rounded-md p-3 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 resize-none selection:bg-emerald-900/30"
                             placeholder="Add details, notes, or subtasks..."
                         />
+                    </div>
+
+                    {/* Subtasks Section */}
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-medium text-zinc-500 uppercase flex items-center justify-between">
+                            Subtasks
+                            <span className="text-[9px] font-mono lowercase">
+                                {task.subtasks?.filter(s => s.done).length || 0} / {task.subtasks?.length || 0}
+                            </span>
+                        </label>
+                        <div className="space-y-1.5">
+                            {task.subtasks?.map(sub => (
+                                <div key={sub.id} className="flex items-center gap-2 group/sub">
+                                    <button
+                                        onClick={() => {
+                                            const newSubtasks = task.subtasks?.map(s =>
+                                                s.id === sub.id ? { ...s, done: !s.done } : s
+                                            );
+                                            onUpdate(task.id, { subtasks: newSubtasks });
+                                        }}
+                                        className={`shrink-0 transition-colors ${sub.done ? 'text-emerald-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                    >
+                                        {sub.done ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                                    </button>
+                                    <input
+                                        value={sub.title}
+                                        onChange={e => {
+                                            const newSubtasks = task.subtasks?.map(s =>
+                                                s.id === sub.id ? { ...s, title: e.target.value } : s
+                                            );
+                                            onUpdate(task.id, { subtasks: newSubtasks });
+                                        }}
+                                        className={`flex-1 bg-transparent text-sm border-none focus:ring-0 p-0 ${sub.done ? 'text-zinc-600 line-through' : 'text-zinc-300'}`}
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            const newSubtasks = task.subtasks?.filter(s => s.id !== sub.id);
+                                            onUpdate(task.id, { subtasks: newSubtasks });
+                                        }}
+                                        className="opacity-0 group-hover/sub:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ))}
+                            <button
+                                onClick={() => {
+                                    const newSub = { id: Math.random().toString(36).substr(2, 9), title: '', done: false };
+                                    onUpdate(task.id, { subtasks: [...(task.subtasks || []), newSub] });
+                                }}
+                                className="flex items-center gap-2 text-xs text-zinc-500 hover:text-emerald-500 transition-colors pt-1"
+                            >
+                                <Plus size={12} />
+                                <span>Add subtask</span>
+                            </button>
+                        </div>
                     </div>
 
                     {/* Schedule */}

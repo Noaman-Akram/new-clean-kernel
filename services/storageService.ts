@@ -1,5 +1,6 @@
 import { AppState } from '../types';
 import { db } from './firebase';
+import { getDefaultUserPreferences } from '../defaultPreferences';
 import {
   addDoc,
   collection,
@@ -97,7 +98,8 @@ const INITIAL_STATE: AppState = {
   chatHistory: [],
   horizonGoals: [],
   stickyNotes: {},
-  dayMeta: {}
+  dayMeta: {},
+  userPreferences: getDefaultUserPreferences()
 };
 
 const cloneState = (state: AppState) => JSON.parse(JSON.stringify(state));

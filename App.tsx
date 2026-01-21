@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences } from './types';
 import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
 import { auth } from './services/firebase';
 import { generateId } from './utils';
@@ -488,6 +488,13 @@ const App: React.FC = () => {
     }) : null);
   };
 
+  const handlePreferencesUpdate = (preferences: UserPreferences) => {
+    setState(prev => prev ? ({
+      ...prev,
+      userPreferences: preferences
+    }) : null);
+  };
+
   // --- BACKUP UTILS ---
   const handleExportBackup = () => {
     if (!state) return;
@@ -593,6 +600,7 @@ const App: React.FC = () => {
           onNoteAdd={handleNoteAdd}
           onNoteUpdate={handleNoteUpdate}
           onNavigate={handleNavigate}
+          onPreferencesUpdate={handlePreferencesUpdate}
         />;
       case Page.WEEKLY:
         return (

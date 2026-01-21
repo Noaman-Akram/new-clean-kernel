@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppState, TaskStatus, Category, Task, Page } from '../types';
+import { AppState, TaskStatus, Category, Task, Page, UserPreferences, DashboardWidget, QuickActionType } from '../types';
 import { getNextPrayer } from '../utils';
 import {
     Target,
@@ -24,8 +24,12 @@ import {
     Container,
     TrendingUp,
     TrendingDown,
-    Clock
+    Clock,
+    Settings,
+    Dumbbell,
+    LayoutGrid
 } from 'lucide-react';
+import DashboardSettings from './DashboardSettings';
 
 interface Props {
     state: AppState;
@@ -35,10 +39,13 @@ interface Props {
     onStartSession: (id: string) => void;
     activeTaskId: string | null;
     onNavigate?: (page: Page) => void;
+    onPreferencesUpdate?: (preferences: UserPreferences) => void;
 }
 
-const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPrayerToggle, onStartSession, activeTaskId, onNavigate }) => {
+const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPrayerToggle, onStartSession, activeTaskId, onNavigate, onPreferencesUpdate }) => {
     const [now, setNow] = useState(new Date());
+    const [showSettings, setShowSettings] = useState(false);
+
     useEffect(() => {
         const timer = setInterval(() => setNow(new Date()), 60000);
         return () => clearInterval(timer);
@@ -80,6 +87,287 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
     const completedToday = state.tasks.filter(t => t.status === TaskStatus.DONE && new Date(t.createdAt).getDate() === new Date().getDate());
     const progress = Math.min((state.metrics.revenue / state.metrics.target) * 100, 100);
 
+    // Page Icons Mapping
+    const PAGE_ICONS: Record<Page, React.ReactNode> = {
+        [Page.COCKPIT]: <LayoutGrid size={16} />,
+        [Page.WEEKLY]: <Layers size={16} />,
+        [Page.DAY]: <Calendar size={16} />,
+        [Page.MENTOR]: <MessageSquare size={16} />,
+        [Page.ACTIVITIES]: <MapPin size={16} />,
+        [Page.NETWORK]: <Users size={16} />,
+        [Page.MARKETING]: <Megaphone size={16} />,
+        [Page.LEDGER]: <CreditCard size={16} />,
+        [Page.SUPPLICATIONS]: <BookOpen size={16} />,
+        [Page.INTEL]: <StickyNote size={16} />,
+        [Page.ARSENAL]: <Container size={16} />,
+        [Page.GYM]: <Dumbbell size={16} />,
+        [Page.CRM]: <Users size={16} />,
+    };
+
+    // Quick Action Handler
+    const handleQuickAction = (actionType: QuickActionType) => {
+        if (!onNavigate) return;
+
+        switch (actionType) {
+            case 'TODAY_FOCUS':
+                onNavigate(Page.DAY);
+                // TODO: Focus task input when Day view supports it
+                break;
+            case 'QUICK_TASK':
+                onNavigate(Page.WEEKLY);
+                break;
+            case 'LOG_TRANSACTION':
+                onNavigate(Page.LEDGER);
+                break;
+            case 'NEW_CONTACT':
+                onNavigate(Page.CRM);
+                break;
+            case 'DRAFT_POST':
+                onNavigate(Page.MARKETING);
+                break;
+            case 'PRAYER_CHECK':
+                onNavigate(Page.SUPPLICATIONS);
+                break;
+            case 'START_WORKOUT':
+                onNavigate(Page.GYM);
+                break;
+            case 'LOG_ACTIVITY':
+                onNavigate(Page.ACTIVITIES);
+                break;
+            case 'QUICK_NOTE':
+                onNavigate(Page.INTEL);
+                break;
+            case 'ADD_RESOURCE':
+                onNavigate(Page.ARSENAL);
+                break;
+            case 'ASK_PROTOCOL':
+                onNavigate(Page.MENTOR);
+                break;
+        }
+    };
+
+    // Get enabled and sorted preferences
+    const preferences = state.userPreferences;
+    const enabledShortcuts = preferences.dashboard.quickNavShortcuts
+        .filter(s => s.enabled)
+        .sort((a, b) => a.order - b.order);
+    const enabledActions = preferences.dashboard.quickActions.filter(a => a.enabled);
+    const sortedWidgets = [...preferences.dashboard.widgets].sort((a, b) => a.order - b.order);
+
+    // Widget renderers
+    const renderWidget = (widgetId: DashboardWidget) => {
+        const widget = preferences.dashboard.widgets.find(w => w.id === widgetId);
+        if (!widget || !widget.enabled) return null;
+
+        switch (widgetId) {
+            case 'QUICK_ACTIONS':
+                return renderQuickActions();
+            case 'QUICK_NAV':
+                return renderQuickNav();
+            case 'INSIGHTS':
+                return renderInsights();
+            case 'KPIS':
+                return renderKPIs();
+            case 'FLIGHT_PLAN':
+                return renderFlightPlan();
+            default:
+                return null;
+        }
+    };
+
+    const renderQuickActions = () => {
+        if (enabledActions.length === 0) return null;
+        return (
+            <div key="quick-actions" className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 shrink-0">
+                {enabledActions.map(action => (
+                    <button
+                        key={action.id}
+                        onClick={() => handleQuickAction(action.type)}
+                        className="flex flex-col items-center justify-center gap-2 p-4 bg-zinc-900/50 border border-zinc-800 rounded-sm text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 hover:bg-zinc-900 transition-all group"
+                    >
+                        <div className="text-zinc-500 group-hover:text-emerald-400 transition-colors">
+                            {PAGE_ICONS[action.page]}
+                        </div>
+                        <span className="text-[10px]">{action.label}</span>
+                    </button>
+                ))}
+            </div>
+        );
+    };
+
+    const renderQuickNav = () => {
+        if (enabledShortcuts.length === 0 || !onNavigate) return null;
+
+        // Count BIG and SMALL items to determine grid layout
+        const bigCount = enabledShortcuts.filter(s => s.size === 'BIG').length;
+        const smallCount = enabledShortcuts.filter(s => s.size === 'SMALL').length;
+
+        return (
+            <div key="quick-nav" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 shrink-0">
+                {enabledShortcuts.map(shortcut => (
+                    <NavCard
+                        key={shortcut.id}
+                        icon={PAGE_ICONS[shortcut.page]}
+                        label={shortcut.label}
+                        size={shortcut.size}
+                        onClick={() => onNavigate(shortcut.page)}
+                    />
+                ))}
+            </div>
+        );
+    };
+
+    const renderInsights = () => (
+        <div key="insights" className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+            <InsightCard
+                icon={<Flame size={14} />}
+                label="High Priority"
+                value={insights.highPriorityTasks}
+                subtext="urgent tasks"
+                color="text-amber-400"
+            />
+            <InsightCard
+                icon={<Calendar size={14} />}
+                label="Today"
+                value={insights.scheduledToday}
+                subtext="scheduled"
+                color="text-emerald-400"
+            />
+            <InsightCard
+                icon={<Users size={14} />}
+                label="Contacts"
+                value={insights.recentContacts}
+                subtext="need followup"
+                color="text-blue-400"
+            />
+            <InsightCard
+                icon={<TrendingUp size={14} />}
+                label="Net Balance"
+                value={`$${insights.financials.net}`}
+                subtext="current"
+                color={insights.financials.net >= 0 ? "text-emerald-500" : "text-red-400"}
+            />
+        </div>
+    );
+
+    const renderKPIs = () => (
+        <div key="kpis" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+            {/* FINANCIAL GAP */}
+            <div className="bg-surface border border-border rounded-sm p-4 relative overflow-hidden">
+                <div className="flex justify-between items-start mb-3">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Target size={12} className="text-zinc-500" /> Gap
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-600">{progress.toFixed(1)}%</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-medium text-zinc-200 tracking-tight">${state.metrics.revenue}</span>
+                    <span className="text-xs text-zinc-500">/ ${state.metrics.target}</span>
+                </div>
+                <div className="mt-3 w-full h-0.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                </div>
+            </div>
+
+            {/* OUTREACH */}
+            <div className="bg-surface border border-border rounded-sm p-4">
+                <div className="flex justify-between items-start mb-3">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <ArrowUpRight size={12} className="text-zinc-500" /> Outreach
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-500">{state.metrics.outreachCount}/5</span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-medium text-zinc-200">{state.metrics.outreachCount}</span>
+                    <span className="text-xs text-zinc-500">msgs</span>
+                </div>
+            </div>
+
+            {/* PRAYER */}
+            <div className="bg-surface border border-border rounded-sm p-4 relative">
+                <div className="flex justify-between items-start mb-2">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <Zap size={12} className="text-zinc-500" /> Next
+                    </div>
+                    {isPrayerDone && <CheckCircle2 size={12} className="text-emerald-500" />}
+                </div>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <div className="text-xl font-medium text-zinc-200">{nextPrayer.name}</div>
+                        <div className="text-xs text-zinc-500 font-mono">{nextPrayer.time}</div>
+                    </div>
+                    {!isPrayerDone && (
+                        <button
+                            onClick={() => onPrayerToggle(prayerKey)}
+                            className="px-3 py-1 bg-zinc-900 text-zinc-300 border border-zinc-700 rounded-sm text-[10px] font-mono hover:bg-emerald-900/30 hover:text-emerald-500 hover:border-emerald-800 transition-all"
+                        >
+                            MARK
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* VELOCITY */}
+            <div className="bg-surface border border-border rounded-sm p-4">
+                <div className="flex justify-between items-start mb-3">
+                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
+                        <CheckCircle2 size={12} className="text-zinc-500" /> Velocity
+                    </div>
+                </div>
+                <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-medium text-zinc-200">{completedToday.length}</span>
+                    <span className="text-xs text-zinc-500">tasks</span>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderFlightPlan = () => (
+        <div key="flight-plan" className="flex-1 flex flex-col min-h-0 bg-surface/30 border border-border rounded-sm overflow-hidden backdrop-blur-sm">
+            <div className="p-5 border-b border-border bg-surface/80">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                        <Flame size={18} className={overdueCount > 0 ? "text-red-500" : "text-zinc-100"} fill={overdueCount > 0 ? "currentColor" : "none"} />
+                        <h2 className="text-sm font-medium text-zinc-100 tracking-tight">EXECUTION PROTOCOL</h2>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {overdueCount > 0 && (
+                            <div className="px-2 py-0.5 rounded-sm bg-red-950/50 border border-red-900 text-[10px] font-mono text-red-400 flex items-center gap-1">
+                                <AlertTriangle size={10} />
+                                {overdueCount} OVERDUE
+                            </div>
+                        )}
+                        <div className="text-[10px] font-mono text-zinc-500">
+                            {sortedTasks.length} PENDING
+                        </div>
+                    </div>
+                </div>
+                <QuickInput onAdd={onTaskAdd} />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+                {sortedTasks.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-2 opacity-50">
+                        <CheckCircle2 size={24} />
+                        <span className="text-xs font-mono">NO IMMEDIATE DIRECTIVES</span>
+                    </div>
+                ) : (
+                    <div className="space-y-1">
+                        {sortedTasks.map(task => (
+                            <UnifiedTaskRow
+                                key={task.id}
+                                task={task}
+                                onUpdate={onTaskUpdate}
+                                onStartSession={onStartSession}
+                                isActive={task.id === activeTaskId}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
     // Smart Insights
     const insights = useMemo(() => {
         const totalTasks = state.tasks.filter(t => t.status !== TaskStatus.DONE).length;
@@ -110,188 +398,59 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
     }, [state.tasks, state.clients, state.transactions]);
 
     return (
-        <div className="h-full overflow-y-auto p-6 animate-fade-in bg-background">
-            <div className="max-w-[1200px] mx-auto flex flex-col gap-8 h-full">
+        <>
+            <div className="h-full overflow-y-auto p-4 sm:p-6 animate-fade-in bg-background relative">
+                <div className="max-w-[1200px] mx-auto flex flex-col gap-6 sm:gap-8 h-full">
 
-                {/* --- QUICK NAVIGATION --- */}
-                {onNavigate && (
-                    <div className="grid grid-cols-3 md:grid-cols-5 gap-3 shrink-0">
-                        <NavCard icon={<Layers size={16} />} label="Weekly" onClick={() => onNavigate(Page.WEEKLY)} />
-                        <NavCard icon={<MessageSquare size={16} />} label="Protocol" onClick={() => onNavigate(Page.MENTOR)} />
-                        <NavCard icon={<MapPin size={16} />} label="Activities" onClick={() => onNavigate(Page.ACTIVITIES)} />
-                        <NavCard icon={<Users size={16} />} label="Network" onClick={() => onNavigate(Page.NETWORK)} />
-                        <NavCard icon={<Megaphone size={16} />} label="Marketing" onClick={() => onNavigate(Page.MARKETING)} />
-                        <NavCard icon={<CreditCard size={16} />} label="Ledger" onClick={() => onNavigate(Page.LEDGER)} />
-                        <NavCard icon={<BookOpen size={16} />} label="Sanctuary" onClick={() => onNavigate(Page.SUPPLICATIONS)} />
-                        <NavCard icon={<StickyNote size={16} />} label="Intel" onClick={() => onNavigate(Page.INTEL)} />
-                        <NavCard icon={<Container size={16} />} label="Arsenal" onClick={() => onNavigate(Page.ARSENAL)} />
-                    </div>
-                )}
+                    {/* Settings Button */}
+                    <button
+                        onClick={() => setShowSettings(true)}
+                        className="fixed bottom-24 md:bottom-8 right-4 md:right-8 p-3 bg-surface border border-border rounded-sm text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 transition-all shadow-xl z-40"
+                        title="Dashboard Settings"
+                    >
+                        <Settings size={20} />
+                    </button>
 
-                {/* --- INSIGHTS STRIP --- */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
-                    <InsightCard
-                        icon={<Flame size={14} />}
-                        label="High Priority"
-                        value={insights.highPriorityTasks}
-                        subtext="urgent tasks"
-                        color="text-amber-400"
-                    />
-                    <InsightCard
-                        icon={<Calendar size={14} />}
-                        label="Today"
-                        value={insights.scheduledToday}
-                        subtext="scheduled"
-                        color="text-emerald-400"
-                    />
-                    <InsightCard
-                        icon={<Users size={14} />}
-                        label="Contacts"
-                        value={insights.recentContacts}
-                        subtext="need followup"
-                        color="text-blue-400"
-                    />
-                    <InsightCard
-                        icon={<TrendingUp size={14} />}
-                        label="Net Balance"
-                        value={`$${insights.financials.net}`}
-                        subtext="current"
-                        color={insights.financials.net >= 0 ? "text-emerald-500" : "text-red-400"}
-                    />
+                    {/* Dynamic Widgets Based on Preferences */}
+                    {sortedWidgets.map(widget => widget.enabled && renderWidget(widget.id))}
+
                 </div>
-
-                {/* --- TOP KPI STRIP --- */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
-
-                    {/* FINANCIAL GAP */}
-                    <div className="bg-surface border border-border rounded-md p-4 relative overflow-hidden">
-                        <div className="flex justify-between items-start mb-3">
-                            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                                <Target size={12} className="text-zinc-500" /> Gap
-                            </div>
-                            <span className="text-[10px] font-mono text-zinc-600">{progress.toFixed(1)}%</span>
-                        </div>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-medium text-zinc-200 tracking-tight">${state.metrics.revenue}</span>
-                            <span className="text-xs text-zinc-500">/ ${state.metrics.target}</span>
-                        </div>
-                        <div className="mt-3 w-full h-0.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                        </div>
-                    </div>
-
-                    {/* OUTREACH */}
-                    <div className="bg-surface border border-border rounded-md p-4">
-                        <div className="flex justify-between items-start mb-3">
-                            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                                <ArrowUpRight size={12} className="text-zinc-500" /> Outreach
-                            </div>
-                            <span className="text-[10px] font-mono text-zinc-500">{state.metrics.outreachCount}/5</span>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-medium text-zinc-200">{state.metrics.outreachCount}</span>
-                            <span className="text-xs text-zinc-500">msgs</span>
-                        </div>
-                    </div>
-
-                    {/* PRAYER */}
-                    <div className="bg-surface border border-border rounded-md p-4 relative">
-                        <div className="flex justify-between items-start mb-2">
-                            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                                <Zap size={12} className="text-zinc-500" /> Next
-                            </div>
-                            {isPrayerDone && <CheckCircle2 size={12} className="text-emerald-500" />}
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-xl font-medium text-zinc-200">{nextPrayer.name}</div>
-                                <div className="text-xs text-zinc-500 font-mono">{nextPrayer.time}</div>
-                            </div>
-                            {!isPrayerDone && (
-                                <button
-                                    onClick={() => onPrayerToggle(prayerKey)}
-                                    className="px-3 py-1 bg-zinc-900 text-zinc-300 border border-zinc-700 rounded-sm text-[10px] font-mono hover:bg-emerald-900/30 hover:text-emerald-500 hover:border-emerald-800 transition-all"
-                                >
-                                    MARK
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* VELOCITY */}
-                    <div className="bg-surface border border-border rounded-md p-4">
-                        <div className="flex justify-between items-start mb-3">
-                            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-                                <CheckCircle2 size={12} className="text-zinc-500" /> Velocity
-                            </div>
-                        </div>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-medium text-zinc-200">{completedToday.length}</span>
-                            <span className="text-xs text-zinc-500">tasks</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* --- FLIGHT PLAN --- */}
-                <div className="flex-1 flex flex-col min-h-0 bg-surface/30 border border-border rounded-lg overflow-hidden backdrop-blur-sm">
-
-                    <div className="p-5 border-b border-border bg-surface/80">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                                <Flame size={18} className={overdueCount > 0 ? "text-red-500" : "text-zinc-100"} fill={overdueCount > 0 ? "currentColor" : "none"} />
-                                <h2 className="text-sm font-medium text-zinc-100 tracking-tight">EXECUTION PROTOCOL</h2>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                {overdueCount > 0 && (
-                                    <div className="px-2 py-0.5 rounded bg-red-950/50 border border-red-900 text-[10px] font-mono text-red-400 flex items-center gap-1">
-                                        <AlertTriangle size={10} />
-                                        {overdueCount} OVERDUE
-                                    </div>
-                                )}
-                                <div className="text-[10px] font-mono text-zinc-500">
-                                    {sortedTasks.length} PENDING
-                                </div>
-                            </div>
-                        </div>
-                        <QuickInput onAdd={onTaskAdd} />
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-2">
-                        {sortedTasks.length === 0 ? (
-                            <div className="h-full flex flex-col items-center justify-center text-zinc-600 gap-2 opacity-50">
-                                <CheckCircle2 size={24} />
-                                <span className="text-xs font-mono">NO IMMEDIATE DIRECTIVES</span>
-                            </div>
-                        ) : (
-                            <div className="space-y-1">
-                                {sortedTasks.map(task => (
-                                    <UnifiedTaskRow
-                                        key={task.id}
-                                        task={task}
-                                        onUpdate={onTaskUpdate}
-                                        onStartSession={onStartSession}
-                                        isActive={task.id === activeTaskId}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
             </div>
-        </div>
+
+            {/* Settings Panel */}
+            {showSettings && onPreferencesUpdate && (
+                <DashboardSettings
+                    preferences={preferences}
+                    onUpdate={onPreferencesUpdate}
+                    onClose={() => setShowSettings(false)}
+                />
+            )}
+        </>
     );
 };
 
-const NavCard: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void }> = ({ icon, label, onClick }) => (
-    <button
-        onClick={onClick}
-        className="flex flex-col items-center justify-center gap-2 p-4 bg-surface/50 border border-border rounded-lg text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 hover:bg-surface transition-all group"
-    >
-        <div className="text-zinc-500 group-hover:text-emerald-400 transition-colors">{icon}</div>
-        <span className="text-[10px]">{label}</span>
-    </button>
-);
+const NavCard: React.FC<{
+    icon: React.ReactNode;
+    label: string;
+    size?: 'SMALL' | 'BIG';
+    onClick: () => void;
+}> = ({ icon, label, size = 'SMALL', onClick }) => {
+    const isBig = size === 'BIG';
+    return (
+        <button
+            onClick={onClick}
+            className={`
+                flex flex-col items-center justify-center gap-2 p-4 bg-surface/50 border border-border rounded-sm text-xs font-mono text-zinc-400 hover:text-emerald-400 hover:border-emerald-900/30 hover:bg-surface transition-all group
+                ${isBig ? 'col-span-2 row-span-1' : ''}
+            `}
+        >
+            <div className={`text-zinc-500 group-hover:text-emerald-400 transition-colors ${isBig ? 'scale-125' : ''}`}>
+                {icon}
+            </div>
+            <span className={isBig ? 'text-xs' : 'text-[10px]'}>{label}</span>
+        </button>
+    );
+};
 
 const InsightCard: React.FC<{
     icon: React.ReactNode;

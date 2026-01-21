@@ -316,6 +316,63 @@ export interface DayMeta {
   focus?: string;
 }
 
+// Dashboard Customization Types
+export type NavCardSize = 'SMALL' | 'BIG';
+
+export interface QuickNavShortcut {
+  id: string;
+  page: Page;
+  label: string;
+  size: NavCardSize;
+  order: number;
+  enabled: boolean;
+}
+
+export type QuickActionType =
+  | 'TODAY_FOCUS' // Opens Day view with task input focused
+  | 'QUICK_TASK' // Opens task input in planner
+  | 'LOG_TRANSACTION' // Opens ledger with transaction form
+  | 'NEW_CONTACT' // Opens CRM with new contact form
+  | 'DRAFT_POST' // Opens marketing with post composer
+  | 'PRAYER_CHECK' // Opens sanctuary and focuses prayer
+  | 'START_WORKOUT' // Opens gym with quick start
+  | 'LOG_ACTIVITY' // Opens activities with new activity form
+  | 'QUICK_NOTE' // Opens intel with note composer
+  | 'ADD_RESOURCE' // Opens arsenal with resource form
+  | 'ASK_PROTOCOL'; // Opens protocol chat
+
+export interface QuickAction {
+  id: string;
+  type: QuickActionType;
+  label: string;
+  page: Page;
+  icon: string; // Icon name reference
+  enabled: boolean;
+}
+
+export type DashboardWidget = 'QUICK_NAV' | 'INSIGHTS' | 'KPIS' | 'FLIGHT_PLAN' | 'QUICK_ACTIONS';
+
+export interface DashboardWidgetConfig {
+  id: DashboardWidget;
+  enabled: boolean;
+  order: number;
+}
+
+export interface UserPreferences {
+  dashboard: {
+    quickNavShortcuts: QuickNavShortcut[];
+    quickActions: QuickAction[];
+    widgets: DashboardWidgetConfig[];
+  };
+  appearance: {
+    accentColor?: string; // For future theme customization
+    density?: 'COMPACT' | 'NORMAL' | 'SPACIOUS';
+  };
+  dateFormat?: 'US' | 'EU' | 'ISO'; // MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
+  timeFormat?: '12h' | '24h';
+  currency?: 'USD' | 'EGP' | 'EUR' | 'GBP';
+}
+
 export interface AppState {
   tasks: Task[];
   activities: Activity[];
@@ -337,4 +394,5 @@ export interface AppState {
   workoutSessions: WorkoutSession[];
   workoutTemplates: WorkoutTemplate[];
   exercises: Exercise[];
+  userPreferences: UserPreferences;
 }

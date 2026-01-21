@@ -1007,6 +1007,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               </button>
             </div>
             {renderDockContent()}
+          </div>
+        )}
       </div>
 
       {/* Planner */}

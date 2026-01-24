@@ -3,15 +3,13 @@ import { AppState, Client, CRMStage, CRMNote, EntityContext } from '../types';
 import NetworkView from './NetworkView';
 import { generateId } from '../utils';
 import {
-    LayoutDashboard,
-    Kanban as KanbanIcon,
+    LayoutGrid,
+    Briefcase,
     Users,
     Settings,
     Plus,
     Search,
-    Filter,
     MoreHorizontal,
-    Briefcase,
     ChevronRight,
     Phone,
     Mail,
@@ -19,7 +17,7 @@ import {
     DollarSign,
     Calendar,
     X,
-    CheckSquare,
+    CheckCircle2,
     Pencil,
     Trash2,
     Building2,
@@ -30,14 +28,16 @@ import {
     PieChart,
     ListTodo,
     CalendarDays,
-    User
+    User,
+    ArrowUpRight,
+    Zap
 } from 'lucide-react';
 
 interface Props {
     state: AppState;
     onUpdate: (id: string, updates: Partial<Client>) => void;
     onDelete: (id: string) => void;
-    onAdd: (client: Client) => void; // Ensure this is available for conversion to create new entities
+    onAdd: (client: Client) => void;
 }
 
 type CRMViewMode = 'DASHBOARD' | 'LEADS' | 'DEALS' | 'CONTACTS' | 'ACCOUNTS' | 'TASKS' | 'MEETINGS' | 'REPORTS' | 'ANALYTICS' | 'TEAM' | 'PARTNERS';
@@ -45,14 +45,13 @@ type CRMViewMode = 'DASHBOARD' | 'LEADS' | 'DEALS' | 'CONTACTS' | 'ACCOUNTS' | '
 const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
     const [viewMode, setViewMode] = useState<CRMViewMode>('DASHBOARD');
     const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [pipelineFilter, setPipelineFilter] = useState<'ALL' | 'DEV' | 'RETAINER'>('ALL'); // Pipeline Toggle State
+    const [pipelineFilter, setPipelineFilter] = useState<'ALL' | 'DEV' | 'RETAINER'>('ALL');
     const [isCreating, setIsCreating] = useState(false);
     const [context, setContext] = useState<EntityContext>('NEMO');
     const [openEntityId, setOpenEntityId] = useState<string | null>(null);
 
     const allClients = state.clients.filter(c => c.context === context);
 
-    // Filter Logic
     const leads = allClients.filter(c => c.type === 'CLIENT' && c.status === 'LEAD');
     const clientsOnly = allClients.filter(c => c.type === 'CLIENT' && c.status !== 'LEAD');
     const team = allClients.filter(c => c.type === 'TEAM');
@@ -67,30 +66,26 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
         c.role === 'Deal'
     );
 
-    // Filter deals based on pipeline
     const filteredDeals = pipelineFilter === 'ALL'
         ? deals
         : deals.filter(d => d.tags.includes(pipelineFilter));
 
-    // Conversion Handler
     const handleConvert = (leadId: string, dealName: string, dealValue: number, pipeline: 'DEV' | 'RETAINER') => {
         const lead = state.clients.find(c => c.id === leadId);
         if (!lead) return;
 
-        // 1. Update Lead -> Contact
         onUpdate(leadId, {
             status: 'ACTIVE',
-            role: 'Contact', // Persist as the contact person
+            role: 'Contact',
             type: 'CLIENT'
         });
 
-        // 2. Create Account (Company) - avoid dupes in real app, simple check here
         const existingAccount = accounts.find(a => a.name === lead.company);
         if (!existingAccount && lead.company) {
             onAdd({
                 id: generateId(),
                 name: lead.company,
-                company: lead.company, // Self-ref
+                company: lead.company,
                 role: 'Account',
                 context: 'NEMO',
                 type: 'CLIENT',
@@ -104,7 +99,6 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
             });
         }
 
-        // 3. Create Deal
         onAdd({
             id: generateId(),
             name: dealName || `${lead.company} Deal`,
@@ -115,16 +109,15 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
             status: 'ACTIVE',
             stage: CRMStage.DISCOVERY,
             expectedValue: dealValue,
-            tags: [pipeline], // Tag for pipeline filtering
+            tags: [pipeline],
             rate: 0, rateType: 'FIXED', currency: 'USD',
             lastInteraction: Date.now(),
             nextAction: 'Discovery Call'
         });
 
-        setOpenEntityId(null); // Close canvas
+        setOpenEntityId(null);
     };
 
-    // Derived Accounts (Unique Companies)
     const accounts = Array.from(new Set(allClients.map(c => c.company).filter(c => c && c !== 'N/A')))
         .map((company, index) => {
             const relatedClients = allClients.filter(c => c.company === company);
@@ -135,56 +128,51 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                 website: relatedClients[0]?.website || '',
                 contactsCount: relatedClients.length,
                 lastInteraction: Math.max(...relatedClients.map(c => c.lastInteraction)),
-                company: 'Self' // Table visual hack
+                company: 'Self'
             };
         });
 
     return (
-        <div className="h-full flex bg-background text-zinc-100 overflow-hidden font-sans">
+        <div className="h-full flex bg-background text-zinc-100 overflow-hidden">
 
-            {/* SIDEBAR - Zoho Style (Collapsible, darker/distinct background) */}
+            {/* SIDEBAR */}
             <div className={`
-        hidden md:flex
-        ${sidebarOpen ? 'w-60' : 'w-16'} 
-        bg-zinc-950 border-r border-zinc-800 transition-all duration-300 flex-col shrink-0 z-20
-      `}>
-                <div className="h-16 flex items-center justify-center border-b border-zinc-800/50 relative overflow-hidden group">
-                    {/* CONTEXT SWITCHER HEADER */}
+                hidden md:flex
+                ${sidebarOpen ? 'w-60' : 'w-16'}
+                bg-surface border-r border-border transition-all duration-300 flex-col shrink-0 z-20
+            `}>
+                <div className="h-12 flex items-center justify-center border-b border-border">
                     <button
                         onClick={() => setContext(context === 'NEMO' ? 'PERSONAL' : 'NEMO')}
-                        className={`transition-all duration-300 ${sidebarOpen ? 'w-full px-6' : 'w-full px-0 flex justify-center'} flex items-center gap-3 hover:bg-zinc-900/50 py-2 rounded-lg mx-2`}
+                        className={`transition-all ${sidebarOpen ? 'w-full px-4' : 'w-full px-0 flex justify-center'} flex items-center gap-3 hover:bg-zinc-900/50 py-2 h-full`}
                     >
                         {sidebarOpen ? (
                             <div className="flex items-center gap-3">
-                                {context === 'NEMO' ? <NemoLogo size={28} /> : <div className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center"><User size={14} /></div>}
+                                {context === 'NEMO' ? <NemoLogo size={24} /> : <div className="w-6 h-6 bg-zinc-800 rounded-sm flex items-center justify-center"><User size={14} /></div>}
                                 <div className="flex flex-col items-start">
-                                    <span className="font-bold text-lg tracking-tighter text-white leading-none">{context === 'NEMO' ? 'NOEMAN' : 'PERSONAL'}</span>
-                                    <span className="text-[10px] text-emerald-400 font-mono tracking-widest uppercase">{context === 'NEMO' ? 'Kernel' : 'Network'}</span>
+                                    <span className="font-bold text-sm text-zinc-100 leading-none">{context === 'NEMO' ? 'NOEMAN' : 'PERSONAL'}</span>
+                                    <span className="text-[9px] text-emerald-400 font-mono tracking-widest uppercase">{context === 'NEMO' ? 'CRM' : 'Network'}</span>
                                 </div>
                             </div>
                         ) : (
-                            context === 'NEMO' ? <NemoLogo size={32} /> : <User size={24} className="text-zinc-400" />
+                            context === 'NEMO' ? <NemoLogo size={28} /> : <User size={20} className="text-zinc-400" />
                         )}
                     </button>
                 </div>
 
-
-
-
-                {/* Navigation Items */}
-                <div className="flex-1 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 py-2 overflow-y-auto">
                     {context === 'NEMO' ? (
                         <>
                             <SidebarItem
-                                icon={<LayoutDashboard size={18} />}
+                                icon={<LayoutGrid size={16} />}
                                 label="Dashboard"
                                 active={viewMode === 'DASHBOARD'}
                                 expanded={sidebarOpen}
                                 onClick={() => setViewMode('DASHBOARD')}
                             />
-                            <div className="my-2 border-t border-zinc-800/50 mx-4" />
+                            <div className="my-2 border-t border-zinc-900/50 mx-4" />
                             <SidebarItem
-                                icon={<Target size={18} />}
+                                icon={<Target size={16} />}
                                 label="Leads"
                                 active={viewMode === 'LEADS'}
                                 expanded={sidebarOpen}
@@ -192,7 +180,7 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                                 count={leads.length}
                             />
                             <SidebarItem
-                                icon={<Users size={18} />}
+                                icon={<Users size={16} />}
                                 label="Contacts"
                                 active={viewMode === 'CONTACTS'}
                                 expanded={sidebarOpen}
@@ -200,53 +188,53 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                                 count={clientsOnly.length}
                             />
                             <SidebarItem
-                                icon={<Building2 size={18} />}
+                                icon={<Building2 size={16} />}
                                 label="Accounts"
                                 active={viewMode === 'ACCOUNTS'}
                                 expanded={sidebarOpen}
                                 onClick={() => setViewMode('ACCOUNTS')}
                             />
-                            <div className="my-2 border-t border-zinc-800/50 mx-4" />
+                            <div className="my-2 border-t border-zinc-900/50 mx-4" />
                             <SidebarItem
-                                icon={<Briefcase size={18} />}
-                                label="Deals Pipeline"
+                                icon={<Briefcase size={16} />}
+                                label="Deals"
                                 active={viewMode === 'DEALS'}
                                 expanded={sidebarOpen}
                                 onClick={() => setViewMode('DEALS')}
                                 count={deals.length}
                             />
                             <SidebarItem
-                                icon={<ListTodo size={18} />}
+                                icon={<ListTodo size={16} />}
                                 label="Tasks"
                                 active={viewMode === 'TASKS'}
                                 expanded={sidebarOpen}
                                 onClick={() => setViewMode('TASKS')}
                             />
                             <SidebarItem
-                                icon={<CalendarDays size={18} />}
+                                icon={<CalendarDays size={16} />}
                                 label="Meetings"
                                 active={viewMode === 'MEETINGS'}
                                 expanded={sidebarOpen}
                                 onClick={() => setViewMode('MEETINGS')}
                             />
-                            <div className="my-2 border-t border-zinc-800/50 mx-4" />
+                            <div className="my-2 border-t border-zinc-900/50 mx-4" />
                             <SidebarItem
-                                icon={<BarChart3 size={18} />}
+                                icon={<BarChart3 size={16} />}
                                 label="Reports"
                                 active={viewMode === 'REPORTS'}
                                 expanded={sidebarOpen}
                                 onClick={() => setViewMode('REPORTS')}
                             />
                             <SidebarItem
-                                icon={<PieChart size={18} />}
+                                icon={<PieChart size={16} />}
                                 label="Analytics"
                                 active={viewMode === 'ANALYTICS'}
                                 expanded={sidebarOpen}
                                 onClick={() => setViewMode('ANALYTICS')}
                             />
-                            <div className="my-2 border-t border-zinc-800/50 mx-4" />
+                            <div className="my-2 border-t border-zinc-900/50 mx-4" />
                             <SidebarItem
-                                icon={<UserCog size={18} />}
+                                icon={<UserCog size={16} />}
                                 label="Team"
                                 active={viewMode === 'TEAM'}
                                 expanded={sidebarOpen}
@@ -254,7 +242,7 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                                 count={team.length}
                             />
                             <SidebarItem
-                                icon={<Handshake size={18} />}
+                                icon={<Handshake size={16} />}
                                 label="Partners"
                                 active={viewMode === 'PARTNERS'}
                                 expanded={sidebarOpen}
@@ -264,35 +252,32 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                         </>
                     ) : (
                         <div className="px-4 text-xs text-zinc-500 font-mono mt-4">
-                            Personal Network active. <br /> Switch to Agency to view modules.
+                            Personal Network active. Switch to Agency to view modules.
                         </div>
                     )}
-
                 </div>
 
-                {/* Bottom Actions */}
-                <div className="p-2 border-t border-zinc-800/50">
+                <div className="p-2 border-t border-border">
                     <button
                         onClick={() => setSidebarOpen(!sidebarOpen)}
-                        className="w-full flex items-center justify-center p-2 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 rounded transition-colors"
+                        className="w-full flex items-center justify-center p-2 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 rounded-sm transition-colors"
                     >
                         {sidebarOpen ? <ChevronRight size={16} className="rotate-180" /> : <ChevronRight size={16} />}
                     </button>
                 </div>
             </div>
 
-            {/* MAIN CONTENT AREA */}
-            <div className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-900/30 relative">
+            {/* MAIN CONTENT */}
+            <div className="flex-1 flex flex-col h-full overflow-hidden relative">
 
-                {/* Top Bar - "Module Header" */}
-                <header className="h-14 bg-background/95 backdrop-blur border-b border-zinc-800 flex items-center justify-between px-6 shrink-0 z-10">
+                {/* Top Bar */}
+                <header className="h-12 bg-surface border-b border-border flex items-center justify-between px-4 md:px-6 shrink-0 z-10">
                     <div className="flex items-center gap-4">
-                        {/* Mobile Module Switcher */}
                         <div className="md:hidden">
                             <select
                                 value={viewMode}
                                 onChange={(e) => setViewMode(e.target.value as CRMViewMode)}
-                                className="bg-zinc-900 border border-zinc-800 text-zinc-200 text-sm rounded px-2 py-1 outline-none"
+                                className="bg-zinc-900 border border-zinc-800 text-zinc-200 text-xs rounded-sm px-2 py-1 outline-none font-mono"
                             >
                                 <option value="DASHBOARD">Dashboard</option>
                                 <option value="LEADS">Leads</option>
@@ -300,36 +285,35 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                                 <option value="CONTACTS">Contacts</option>
                             </select>
                         </div>
-                        <h1 className="hidden md:block text-lg font-semibold text-zinc-100 uppercase tracking-wide">
+                        <h1 className="hidden md:block text-sm font-mono text-zinc-300 uppercase tracking-wider">
                             {viewMode}
                         </h1>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        {/* Global Search */}
+                    <div className="flex items-center gap-2">
                         <div className="relative group hidden sm:block">
-                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" />
+                            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
                             <input
-                                className="bg-zinc-900 border border-zinc-800 rounded-full pl-9 pr-4 py-1.5 text-xs text-zinc-300 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 outline-none w-40 md:w-64 transition-all"
-                                placeholder="Search CRM..."
+                                className="bg-zinc-900 border border-zinc-800 rounded-sm pl-8 pr-3 py-1.5 text-xs text-zinc-300 focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 outline-none w-32 md:w-48 transition-all"
+                                placeholder="Search..."
                             />
                         </div>
 
-                        <button className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors hidden sm:block">
-                            <Settings size={18} />
+                        <button className="hidden sm:block p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 rounded-sm transition-colors">
+                            <Settings size={16} />
                         </button>
                         <button
-                            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-full text-xs font-bold transition-all shadow-lg shadow-emerald-900/20"
+                            className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-black px-3 py-1.5 rounded-sm text-xs font-bold transition-all"
                             onClick={() => setIsCreating(true)}
                         >
                             <Plus size={14} />
-                            <span className="hidden sm:inline">Create New</span>
+                            <span className="hidden sm:inline">New</span>
                         </button>
                     </div>
                 </header>
 
-                {/* Content Body */}
-                <main className="flex-1 overflow-hidden p-0 relative">
+                {/* Content */}
+                <main className="flex-1 overflow-hidden p-0 relative bg-background">
 
                     {context === 'PERSONAL' ? (
                         <NetworkView state={state} onAdd={onAdd} onUpdate={onUpdate} onDelete={onDelete} />
@@ -389,38 +373,20 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                                 />
                             )}
 
-                            {viewMode === 'TEAM' && (
-                                <ListModule
-                                    data={team}
-                                    columns={['Name', 'Role', 'Focus Area', 'Status']}
-                                    onRowClick={(id) => console.log('Open team member', id)}
-                                />
-                            )}
-
-                            {viewMode === 'PARTNERS' && (
-                                <ListModule
-                                    data={partners}
-                                    columns={['Name', 'Company', 'Type', 'Status']}
-                                    onRowClick={(id) => console.log('Open partner', id)}
-                                />
-                            )}
-
-                            {/* Placeholders for new modules */}
-                            {(viewMode === 'ACCOUNTS' || viewMode === 'TASKS' || viewMode === 'MEETINGS' || viewMode === 'REPORTS' || viewMode === 'ANALYTICS') && (
+                            {(viewMode === 'TASKS' || viewMode === 'MEETINGS' || viewMode === 'REPORTS' || viewMode === 'ANALYTICS') && (
                                 <div className="flex flex-col items-center justify-center h-full text-zinc-500">
-                                    <div className="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mb-4">
-                                        <Settings size={24} className="animate-spin-slow" />
+                                    <div className="w-12 h-12 bg-zinc-900 rounded-sm flex items-center justify-center mb-3">
+                                        <Settings size={20} />
                                     </div>
-                                    <h3 className="text-lg font-bold text-zinc-300">Module Under Construction</h3>
-                                    <p className="text-xs max-w-xs text-center mt-2">The {viewMode.toLowerCase()} module is currently being implemented to match Zoho CRM specifications.</p>
+                                    <h3 className="text-sm font-mono text-zinc-400 uppercase tracking-wider">Module In Progress</h3>
+                                    <p className="text-xs max-w-xs text-center mt-2 text-zinc-600">The {viewMode.toLowerCase()} module is being implemented.</p>
                                 </div>
                             )}
-
                         </>
                     )}
                 </main>
 
-                {/* CANVAS DETAIL OVERLAY */}
+                {/* Detail Canvas */}
                 {openEntityId && (
                     <CRMDetailCanvas
                         entityId={openEntityId}
@@ -432,13 +398,13 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                     />
                 )}
 
-                {/* CREATE MODAL */}
+                {/* Create Modal */}
                 {isCreating && (
-                    <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-950/50">
-                                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Create New Record</h2>
-                                <button onClick={() => setIsCreating(false)} className="text-zinc-500 hover:text-white"><X size={18} /></button>
+                    <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-surface border border-border rounded-sm shadow-2xl w-full max-w-lg overflow-hidden">
+                            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                                <h2 className="text-xs font-mono text-zinc-300 uppercase tracking-wider">Create Record</h2>
+                                <button onClick={() => setIsCreating(false)} className="text-zinc-500 hover:text-zinc-200"><X size={16} /></button>
                             </div>
                             <div className="p-6">
                                 <CreateForm
@@ -455,7 +421,7 @@ const CRMView: React.FC<Props> = ({ state, onAdd, onUpdate, onDelete }) => {
                 )}
 
             </div>
-        </div >
+        </div>
     );
 };
 
@@ -465,8 +431,6 @@ const NemoLogo = ({ size = 32 }: { size?: number }) => (
         <path d="M22 4H28V10H22V4Z" fill="currentColor" className="text-zinc-100" />
     </svg>
 );
-
-// --- SUB-COMPONENTS (Will potentially move to separate files if they grow) ---
 
 const SidebarItem = ({
     icon,
@@ -487,12 +451,12 @@ const SidebarItem = ({
         <button
             onClick={onClick}
             className={`
-        w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all border-l-2
-        ${active
+                w-full flex items-center gap-3 px-3 py-2 text-xs font-medium transition-all border-l-2
+                ${active
                     ? 'bg-emerald-950/20 text-emerald-400 border-emerald-500'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border-transparent'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 border-transparent'
                 }
-      `}
+            `}
             title={!expanded ? label : undefined}
         >
             <span className="shrink-0">{icon}</span>
@@ -500,7 +464,7 @@ const SidebarItem = ({
                 <div className="flex-1 flex items-center justify-between overflow-hidden">
                     <span className="truncate">{label}</span>
                     {count !== undefined && (
-                        <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                        <span className="text-[9px] bg-zinc-900 text-zinc-500 px-1.5 py-0.5 rounded-sm font-mono">
                             {count}
                         </span>
                     )}
@@ -511,30 +475,28 @@ const SidebarItem = ({
 };
 
 const DashboardModule = ({ state, leads, deals }: { state: AppState, leads: Client[], deals: Client[] }) => {
-    // Calculate specific metrics
     const totalPipelineValue = deals.reduce((acc, deal) => acc + (deal.expectedValue || 0), 0);
 
     return (
-        <div className="p-6 h-full overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <MetricCard title="Total Leads" value={leads.length} change="+2 this week" color="blue" />
-                <MetricCard title="Open Deals" value={deals.length} change="ACTIVE" color="emerald" />
-                <MetricCard title="Pipeline Value" value={`$${totalPipelineValue.toLocaleString()}`} change="Est. Revenue" color="amber" />
-                <MetricCard title="Win Rate" value="24%" change="-2% vs last mo" color="rose" />
+        <div className="p-4 md:p-6 h-full overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <MetricCard title="Leads" value={leads.length} change="+2 this week" icon={<Target size={14} />} />
+                <MetricCard title="Open Deals" value={deals.length} change="Active" icon={<Briefcase size={14} />} />
+                <MetricCard title="Pipeline" value={`$${totalPipelineValue.toLocaleString()}`} change="Est. Revenue" icon={<DollarSign size={14} />} />
+                <MetricCard title="Win Rate" value="24%" change="-2% vs last mo" icon={<ArrowUpRight size={14} />} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[400px]">
-                {/* Placeholder Charts */}
-                <div className="bg-surface border border-zinc-800 rounded-lg p-4 flex flex-col">
-                    <h3 className="text-sm font-semibold text-zinc-400 mb-4">Lead Sources</h3>
-                    <div className="flex-1 flex items-center justify-center bg-zinc-900/50 rounded border border-zinc-800/50 border-dashed">
-                        <span className="text-zinc-600 text-xs">Chart Placeholder: Donut</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[400px]">
+                <div className="bg-surface border border-border rounded-sm p-4 flex flex-col">
+                    <h3 className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-4">Lead Sources</h3>
+                    <div className="flex-1 flex items-center justify-center bg-zinc-950 rounded-sm border border-zinc-900 border-dashed">
+                        <span className="text-zinc-700 text-xs font-mono">Chart Placeholder</span>
                     </div>
                 </div>
-                <div className="bg-surface border border-zinc-800 rounded-lg p-4 flex flex-col">
-                    <h3 className="text-sm font-semibold text-zinc-400 mb-4">Revenue Forecast</h3>
-                    <div className="flex-1 flex items-center justify-center bg-zinc-900/50 rounded border border-zinc-800/50 border-dashed">
-                        <span className="text-zinc-600 text-xs">Chart Placeholder: Bar</span>
+                <div className="bg-surface border border-border rounded-sm p-4 flex flex-col">
+                    <h3 className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-4">Revenue Forecast</h3>
+                    <div className="flex-1 flex items-center justify-center bg-zinc-950 rounded-sm border border-zinc-900 border-dashed">
+                        <span className="text-zinc-700 text-xs font-mono">Chart Placeholder</span>
                     </div>
                 </div>
             </div>
@@ -542,52 +504,54 @@ const DashboardModule = ({ state, leads, deals }: { state: AppState, leads: Clie
     );
 };
 
-const MetricCard = ({ title, value, change, color }: any) => (
-    <div className="bg-surface border border-zinc-800 p-4 rounded-lg shadow-sm hover:border-zinc-700 transition-all">
-        <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">{title}</h3>
-        <div className="text-2xl font-bold text-zinc-100 mb-2">{value}</div>
-        <div className={`text-xs font-mono flex items-center gap-1 text-${color}-500`}>
+const MetricCard = ({ title, value, change, icon }: any) => (
+    <div className="bg-surface border border-border p-4 rounded-sm hover:border-zinc-700 transition-all">
+        <div className="flex items-center justify-between mb-2">
+            <h3 className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">{title}</h3>
+            <div className="text-zinc-600">{icon}</div>
+        </div>
+        <div className="text-2xl font-medium text-zinc-100 mb-1">{value}</div>
+        <div className="text-[10px] font-mono text-zinc-600">
             {change}
         </div>
     </div>
 );
 
 const ListModule = ({ data, columns, onRowClick }: { data: any[], columns: string[], onRowClick: (id: string) => void }) => {
-    // Simple Table Implementation
     return (
         <div className="h-full overflow-auto">
             <table className="w-full text-left border-collapse">
-                <thead className="bg-zinc-900 sticky top-0 z-10 border-b border-zinc-800 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                <thead className="bg-surface sticky top-0 z-10 border-b border-border text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
                     <tr>
                         {columns.map((col: string, i: number) => (
-                            <th key={i} className="px-6 py-3">{col}</th>
+                            <th key={i} className="px-4 md:px-6 py-3">{col}</th>
                         ))}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800/50 text-sm text-zinc-300">
+                <tbody className="divide-y divide-zinc-900/50 text-sm text-zinc-300">
                     {data.map((item: any) => (
                         <tr
                             key={item.id}
                             onClick={() => onRowClick(item.id)}
-                            className="hover:bg-zinc-800/50 cursor-pointer transition-colors"
+                            className="hover:bg-zinc-900/40 cursor-pointer transition-colors"
                         >
-                            <td className="px-6 py-4 font-medium text-white">{item.name}</td>
-                            <td className="px-6 py-4">{item.company || '-'}</td>
-                            <td className="px-6 py-4">
-                                <span className="px-2 py-0.5 rounded textxs font-mono bg-zinc-800 text-zinc-400 border border-zinc-700">
+                            <td className="px-4 md:px-6 py-3 font-medium text-zinc-100">{item.name}</td>
+                            <td className="px-4 md:px-6 py-3">{item.company || '-'}</td>
+                            <td className="px-4 md:px-6 py-3">
+                                <span className="px-2 py-0.5 rounded-sm text-[10px] font-mono bg-zinc-900 text-zinc-400 border border-zinc-800">
                                     {item.stage || item.status}
                                 </span>
                             </td>
-                            <td className="px-6 py-4">{item.leadSource || '-'}</td>
-                            <td className="px-6 py-4 text-zinc-500 text-xs">
+                            <td className="px-4 md:px-6 py-3 text-zinc-500">{item.leadSource || '-'}</td>
+                            <td className="px-4 md:px-6 py-3 text-zinc-600 text-xs font-mono">
                                 {new Date(item.lastInteraction).toLocaleDateString()}
                             </td>
                         </tr>
                     ))}
                     {data.length === 0 && (
                         <tr>
-                            <td colSpan={columns.length} className="px-6 py-12 text-center text-zinc-500 text-sm">
-                                No records found in this view.
+                            <td colSpan={columns.length} className="px-6 py-12 text-center text-zinc-600 text-xs font-mono">
+                                No records found
                             </td>
                         </tr>
                     )}
@@ -598,7 +562,6 @@ const ListModule = ({ data, columns, onRowClick }: { data: any[], columns: strin
 }
 
 const KanbanModule = ({ deals, filter, setFilter, onUpdate, onRowClick }: { deals: Client[], filter: any, setFilter: any, onUpdate: any, onRowClick: (id: string) => void }) => {
-    // Group by Stage
     const stages = [
         { id: CRMStage.DISCOVERY, label: 'Discovery', color: 'blue' },
         { id: CRMStage.PROPOSAL, label: 'Proposal', color: 'amber' },
@@ -606,7 +569,6 @@ const KanbanModule = ({ deals, filter, setFilter, onUpdate, onRowClick }: { deal
         { id: CRMStage.CLOSED_WON, label: 'Won', color: 'emerald' },
     ];
 
-    // Stalled Logic (7 days)
     const isStalled = (lastInteraction: number) => {
         const diff = Date.now() - lastInteraction;
         return diff > 7 * 24 * 60 * 60 * 1000;
@@ -614,42 +576,40 @@ const KanbanModule = ({ deals, filter, setFilter, onUpdate, onRowClick }: { deal
 
     return (
         <div className="h-full flex flex-col">
-            {/* Pipeline Toggles */}
-            <div className="px-6 py-2 border-b border-zinc-800 flex items-center gap-4 bg-zinc-900/30">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Pipeline:</span>
-                <div className="flex bg-zinc-900 rounded p-1 border border-zinc-800">
+            {/* Pipeline Filter */}
+            <div className="px-4 md:px-6 py-3 border-b border-border flex items-center gap-3 bg-surface">
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Pipeline:</span>
+                <div className="flex bg-zinc-900 rounded-sm p-0.5 border border-zinc-800">
                     {['ALL', 'DEV', 'RETAINER'].map(f => (
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-3 py-1 text-xs font-medium rounded transition-all ${filter === f ? 'bg-zinc-700 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            className={`px-3 py-1 text-[10px] font-mono rounded-sm transition-all ${filter === f ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'}`}
                         >
-                            {f === 'ALL' ? 'All Deals' : f === 'DEV' ? 'Development' : 'Retainers'}
+                            {f === 'ALL' ? 'All' : f}
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="flex-1 overflow-x-auto p-6">
-                <div className="flex gap-4 h-full min-w-max">
+            <div className="flex-1 overflow-x-auto p-4 md:p-6">
+                <div className="flex gap-3 h-full min-w-max">
                     {stages.map(stage => {
                         const stageDeals = deals.filter(d => d.stage === stage.id);
                         const totalValue = stageDeals.reduce((sum, d) => sum + (d.expectedValue || 0), 0);
 
                         return (
-                            <div key={stage.id} className="w-80 flex flex-col bg-zinc-900/40 rounded-xl border border-zinc-800/50">
-                                {/* Header */}
-                                <div className={`p-3 border-b border-zinc-800/50 border-t-4 border-t-${stage.color}-500/50 rounded-t-xl bg-zinc-900`}>
+                            <div key={stage.id} className="w-72 flex flex-col bg-surface rounded-sm border border-border">
+                                <div className={`p-3 border-b border-border border-t-2 ${stage.color === 'blue' ? 'border-t-blue-500' : stage.color === 'amber' ? 'border-t-amber-500' : stage.color === 'purple' ? 'border-t-purple-500' : 'border-t-emerald-500'}`}>
                                     <div className="flex justify-between items-center mb-1">
-                                        <h3 className="font-semibold text-sm text-zinc-200">{stage.label}</h3>
-                                        <span className="text-xs bg-zinc-800 text-zinc-400 px-1.5 rounded">{stageDeals.length}</span>
+                                        <h3 className="font-medium text-xs text-zinc-200 uppercase tracking-wider">{stage.label}</h3>
+                                        <span className="text-[10px] bg-zinc-900 text-zinc-500 px-1.5 py-0.5 rounded-sm font-mono">{stageDeals.length}</span>
                                     </div>
-                                    <div className="text-[10px] text-zinc-500 font-mono">
-                                        Est: ${totalValue.toLocaleString()}
+                                    <div className="text-[9px] text-zinc-600 font-mono">
+                                        ${totalValue.toLocaleString()}
                                     </div>
                                 </div>
 
-                                {/* Cards */}
                                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                                     {stageDeals.map(deal => {
                                         const stalled = isStalled(deal.lastInteraction);
@@ -657,32 +617,32 @@ const KanbanModule = ({ deals, filter, setFilter, onUpdate, onRowClick }: { deal
                                             <div
                                                 key={deal.id}
                                                 onClick={() => onRowClick(deal.id)}
-                                                className={`bg-surface p-3 rounded border shadow-sm cursor-grab active:cursor-grabbing transition-all group relative ${stalled ? 'border-red-900/50 bg-red-950/10' : 'border-zinc-800 hover:border-emerald-500/50'}`}
+                                                className={`bg-zinc-900 p-3 rounded-sm border cursor-pointer transition-all group relative ${stalled ? 'border-red-900/50' : 'border-zinc-800 hover:border-emerald-500/50'}`}
                                             >
-                                                {stalled && <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse" title="Stalled (>7 days)" />}
+                                                {stalled && <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-red-500" title="Stalled" />}
 
                                                 <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-sm font-medium text-zinc-100 line-clamp-1">{deal.name}</span>
-                                                    <button className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-white transition-opacity">
-                                                        <MoreHorizontal size={14} />
+                                                    <span className="text-xs font-medium text-zinc-200 line-clamp-1">{deal.name}</span>
+                                                    <button className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-zinc-300 transition-opacity">
+                                                        <MoreHorizontal size={12} />
                                                     </button>
                                                 </div>
-                                                <div className="text-xs text-zinc-500 mb-2">{deal.company}</div>
+                                                <div className="text-[10px] text-zinc-500 mb-2 font-mono">{deal.company}</div>
 
                                                 {deal.expectedValue && (
-                                                    <div className="flex items-center gap-1 text-emerald-400 text-xs font-mono mb-2">
+                                                    <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-mono mb-2">
                                                         <DollarSign size={10} />
                                                         {deal.expectedValue.toLocaleString()}
                                                     </div>
                                                 )}
 
                                                 <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800/50">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-5 h-5 rounded-full bg-zinc-700 border border-zinc-900 flex items-center justify-center text-[8px]">nm</div>
-                                                        {deal.tags?.includes('RETAINER') && <span className="text-[9px] bg-purple-900/30 text-purple-400 px-1 rounded">RET</span>}
-                                                        {deal.tags?.includes('DEV') && <span className="text-[9px] bg-blue-900/30 text-blue-400 px-1 rounded">DEV</span>}
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="w-4 h-4 rounded-sm bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[8px] font-mono text-zinc-500">nm</div>
+                                                        {deal.tags?.includes('RETAINER') && <span className="text-[8px] bg-purple-950/30 text-purple-400 px-1 py-0.5 rounded-sm font-mono">RET</span>}
+                                                        {deal.tags?.includes('DEV') && <span className="text-[8px] bg-blue-950/30 text-blue-400 px-1 py-0.5 rounded-sm font-mono">DEV</span>}
                                                     </div>
-                                                    <span className={`text-[10px] ${stalled ? 'text-red-400 font-bold' : 'text-zinc-600'}`}>
+                                                    <span className={`text-[9px] font-mono ${stalled ? 'text-red-400' : 'text-zinc-600'}`}>
                                                         {new Date(deal.lastInteraction).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                                     </span>
                                                 </div>
@@ -690,7 +650,7 @@ const KanbanModule = ({ deals, filter, setFilter, onUpdate, onRowClick }: { deal
                                         )
                                     })}
                                     {stageDeals.length === 0 && (
-                                        <div className="h-24 flex items-center justify-center text-zinc-700 text-xs border border-dashed border-zinc-800 rounded">
+                                        <div className="h-20 flex items-center justify-center text-zinc-700 text-[10px] border border-dashed border-zinc-800 rounded-sm font-mono">
                                             Empty
                                         </div>
                                     )}
@@ -704,30 +664,22 @@ const KanbanModule = ({ deals, filter, setFilter, onUpdate, onRowClick }: { deal
     );
 };
 
-
-
 const CRMDetailCanvas = ({ entityId, state, onClose, onUpdate, onDelete, onConvert }: { entityId: string, state: AppState, onClose: () => void, onUpdate: any, onDelete: any, onConvert: any }) => {
-    // Determine entity type and standard fields
     let entity = state.clients.find(c => c.id === entityId);
 
-    // Safety check
     if (!entity) return null;
 
     const [activeTab, setActiveTab] = useState<'TIMELINE' | 'INFO' | 'NOTES' | 'ACTIVITIES'>('TIMELINE');
     const [isEditing, setIsEditing] = useState(false);
-
-    // Conversion State
     const [isConverting, setIsConverting] = useState(false);
     const [convertData, setConvertData] = useState({ dealName: '', value: 0, pipeline: 'DEV' });
 
-    // Pre-fill convert data
     useEffect(() => {
         if (isConverting) {
             setConvertData(prev => ({ ...prev, dealName: `${entity!.company} Project` }));
         }
     }, [isConverting, entity]);
 
-    // Edit Form State
     const [editForm, setEditForm] = useState({
         name: entity.name,
         role: entity.role,
@@ -743,7 +695,7 @@ const CRMDetailCanvas = ({ entityId, state, onClose, onUpdate, onDelete, onConve
     };
 
     const handleDelete = () => {
-        if (window.confirm('Are you sure you want to delete this record? This cannot be undone.')) {
+        if (window.confirm('Delete this record?')) {
             onDelete(entity!.id);
             onClose();
         }
@@ -755,51 +707,51 @@ const CRMDetailCanvas = ({ entityId, state, onClose, onUpdate, onDelete, onConve
 
     if (isConverting) {
         return (
-            <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-950/50">
-                        <h2 className="text-sm font-bold text-white uppercase tracking-wider">Convert Lead</h2>
+            <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-surface border border-border rounded-sm shadow-2xl w-full max-w-sm overflow-hidden">
+                    <div className="px-4 py-3 border-b border-border">
+                        <h2 className="text-xs font-mono text-zinc-300 uppercase tracking-wider">Convert Lead</h2>
                     </div>
                     <div className="p-6 space-y-4">
                         <div>
-                            <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Deal Name</label>
+                            <label className="text-[10px] uppercase text-zinc-500 font-mono mb-1 block tracking-wider">Deal Name</label>
                             <input
                                 value={convertData.dealName}
                                 onChange={e => setConvertData({ ...convertData, dealName: e.target.value })}
-                                className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white"
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-sm p-2 text-sm text-zinc-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 outline-none"
                             />
                         </div>
                         <div>
-                            <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Expected Value ($)</label>
+                            <label className="text-[10px] uppercase text-zinc-500 font-mono mb-1 block tracking-wider">Value ($)</label>
                             <input
                                 type="number"
                                 value={convertData.value}
                                 onChange={e => setConvertData({ ...convertData, value: parseInt(e.target.value) })}
-                                className="w-full bg-zinc-800 border border-zinc-700 rounded p-2 text-sm text-white"
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded-sm p-2 text-sm text-zinc-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 outline-none"
                             />
                         </div>
                         <div>
-                            <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Pipeline</label>
+                            <label className="text-[10px] uppercase text-zinc-500 font-mono mb-1 block tracking-wider">Pipeline</label>
                             <div className="flex gap-2">
                                 <button
                                     onClick={() => setConvertData({ ...convertData, pipeline: 'DEV' })}
-                                    className={`flex-1 py-2 text-xs rounded border ${convertData.pipeline === 'DEV' ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}
+                                    className={`flex-1 py-2 text-xs rounded-sm border font-mono ${convertData.pipeline === 'DEV' ? 'bg-emerald-950/20 border-emerald-500 text-emerald-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}
                                 >
-                                    Development
+                                    DEV
                                 </button>
                                 <button
                                     onClick={() => setConvertData({ ...convertData, pipeline: 'RETAINER' })}
-                                    className={`flex-1 py-2 text-xs rounded border ${convertData.pipeline === 'RETAINER' ? 'bg-purple-600/20 border-purple-500 text-purple-400' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}
+                                    className={`flex-1 py-2 text-xs rounded-sm border font-mono ${convertData.pipeline === 'RETAINER' ? 'bg-purple-950/20 border-purple-500 text-purple-400' : 'bg-zinc-900 border-zinc-800 text-zinc-500'}`}
                                 >
-                                    Retainer
+                                    RETAINER
                                 </button>
                             </div>
                         </div>
                         <div className="pt-2 flex gap-2">
-                            <button onClick={triggerConvert} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded text-sm font-bold transition-colors">
-                                Convert & Create Deal
+                            <button onClick={triggerConvert} className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black py-2 rounded-sm text-xs font-bold transition-colors">
+                                Convert
                             </button>
-                            <button onClick={() => setIsConverting(false)} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 rounded text-sm font-bold transition-colors">
+                            <button onClick={() => setIsConverting(false)} className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 py-2 rounded-sm text-xs font-bold transition-colors">
                                 Cancel
                             </button>
                         </div>
@@ -810,14 +762,14 @@ const CRMDetailCanvas = ({ entityId, state, onClose, onUpdate, onDelete, onConve
     }
 
     return (
-        <div className="absolute inset-0 z-40 bg-black/20 backdrop-blur-sm flex justify-end">
-            <div className="w-full max-w-2xl h-full bg-zinc-950 border-l border-zinc-800 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+        <div className="absolute inset-0 z-40 bg-black/40 flex justify-end">
+            <div className="w-full max-w-2xl h-full bg-surface border-l border-border shadow-2xl flex flex-col">
 
-                {/* Header (Business Card) */}
-                <div className="p-6 border-b border-zinc-800 bg-zinc-900/50">
+                {/* Header */}
+                <div className="p-4 md:p-6 border-b border-border">
                     <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-lg border border-zinc-700 flex items-center justify-center text-xl font-bold text-zinc-300">
+                            <div className="w-12 h-12 bg-zinc-900 rounded-sm border border-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-300">
                                 {entity.name.substring(0, 2).toUpperCase()}
                             </div>
                             <div>
@@ -826,87 +778,84 @@ const CRMDetailCanvas = ({ entityId, state, onClose, onUpdate, onDelete, onConve
                                         <input
                                             value={editForm.name}
                                             onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                                            className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-lg font-bold text-white w-full"
+                                            className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-base font-medium text-zinc-100 w-full"
                                         />
                                         <div className="flex gap-2">
                                             <input
                                                 value={editForm.role}
                                                 onChange={e => setEditForm({ ...editForm, role: e.target.value })}
                                                 placeholder="Role"
-                                                className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 w-32"
+                                                className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 w-24"
                                             />
                                             <input
                                                 value={editForm.company}
                                                 onChange={e => setEditForm({ ...editForm, company: e.target.value })}
                                                 placeholder="Company"
-                                                className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 w-32"
+                                                className="bg-zinc-900 border border-zinc-800 rounded-sm px-2 py-1 text-xs text-zinc-300 w-32"
                                             />
                                         </div>
                                     </div>
                                 ) : (
                                     <>
-                                        <h2 className="text-xl font-bold text-white mb-1">{entity.name}</h2>
-                                        <p className="text-sm text-zinc-400 flex items-center gap-2">
+                                        <h2 className="text-base font-medium text-zinc-100 mb-0.5">{entity.name}</h2>
+                                        <p className="text-xs text-zinc-500 font-mono">
                                             {entity.role} {entity.company && `at ${entity.company}`}
                                         </p>
                                     </>
                                 )}
                                 <div className="flex items-center gap-2 mt-2">
-                                    <span className="px-2 py-0.5 bg-emerald-950/20 text-emerald-400 border border-emerald-900/40 rounded text-[10px] font-mono uppercase">
+                                    <span className="px-2 py-0.5 bg-emerald-950/20 text-emerald-400 border border-emerald-900 rounded-sm text-[9px] font-mono uppercase tracking-wider">
                                         {entity.stage || entity.status}
                                     </span>
-                                    <span className="text-zinc-600 text-xs">•</span>
-                                    <span className="text-xs text-zinc-500">Last touch: {new Date(entity.lastInteraction).toLocaleDateString()}</span>
+                                    <span className="text-zinc-700 text-xs">•</span>
+                                    <span className="text-[10px] text-zinc-600 font-mono">{new Date(entity.lastInteraction).toLocaleDateString()}</span>
                                 </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
                             {isEditing ? (
                                 <>
-                                    <button onClick={handleSave} className="p-2 bg-emerald-600 text-white rounded hover:bg-emerald-500 transition-colors">
-                                        <CheckSquare size={18} />
+                                    <button onClick={handleSave} className="p-1.5 bg-emerald-500 text-black rounded-sm hover:bg-emerald-400 transition-colors">
+                                        <CheckCircle2 size={16} />
                                     </button>
-                                    <button onClick={() => setIsEditing(false)} className="p-2 bg-zinc-800 text-zinc-400 rounded hover:bg-zinc-700 transition-colors">
-                                        <X size={18} />
+                                    <button onClick={() => setIsEditing(false)} className="p-1.5 bg-zinc-900 text-zinc-400 rounded-sm hover:bg-zinc-800 transition-colors">
+                                        <X size={16} />
                                     </button>
                                 </>
                             ) : (
                                 <>
-                                    <button onClick={() => setIsEditing(true)} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors" title="Edit">
-                                        <Pencil size={18} />
+                                    <button onClick={() => setIsEditing(true)} className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 rounded-sm transition-colors" title="Edit">
+                                        <Pencil size={16} />
                                     </button>
-                                    <button onClick={handleDelete} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-800 rounded transition-colors" title="Delete">
-                                        <Trash2 size={18} />
+                                    <button onClick={handleDelete} className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-900 rounded-sm transition-colors" title="Delete">
+                                        <Trash2 size={16} />
                                     </button>
-                                    <div className="w-px h-6 bg-zinc-800 mx-2" />
-                                    <button onClick={onClose} className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition-colors">
-                                        <X size={20} />
+                                    <div className="w-px h-5 bg-zinc-800 mx-1" />
+                                    <button onClick={onClose} className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 rounded-sm transition-colors">
+                                        <X size={18} />
                                     </button>
                                 </>
                             )}
                         </div>
                     </div>
 
-                    {/* Quick Actions */}
-                    <div className="flex gap-2 mt-4">
+                    {/* Actions */}
+                    <div className="flex gap-2">
                         {entity.status === 'LEAD' ? (
                             <button
                                 onClick={() => setIsConverting(true)}
-                                className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black rounded-sm text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                             >
-                                <CheckSquare size={14} />
+                                <CheckCircle2 size={14} />
                                 Convert to Deal
                             </button>
                         ) : (
                             <>
-                                <button className="flex-1 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded text-xs text-zinc-200 font-medium">
-                                    Values & Notes
+                                <button className="flex-1 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-sm text-xs text-zinc-300 font-medium">
+                                    Email
                                 </button>
-                                <button className="flex-1 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded text-xs text-zinc-200 font-medium">
-                                    Send Email
-                                </button>
-                                <button className="flex-1 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded text-xs text-zinc-200 font-medium">
-                                    Schedule Meeting
+                                <button className="flex-1 py-1.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-sm text-xs text-zinc-300 font-medium">
+                                    Meeting
                                 </button>
                             </>
                         )}
@@ -914,124 +863,86 @@ const CRMDetailCanvas = ({ entityId, state, onClose, onUpdate, onDelete, onConve
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-zinc-800 px-6">
+                <div className="flex border-b border-border px-4 md:px-6">
                     {['TIMELINE', 'INFO', 'NOTES', 'ACTIVITIES'].map(tab => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
-                            className={`px-4 py-3 text-xs font-bold tracking-wide border-b-2 transition-colors ${activeTab === tab ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                            className={`px-3 py-2.5 text-[10px] font-mono tracking-wider border-b-2 transition-colors ${activeTab === tab ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-zinc-600 hover:text-zinc-400'}`}
                         >
                             {tab}
                         </button>
                     ))}
                 </div>
 
-                {/* Tab Content */}
-                <div className="flex-1 overflow-y-auto p-6 bg-zinc-950">
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-background">
                     {activeTab === 'TIMELINE' && (
-                        <div className="space-y-6 relative ml-2">
-                            {/* Vertical Line */}
-                            <div className="absolute left-[7px] top-2 bottom-0 w-px bg-zinc-800" />
+                        <div className="space-y-4 relative ml-2">
+                            <div className="absolute left-[7px] top-2 bottom-0 w-px bg-zinc-900" />
 
-                            {/* Mock Timeline Items */}
                             <TimelineItem
-                                icon={<Calendar size={14} />}
+                                icon={<Calendar size={12} />}
                                 title="Meeting Scheduled"
                                 time="Today, 2:00 PM"
-                                desc="Review of Q1 proposal with engineering team."
+                                desc="Review Q1 proposal with team."
                             />
                             <TimelineItem
-                                icon={<Mail size={14} />}
+                                icon={<Mail size={12} />}
                                 title="Email Sent"
                                 time="Yesterday"
-                                desc="Follow up on previous conversation regarding timeline pricing."
+                                desc="Follow up on conversation."
                             />
                             <TimelineItem
-                                icon={<CheckSquare size={14} />}
+                                icon={<CheckCircle2 size={12} />}
                                 title="Task Completed"
-                                time="Jan 2, 2024"
-                                desc="Prepare slide deck for initial pitch."
+                                time="Jan 2"
+                                desc="Slide deck prepared."
                             />
                             <TimelineItem
-                                icon={<Plus size={14} />}
+                                icon={<Plus size={12} />}
                                 title="Lead Created"
-                                time="Dec 28, 2023"
+                                time="Dec 28"
                                 desc="Imported from LinkedIn"
                             />
                         </div>
                     )}
 
                     {activeTab === 'INFO' && (
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {isEditing ? (
                                 <>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Phone</label>
-                                            <input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-200" />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Email</label>
-                                            <input value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-200" />
-                                        </div>
+                                    <div>
+                                        <label className="text-[10px] uppercase text-zinc-500 font-mono mb-1 block tracking-wider">Phone</label>
+                                        <input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded-sm p-2 text-sm text-zinc-200" />
                                     </div>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Website</label>
-                                            <input value={editForm.website} onChange={e => setEditForm({ ...editForm, website: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-200" />
-                                        </div>
+                                    <div>
+                                        <label className="text-[10px] uppercase text-zinc-500 font-mono mb-1 block tracking-wider">Email</label>
+                                        <input value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded-sm p-2 text-sm text-zinc-200" />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="text-[10px] uppercase text-zinc-500 font-mono mb-1 block tracking-wider">Website</label>
+                                        <input value={editForm.website} onChange={e => setEditForm({ ...editForm, website: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded-sm p-2 text-sm text-zinc-200" />
                                     </div>
                                 </>
                             ) : (
                                 <>
-                                    {isEditing ? (
-                                        <>
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Phone</label>
-                                                    <input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-200" />
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Email</label>
-                                                    <input value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-200" />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <label className="text-[10px] uppercase text-zinc-500 font-bold mb-1 block">Website</label>
-                                                    <input value={editForm.website} onChange={e => setEditForm({ ...editForm, website: e.target.value })} className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-sm text-zinc-200" />
-                                                </div>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <InfoField label="Phone" value={entity.phone || '-'} />
-                                            <InfoField label="Email" value={entity.email || '-'} />
-                                            <InfoField label="Website" value={entity.website || '-'} />
-                                            <InfoField label="Industry" value={entity.industry || '-'} />
-                                        </>
-                                    )}
+                                    <InfoField label="Phone" value={entity.phone || '-'} />
+                                    <InfoField label="Email" value={entity.email || '-'} />
+                                    <InfoField label="Website" value={entity.website || '-'} />
+                                    <InfoField label="Industry" value={entity.industry || '-'} />
                                 </>
                             )}
-
-                            <div className="col-span-2 border-t border-zinc-800 pt-4 mt-2">
-                                <h3 className="text-sm font-bold text-zinc-400 mb-3">Address Information</h3>
-                                <InfoField label="Street" value="-" />
-                                <div className="grid grid-cols-2 gap-4 mt-2">
-                                    <InfoField label="City" value="-" />
-                                    <InfoField label="Country" value="-" />
-                                </div>
-                            </div>
                         </div>
                     )}
                     {activeTab === 'NOTES' && (
-                        <div className="text-center py-12 text-zinc-600 italic">
+                        <div className="text-center py-12 text-zinc-600 text-xs font-mono">
                             No notes added yet.
                         </div>
                     )}
                     {activeTab === 'ACTIVITIES' && (
-                        <div className="text-center py-12 text-zinc-600 italic">
-                            No open activities.
+                        <div className="text-center py-12 text-zinc-600 text-xs font-mono">
+                            No activities.
                         </div>
                     )}
                 </div>
@@ -1042,14 +953,14 @@ const CRMDetailCanvas = ({ entityId, state, onClose, onUpdate, onDelete, onConve
 }
 
 const TimelineItem = ({ icon, title, time, desc }: any) => (
-    <div className="relative pl-8">
-        <div className="absolute left-0 top-0.5 w-4 h-4 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center text-zinc-400 shrink-0 z-10">
+    <div className="relative pl-7">
+        <div className="absolute left-0 top-0.5 w-3.5 h-3.5 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-500 shrink-0 z-10">
             {icon}
         </div>
         <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-sm font-semibold text-zinc-200">{title}</span>
-                <span className="text-[10px] text-zinc-500">{time}</span>
+                <span className="text-xs font-medium text-zinc-200">{title}</span>
+                <span className="text-[9px] text-zinc-600 font-mono">{time}</span>
             </div>
             <p className="text-xs text-zinc-500 leading-relaxed">{desc}</p>
         </div>
@@ -1058,11 +969,10 @@ const TimelineItem = ({ icon, title, time, desc }: any) => (
 
 const InfoField = ({ label, value }: any) => (
     <div>
-        <label className="block text-[10px] font-mono text-zinc-500 uppercase mb-1">{label}</label>
+        <label className="block text-[10px] font-mono text-zinc-500 uppercase mb-1 tracking-wider">{label}</label>
         <div className="text-sm text-zinc-200">{value}</div>
     </div>
 )
-
 
 const CreateForm = ({ context, onCancel, onSubmit }: { context: EntityContext, onCancel: () => void, onSubmit: (data: Client) => void }) => {
     const [type, setType] = useState<CRMViewMode>(context === 'NEMO' ? 'LEADS' : 'CONTACTS');
@@ -1107,17 +1017,17 @@ const CreateForm = ({ context, onCancel, onSubmit }: { context: EntityContext, o
                         <button
                             type="button"
                             onClick={() => setType('LEADS')}
-                            className={`flex items-center gap-2 text-sm cursor-pointer ${type === 'LEADS' ? 'text-emerald-400 font-bold' : 'text-zinc-400'}`}
+                            className={`flex items-center gap-2 text-xs cursor-pointer font-mono ${type === 'LEADS' ? 'text-emerald-400' : 'text-zinc-500'}`}
                         >
-                            <div className={`w-3 h-3 rounded-full border ${type === 'LEADS' ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`} />
+                            <div className={`w-2.5 h-2.5 rounded-full border ${type === 'LEADS' ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`} />
                             Lead
                         </button>
                         <button
                             type="button"
                             onClick={() => setType('DEALS')}
-                            className={`flex items-center gap-2 text-sm cursor-pointer ${type === 'DEALS' ? 'text-emerald-400 font-bold' : 'text-zinc-400'}`}
+                            className={`flex items-center gap-2 text-xs cursor-pointer font-mono ${type === 'DEALS' ? 'text-emerald-400' : 'text-zinc-500'}`}
                         >
-                            <div className={`w-3 h-3 rounded-full border ${type === 'DEALS' ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`} />
+                            <div className={`w-2.5 h-2.5 rounded-full border ${type === 'DEALS' ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`} />
                             Deal
                         </button>
                     </>
@@ -1125,9 +1035,9 @@ const CreateForm = ({ context, onCancel, onSubmit }: { context: EntityContext, o
                 <button
                     type="button"
                     onClick={() => setType('CONTACTS')}
-                    className={`flex items-center gap-2 text-sm cursor-pointer ${type === 'CONTACTS' ? 'text-emerald-400 font-bold' : 'text-zinc-400'}`}
+                    className={`flex items-center gap-2 text-xs cursor-pointer font-mono ${type === 'CONTACTS' ? 'text-emerald-400' : 'text-zinc-500'}`}
                 >
-                    <div className={`w-3 h-3 rounded-full border ${type === 'CONTACTS' ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`} />
+                    <div className={`w-2.5 h-2.5 rounded-full border ${type === 'CONTACTS' ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`} />
                     Contact
                 </button>
             </div>
@@ -1138,7 +1048,7 @@ const CreateForm = ({ context, onCancel, onSubmit }: { context: EntityContext, o
                     required
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-black/20 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 outline-none"
                     autoFocus
                 />
                 <div className="grid grid-cols-2 gap-3">
@@ -1146,13 +1056,13 @@ const CreateForm = ({ context, onCancel, onSubmit }: { context: EntityContext, o
                         placeholder="Company"
                         value={formData.company}
                         onChange={e => setFormData({ ...formData, company: e.target.value })}
-                        className="bg-black/20 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
+                        className="bg-zinc-900 border border-zinc-800 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 outline-none"
                     />
                     <input
                         placeholder="Title / Role"
                         value={formData.title}
                         onChange={e => setFormData({ ...formData, title: e.target.value })}
-                        className="bg-black/20 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
+                        className="bg-zinc-900 border border-zinc-800 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 outline-none"
                     />
                 </div>
 
@@ -1162,33 +1072,33 @@ const CreateForm = ({ context, onCancel, onSubmit }: { context: EntityContext, o
                         placeholder="Email"
                         value={formData.email}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
-                        className="bg-black/20 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
+                        className="bg-zinc-900 border border-zinc-800 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 outline-none"
                     />
                     <input
                         placeholder="Phone"
                         value={formData.phone}
                         onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                        className="bg-black/20 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
+                        className="bg-zinc-900 border border-zinc-800 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 outline-none"
                     />
                 </div>
 
                 {type === 'DEALS' && (
                     <div className="pt-2 border-t border-zinc-800">
-                        <label className="text-xs text-zinc-500 mb-1 block">Deal Value ($)</label>
+                        <label className="text-[10px] text-zinc-500 font-mono mb-1 block tracking-wider uppercase">Deal Value ($)</label>
                         <input
                             type="number"
                             placeholder="0.00"
                             value={formData.value}
                             onChange={e => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
-                            className="w-full bg-black/20 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:border-emerald-500 outline-none"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded-sm px-3 py-2 text-sm text-zinc-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 outline-none"
                         />
                     </div>
                 )}
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={onCancel} className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded transition-colors">Create Record</button>
+                <button type="button" onClick={onCancel} className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-zinc-200 transition-colors">Cancel</button>
+                <button type="submit" className="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded-sm transition-colors">Create</button>
             </div>
         </form>
     )

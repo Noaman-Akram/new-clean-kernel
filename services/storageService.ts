@@ -99,7 +99,9 @@ const INITIAL_STATE: AppState = {
   horizonGoals: [],
   stickyNotes: {},
   dayMeta: {},
-  userPreferences: getDefaultUserPreferences()
+  userPreferences: getDefaultUserPreferences(),
+  distractions: [],
+  focusSessions: []
 };
 
 const cloneState = (state: AppState) => JSON.parse(JSON.stringify(state));

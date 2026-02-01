@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction } from './types';
 import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
 import { auth } from './services/firebase';
 import { generateId } from './utils';
@@ -23,7 +23,8 @@ import {
   Megaphone,
   MapPin,
   Dumbbell,
-  Calendar
+  Calendar,
+  Zap
 } from 'lucide-react';
 
 // Views
@@ -40,6 +41,7 @@ import ActivitiesView from './components/ActivitiesView';
 import WeeklyPlannerView from './components/WeeklyPlannerView';
 import DayView from './components/DayView';
 import GymView from './components/GymView';
+import FocusView from './components/FocusView';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
@@ -270,6 +272,10 @@ const App: React.FC = () => {
       ...prev,
       accounts: prev.accounts.filter(a => a.id !== id)
     }) : null);
+  }
+
+  const handleDistractionAdd = (distraction: Distraction) => {
+    setState(prev => prev ? ({ ...prev, distractions: [...prev.distractions, distraction] }) : null);
   }
 
   const handleNoteUpdate = (id: string, updates: Partial<Note>) => {
@@ -666,6 +672,12 @@ const App: React.FC = () => {
           onDeleteTemplate={handleDeleteTemplate}
           onAddExercise={handleAddExercise}
         />;
+      case Page.FOCUS:
+        return <FocusView
+          state={state}
+          onUpdate={handleTaskUpdate}
+          onDistractionAdd={handleDistractionAdd}
+        />;
       default:
         return <DashboardView {...viewProps} onPrayerToggle={handlePrayerToggle} onAdhkarToggle={handleAdhkarToggle} onTaskAdd={handleTaskAdd} />;
     }
@@ -804,6 +816,13 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.GYM)}
             icon={<Dumbbell size={18} />}
             label="Gym"
+            setHover={setHoveredNav}
+          />
+          <NavIcon
+            active={currentPage === Page.FOCUS}
+            onClick={() => handleNavigate(Page.FOCUS)}
+            icon={<Zap size={18} />}
+            label="Focus"
             setHover={setHoveredNav}
           />
           <div className="h-px w-3/4 bg-border my-1 opacity-50 shrink-0"></div>
@@ -1010,6 +1029,7 @@ const App: React.FC = () => {
         <MobileNavIcon active={currentPage === Page.SUPPLICATIONS} onClick={() => handleNavigate(Page.SUPPLICATIONS)} icon={<BookOpen size={20} />} label="Sanctuary" />
         <MobileNavIcon active={currentPage === Page.INTEL} onClick={() => handleNavigate(Page.INTEL)} icon={<StickyNote size={20} />} label="Intel" />
         <MobileNavIcon active={currentPage === Page.GYM} onClick={() => handleNavigate(Page.GYM)} icon={<Dumbbell size={20} />} label="Gym" />
+        <MobileNavIcon active={currentPage === Page.FOCUS} onClick={() => handleNavigate(Page.FOCUS)} icon={<Zap size={20} />} label="Focus" />
       </div>
 
     </div>

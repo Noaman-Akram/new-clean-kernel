@@ -42,7 +42,8 @@ export enum Page {
   WEEKLY = 'WEEKLY',
   DAY = 'DAY',
   GYM = 'GYM',
-  CRM = 'CRM'
+  CRM = 'CRM',
+  FOCUS = 'FOCUS'
 }
 
 export type Severity = 'LOW' | 'MED' | 'HIGH';
@@ -373,6 +374,25 @@ export interface UserPreferences {
   currency?: 'USD' | 'EGP' | 'EUR' | 'GBP';
 }
 
+// Focus & Distraction Tracking
+export interface Distraction {
+  id: string;
+  content: string;
+  timestamp: number;
+  taskId?: string;
+  resolved?: boolean;
+}
+
+export interface FocusSession {
+  id: string;
+  taskId: string;
+  startTime: number;
+  endTime?: number;
+  duration: number; // seconds
+  distractionsCount: number;
+  completed: boolean;
+}
+
 export interface AppState {
   tasks: Task[];
   activities: Activity[];
@@ -395,4 +415,6 @@ export interface AppState {
   workoutTemplates: WorkoutTemplate[];
   exercises: Exercise[];
   userPreferences: UserPreferences;
+  distractions: Distraction[];
+  focusSessions: FocusSession[];
 }

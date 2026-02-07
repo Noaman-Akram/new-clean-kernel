@@ -254,6 +254,74 @@ const ADHKAR_DATA = {
             count: 100
         }
     ],
+    PRAYER: [
+        {
+            id: 'p_kursi',
+            arabic: 'اللّهُ لاَ إِلَـهَ إِلاَّ هُوَ الْحَيُّ الْقَيُّومُ لاَ تَأْخُذُهُ سِنَةٌ وَلاَ نَوْمٌ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الأَرْضِ مَن ذَا الَّذِي يَشْفَعُ عِنْدَهُ إِلاَّ بِإِذْنِهِ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ وَلاَ يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلاَّ بِمَا شَاء وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالأَرْضَ وَلاَ يَؤُودُهُ حِفْظُهُمَا وَهُوَ الْعَلِيُّ الْعَظِيمُ',
+            translation: 'Ayat al-Kursi: Allah! There is no deity but He, the Ever-Living, the Sustainer of existence...',
+            count: 1
+        },
+        {
+            id: 'p_ikhlas',
+            arabic: 'قُلْ هُوَ ٱللَّهُ أَحَدٌ، ٱللَّهُ ٱلصَّمَدُ، لَمْ يَلِدْ وَلَمْ يُولَدْ، وَلَمْ يَكُن لَّهُۥ كُفُوًا أَحَدٌۢ',
+            translation: 'Surah Al-Ikhlas',
+            count: 1
+        },
+        {
+            id: 'p_falaq',
+            arabic: 'قُلْ أَعُوذُ بِرَبِّ ٱلْفَلَقِ، مِن شَرِّ مَا خَلَقَ، وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ، وَمِن شَرِّ ٱلنَّفَّٰثَٰتِ فِى ٱلْعُقَدِ، وَمِن شَرِّ حَاسِدٍ إِذَا حَسَدَ',
+            translation: 'Surah Al-Falaq',
+            count: 1
+        },
+        {
+            id: 'p_nas',
+            arabic: 'قُلْ أَعُوذُ بِرَبِّ ٱلنَّاسِ، مَلِكِ ٱلنَّاسِ، إِلَٰهِ ٱلنَّاسِ، مِن شَرِّ ٱلْوَسْوَاسِ ٱلْخَنَّاسِ، ٱلَّذِى يُوَسْوِسُ فِى صُدُورِ ٱلنَّاسِ، مِنَ ٱلْجِنَّةِ وَٱلنَّاسِ',
+            translation: 'Surah An-Nas',
+            count: 1
+        },
+        {
+            id: 'p_subhan',
+            arabic: 'سُبْحَانَ اللهِ',
+            translation: 'Glory be to Allah',
+            count: 33
+        },
+        {
+            id: 'p_alhamdulillah',
+            arabic: 'الْحَمْدُ للّهِ',
+            translation: 'All praise is due to Allah',
+            count: 33
+        },
+        {
+            id: 'p_takbir',
+            arabic: 'اللهُ أَكْبَرُ',
+            translation: 'Allah is the Greatest',
+            count: 34
+        },
+        {
+            id: 'p_tahlil',
+            arabic: 'لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ',
+            translation: 'There is no god but Allah alone, with no partner. His is the dominion, and His is the praise, and He has power over all things.',
+            count: 1
+        },
+        {
+            id: 'p_rabbighfir',
+            arabic: 'رَبِّ اغْفِرْ لِي',
+            translation: 'My Lord, forgive me.',
+            count: 3
+        },
+        {
+            id: 'p_astaghfirullah',
+            arabic: 'أَسْتَغْفِرُ اللهَ',
+            translation: 'I seek forgiveness from Allah.',
+            count: 3
+        },
+        {
+            id: 'p_allahumma_anta',
+            arabic: 'اللَّهُمَّ أَنْتَ السَّلَامُ وَمِنْكَ السَّلَامُ تَبَارَكْتَ يَا ذَا الْجَلَالِ وَالْإِكْرَامِ',
+            translation: 'O Allah, You are Peace and from You comes peace. Blessed are You, O Possessor of majesty and honor.',
+            count: 1
+        }
+    ],
     GENERAL: [
         {
             id: 'g1',
@@ -287,7 +355,7 @@ interface Props {
 }
 
 const SupplicationsView: React.FC<Props> = ({ state, onPrayerToggle, onAdhkarToggle }) => {
-    const [activeTab, setActiveTab] = useState<'MORNING' | 'EVENING' | 'GENERAL'>('MORNING');
+    const [activeTab, setActiveTab] = useState<'MORNING' | 'EVENING' | 'PRAYER' | 'GENERAL'>('MORNING');
     const [counts, setCounts] = useState<Record<string, number>>({});
 
     // Prayer Logic
@@ -327,6 +395,7 @@ const SupplicationsView: React.FC<Props> = ({ state, onPrayerToggle, onAdhkarTog
                 <div className="flex gap-2">
                     <Tab active={activeTab === 'MORNING'} onClick={() => setActiveTab('MORNING')} icon={<Sun size={14} />} label="AM" fullLabel="Morning" />
                     <Tab active={activeTab === 'EVENING'} onClick={() => setActiveTab('EVENING')} icon={<Moon size={14} />} label="PM" fullLabel="Evening" />
+                    <Tab active={activeTab === 'PRAYER'} onClick={() => setActiveTab('PRAYER')} icon={<Zap size={14} />} label="Prayer" fullLabel="After Prayer" />
                     <Tab active={activeTab === 'GENERAL'} onClick={() => setActiveTab('GENERAL')} icon={<Sparkles size={14} />} label="Du'a" />
                 </div>
             </div>
@@ -394,17 +463,20 @@ const SupplicationsView: React.FC<Props> = ({ state, onPrayerToggle, onAdhkarTog
                         const isDone = current >= dhikr.count;
 
                         return (
-                            <div key={dhikr.id} className={`
-                                 p-4 md:p-6 rounded-lg border transition-all duration-300
-                                 ${isDone ? 'bg-emerald-950/10 border-emerald-900/50' : 'bg-surface border-border'}
+                            <div
+                                key={dhikr.id}
+                                onClick={() => handleCount(dhikr.id, dhikr.count)}
+                                className={`
+                                 p-4 md:p-6 rounded-lg border transition-all duration-300 cursor-pointer hover:shadow-md
+                                 ${isDone ? 'bg-emerald-950/10 border-emerald-900/50' : 'bg-surface border-border hover:bg-surface/80'}
                              `}>
-                                <div className="text-right mb-4 md:mb-6">
+                                <div className="text-right mb-4 md:mb-6 pointer-events-none">
                                     <p className="text-xl md:text-3xl leading-relaxed font-serif text-zinc-100" style={{ fontFamily: 'Amiri, serif' }}>
                                         {dhikr.arabic}
                                     </p>
                                 </div>
 
-                                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pointer-events-none">
                                     <p className="text-xs md:text-sm text-zinc-500 max-w-lg leading-relaxed italic">
                                         {dhikr.translation}
                                     </p>
@@ -413,22 +485,20 @@ const SupplicationsView: React.FC<Props> = ({ state, onPrayerToggle, onAdhkarTog
                                         <div className="text-xs font-mono text-zinc-500 uppercase tracking-widest">
                                             {current} / {dhikr.count}
                                         </div>
-                                        <button
-                                            onClick={() => handleCount(dhikr.id, dhikr.count)}
-                                            disabled={isDone}
+                                        <div
                                             className={`
                                                 w-12 h-12 rounded-full flex items-center justify-center border transition-all
                                                 ${isDone
                                                     ? 'bg-emerald-500 text-black border-emerald-400'
-                                                    : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white hover:border-zinc-500 active:scale-95'}
+                                                    : 'bg-zinc-800 text-zinc-400 border-zinc-700'}
                                             `}
                                         >
                                             {isDone ? <Sparkles size={18} fill="currentColor" /> : <PlusIcon />}
-                                        </button>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="mt-4 h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="mt-4 h-1 w-full bg-zinc-800 rounded-full overflow-hidden pointer-events-none">
                                     <div
                                         className={`h-full transition-all duration-300 ${isDone ? 'bg-emerald-500' : 'bg-zinc-600'}`}
                                         style={{ width: `${(current / dhikr.count) * 100}%` }}

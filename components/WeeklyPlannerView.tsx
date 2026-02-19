@@ -396,184 +396,130 @@ const formatRelativeDate = (timestamp: number): string => {
   return `${months[date.getMonth()]} ${date.getDate()}`;
 };
 
-const DockSection: React.FC<{
-  title: string;
-  icon: React.ReactNode;
+// Color accent map for dock section types
+const dockAccentColors: Record<string, { border: string; bg: string; text: string; hover: string }> = {
+  ROUTINE: { border: 'border-l-amber-500/60', bg: 'bg-amber-500/5', text: 'text-amber-400', hover: 'hover:bg-amber-500/10' },
+  TEMPLATE: { border: 'border-l-blue-500/60', bg: 'bg-blue-500/5', text: 'text-blue-400', hover: 'hover:bg-blue-500/10' },
+  PROJECT: { border: 'border-l-violet-500/60', bg: 'bg-violet-500/5', text: 'text-violet-400', hover: 'hover:bg-violet-500/10' },
+  TODO: { border: 'border-l-zinc-400/40', bg: 'bg-zinc-500/5', text: 'text-zinc-300', hover: 'hover:bg-zinc-500/10' },
+  LATER: { border: 'border-l-zinc-600/40', bg: 'bg-zinc-600/5', text: 'text-zinc-500', hover: 'hover:bg-zinc-600/10' },
+  HABIT: { border: 'border-l-emerald-500/60', bg: 'bg-emerald-500/5', text: 'text-emerald-400', hover: 'hover:bg-emerald-500/10' },
+};
+
+// Dock tab config
+const dockTabConfig: { type: DockSection; icon: React.ReactNode; label: string }[] = [
+  { type: 'ROUTINE', icon: <Repeat size={14} />, label: 'Routines' },
+  { type: 'TEMPLATE', icon: <FileText size={14} />, label: 'Templates' },
+  { type: 'PROJECT', icon: <Package size={14} />, label: 'Projects' },
+  { type: 'TODO', icon: <ListTodo size={14} />, label: 'To Do' },
+  { type: 'LATER', icon: <Clock size={14} />, label: 'Later' },
+  { type: 'HABIT', icon: <Target size={14} />, label: 'Habits' },
+];
+
+const DockItemCard: React.FC<{
+  task: Task;
   type: DockSection;
-  tasks: Task[];
   onDragStart: (task: Task) => void;
   onUpdate: (id: string, updates: Partial<Task>) => void;
   onDelete: (id: string) => void;
-  onAdd: Props['onAdd'];
   onSelect: (task: Task) => void;
-  onExpand?: (task: Task) => void;
   currentDate?: string;
-  collapsed: boolean;
-  onToggle: () => void;
-}> = ({ title, icon, type, tasks, onDragStart, onUpdate, onDelete, onAdd, onSelect, onExpand, currentDate, collapsed, onToggle }) => {
-  const [adding, setAdding] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
+}> = ({ task, type, onDragStart, onUpdate, onDelete, onSelect, currentDate }) => {
+  const accent = dockAccentColors[type] || dockAccentColors.TODO;
 
-  const handleAdd = () => {
-    if (newTitle.trim()) {
-      onAdd(newTitle.trim(), Category.SERVICE, 'MED', { dockSection: type });
-      setNewTitle('');
-      setAdding(false);
-    }
-  };
-
-  return (
-    <div className="space-y-0.5">
+  // Habit item
+  if (type === 'HABIT') {
+    const isChecked = task.habitTracking?.[currentDate!] || false;
+    return (
       <div
-        className={`flex items-center justify-between px-2 cursor-pointer transition-colors group/header ${!collapsed ? 'bg-zinc-900/40 py-1.5' : 'hover:bg-zinc-900/50 py-1'
-          }`}
-        onClick={onToggle}
+        className={`group relative border-l-2 ${accent.border} rounded-r-md px-3 py-2.5 cursor-pointer transition-all ${accent.hover} ${isChecked ? 'opacity-60' : ''}`}
+        onClick={() => onSelect(task)}
       >
         <div className="flex items-center gap-2.5">
-          <span className={`transition-transform duration-200 text-zinc-600 ${collapsed ? '' : 'rotate-90'}`}>
-            <ChevronRight size={10} strokeWidth={3} />
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-400 opacity-70 group-hover/header:opacity-100 transition-opacity">
-              {icon}
-            </span>
-            <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.15em]">
-              {title}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {tasks.length > 0 ? (
-            <span className="text-[9px] font-mono text-zinc-600 group-hover/header:text-zinc-400 transition-colors">
-              {tasks.length}
-            </span>
-          ) : (
-            <span className="text-[9px] font-mono text-zinc-800 italic">Null</span>
-          )}
           <button
-            onClick={(e) => { e.stopPropagation(); setAdding(true); }}
-            className="text-zinc-700 hover:text-zinc-400 opacity-0 group-hover/header:opacity-100 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation();
+              const newTracking = { ...(task.habitTracking || {}), [currentDate!]: !isChecked };
+              onUpdate(task.id, { habitTracking: newTracking });
+            }}
+            className="flex-shrink-0"
           >
-            <Plus size={10} />
+            {isChecked ? (
+              <div className="w-4 h-4 bg-emerald-500/70 rounded flex items-center justify-center">
+                <Check size={10} className="text-black" strokeWidth={3} />
+              </div>
+            ) : (
+              <div className="w-4 h-4 rounded border border-zinc-700 hover:border-emerald-500/50 transition-colors" />
+            )}
           </button>
+          <span className={`text-[11px] leading-tight transition-colors ${isChecked ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
+            {task.title}
+          </span>
+        </div>
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded hover:bg-zinc-800/50"><Pencil size={10} /></button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-600 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={10} /></button>
         </div>
       </div>
+    );
+  }
 
-      {!collapsed && (
-        <div className="space-y-px animate-in slide-in-from-top-1 duration-200">
-          {adding && (
-            <div className="px-3 py-1 bg-zinc-900/60 border-l border-zinc-800 ml-4 mb-1">
-              <input
-                value={newTitle}
-                onChange={e => setNewTitle(e.target.value)}
-                onBlur={() => { if (!newTitle.trim()) setAdding(false); }}
-                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAdding(false); }}
-                placeholder="Log directive..."
-                className="w-full bg-transparent border-0 text-[10px] text-zinc-200 focus:outline-none placeholder:text-zinc-700"
-                autoFocus
-              />
-            </div>
-          )}
-          <div className="ml-[18px] border-l border-zinc-900/50">
-            {[...tasks].sort((a, b) => a.createdAt - b.createdAt).map(task => {
-              const baseStyles = `group flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-all hover:bg-zinc-900/40 border-b border-transparent hover:border-zinc-900/50`;
-              const dateBadge = (
-                <span className="text-[8px] font-mono text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  {formatRelativeDate(task.createdAt)}
-                </span>
-              );
+  // Template item
+  if (type === 'TEMPLATE') {
+    return (
+      <div
+        className={`group relative border-l-2 ${accent.border} rounded-r-md px-3 py-2.5 cursor-pointer transition-all ${accent.hover}`}
+        onClick={() => onSelect(task)}
+      >
+        <div className="text-[11px] text-zinc-300 leading-tight">{task.title}</div>
+        <div className="text-[9px] text-zinc-600 mt-0.5 font-mono">
+          {task.templateSteps ? `${task.templateSteps.length} steps` : 'Template'}
+        </div>
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-600 hover:text-blue-400 rounded hover:bg-zinc-800/50"><Pencil size={10} /></button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-600 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={10} /></button>
+        </div>
+      </div>
+    );
+  }
 
-              if (type === 'TEMPLATE') {
-                return (
-                  <div key={task.id} className={baseStyles}>
-                    <div className="w-1 h-3 bg-blue-500/20 rounded-full group-hover:bg-blue-500/40 transition-colors" />
-                    <div className="flex-1 text-[10px] text-zinc-400 truncate group-hover:text-zinc-200 transition-colors sans-serif tracking-tight">{task.title}</div>
-                    {dateBadge}
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all transform translate-x-1 group-hover:translate-x-0">
-                      <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-blue-400"><Pencil size={9} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={9} /></button>
-                    </div>
-                  </div>
-                );
-              }
-
-              if (type === 'HABIT') {
-                const isChecked = task.habitTracking?.[currentDate!] || false;
-                return (
-                  <div key={task.id} className={baseStyles}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const newTracking = { ...(task.habitTracking || {}), [currentDate!]: !isChecked };
-                        onUpdate(task.id, { habitTracking: newTracking });
-                      }}
-                      className="flex-shrink-0"
-                    >
-                      {isChecked ? (
-                        <div className="w-2.5 h-2.5 bg-emerald-500/60 rounded-[1px] flex items-center justify-center">
-                          <Check size={8} className="text-black" strokeWidth={4} />
-                        </div>
-                      ) : (
-                        <div className="w-2.5 h-2.5 rounded-[1px] border border-zinc-800 hover:border-zinc-600" />
-                      )}
-                    </button>
-                    <div className={`flex-1 text-[10px] truncate transition-colors ${isChecked ? 'text-zinc-500 line-through' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
-                      {task.title}
-                    </div>
-                    {dateBadge}
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-zinc-300"><Pencil size={9} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={9} /></button>
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={task.id}
-                  draggable
-                  onDragStart={() => onDragStart(task)}
-                  onClick={() => {
-                    const today = new Date();
-                    today.setHours(12, 0, 0, 0);
-                    onUpdate(task.id, { scheduledTime: today.getTime() });
-                  }}
-                  className={`${baseStyles} cursor-move active:scale-[0.98]`}
-                >
-                  <GripVertical size={8} className="text-zinc-800 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className={`flex-1 text-[10px] truncate transition-colors ${task.urgent ? 'text-zinc-200 font-medium' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
-                    {task.urgent && <span className="text-red-500/80 mr-1.5 font-black shrink-0">!</span>}
-                    {task.title}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[7px] font-mono text-zinc-600 bg-zinc-900 border border-zinc-800/50 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                      {new Date(task.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </span>
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const today = new Date();
-                          today.setHours(12, 0, 0, 0);
-                          onUpdate(task.id, { scheduledTime: today.getTime() });
-                        }}
-                        className="text-emerald-600 hover:text-emerald-400"
-                        title="Move to Today"
-                      >
-                        <ArrowRight size={9} />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-zinc-300"><Pencil size={9} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={9} /></button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+  // Default: draggable item (TODO, ROUTINE, PROJECT, LATER)
+  return (
+    <div
+      draggable
+      onDragStart={() => onDragStart(task)}
+      onClick={() => onSelect(task)}
+      className={`group relative border-l-2 ${accent.border} rounded-r-md px-3 py-2.5 cursor-move transition-all ${accent.hover} active:scale-[0.98]`}
+    >
+      <div className="flex items-center gap-2">
+        <GripVertical size={10} className="text-zinc-800 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="flex-1 min-w-0">
+          <div className={`text-[11px] leading-tight truncate ${task.urgent ? 'text-zinc-100 font-medium' : 'text-zinc-300'}`}>
+            {task.urgent && <span className="text-red-400 mr-1 font-bold">!</span>}
+            {task.title}
+          </div>
+          <div className="text-[9px] text-zinc-600 mt-0.5 font-mono">
+            {formatRelativeDate(task.createdAt)}
+            {type === 'PROJECT' && ' · Project'}
           </div>
         </div>
-      )}
+      </div>
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const today = new Date();
+            today.setHours(12, 0, 0, 0);
+            onUpdate(task.id, { scheduledTime: today.getTime() });
+          }}
+          className="p-1 text-emerald-600 hover:text-emerald-400 rounded hover:bg-zinc-800/50"
+          title="Schedule today"
+        >
+          <ArrowRight size={10} />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded hover:bg-zinc-800/50"><Pencil size={10} /></button>
+        <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-600 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={10} /></button>
+      </div>
     </div>
   );
 };
@@ -601,6 +547,9 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const [dockSearch, setDockSearch] = useState('');
   const [urgentCollapsed, setUrgentCollapsed] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [activeDockTab, setActiveDockTab] = useState<DockSection>('TODO');
+  const [dockAddingNew, setDockAddingNew] = useState(false);
+  const [dockNewTitle, setDockNewTitle] = useState('');
   const [showWeeklyEditor, setShowWeeklyEditor] = useState(false);
   const [uiZoom, setUiZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -995,73 +944,93 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     setExpandingTemplate(null);
   };
 
+  // Handle adding a new item to the active dock tab
+  const handleDockAdd = () => {
+    if (dockNewTitle.trim()) {
+      onAdd(dockNewTitle.trim(), Category.SERVICE, 'MED', { dockSection: activeDockTab });
+      setDockNewTitle('');
+      setDockAddingNew(false);
+    }
+  };
+
+  // Get active tab tasks
+  const getActiveTabTasks = () => {
+    const tasks = dockTasks[activeDockTab] || [];
+    if (!dockSearch) return tasks;
+    return tasks.filter(t => t.title.toLowerCase().includes(dockSearch.toLowerCase()));
+  };
+
   // Render dock content (reused in desktop & mobile)
-  const renderDockContent = () => (
-    <>
-      {/* Input Index */}
-      <div className="p-3 border-b border-zinc-900/30 flex-shrink-0">
-        <div className="space-y-2">
-          <div className="relative group">
-            <Search size={10} className="absolute left-2.5 top-2.5 text-zinc-700 group-focus-within:text-zinc-400 transition-colors" />
-            <input
-              value={dockSearch}
-              onChange={e => setDockSearch(e.target.value)}
-              placeholder="Search index..."
-              className="w-full bg-zinc-950/30 border border-zinc-900/50 rounded-sm px-2 py-2 pl-7 text-[10px] text-zinc-400 focus:outline-none focus:border-zinc-800 placeholder:text-zinc-800 transition-all font-mono"
-            />
-          </div>
+  const renderDockContent = () => {
+    const activeTabConfig = dockTabConfig.find(t => t.type === activeDockTab)!;
+    const activeAccent = dockAccentColors[activeDockTab];
+    const activeTasks = getActiveTabTasks();
+    const currentDateKey = getDateKeyInTimeZone(currentTime, plannerTimeZone);
 
-          {/* Separator */}
-          <div className="h-px bg-zinc-800/50 my-1" />
-
-          <div className="relative group">
-            <Plus size={10} className="absolute left-2.5 top-2.5 text-zinc-700 group-focus-within:text-zinc-400 transition-colors" />
-            <input
-              placeholder="Direct Log..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = e.currentTarget.value;
-                  if (val.trim()) {
-                    onAdd(val.trim(), Category.SERVICE, 'MED', { dockSection: 'TODO' });
-                    e.currentTarget.value = '';
-                  }
-                }
-              }}
-              className="w-full bg-zinc-950/30 border border-zinc-900/50 rounded-sm px-2 py-2 pl-7 text-[10px] text-zinc-400 focus:outline-none focus:border-zinc-800 placeholder:text-zinc-800 transition-all font-mono"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Actions Bar */}
-      <div className="flex items-center justify-center py-2.5 border-b border-zinc-900/50 flex-shrink-0">
-        <button onClick={expandAll} className="text-[8px] text-zinc-600 hover:text-zinc-400 px-2 py-0.5 uppercase tracking-wider">
-          Expand
-        </button>
-        <div className="w-px h-3 bg-zinc-900/50 mx-2" />
-        <button onClick={collapseAll} className="text-[8px] text-zinc-600 hover:text-zinc-400 px-2 py-0.5 uppercase tracking-wider">
-          Collapse
-        </button>
-      </div>
-
-      {/* Sections */}
-      <div className="flex-1 overflow-y-auto pb-2 pt-1 px-2">
-        {urgentTasks.length > 0 && (
-          <div className="mb-3">
-            <div className="flex items-center justify-between mb-1 px-1">
-              <div className="flex items-center gap-1.5">
-                <AlertCircle size={8} className="text-red-500" />
-                <span className="text-[9px] font-bold text-red-400 uppercase tracking-[0.2em]">Urgent</span>
-              </div>
-              <button onClick={() => setUrgentCollapsed(!urgentCollapsed)} className="text-zinc-600 hover:text-zinc-400">
-                {urgentCollapsed ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
+    return (
+      <>
+        {/* Tab Bar */}
+        <div className="flex items-center border-b border-zinc-800/60 flex-shrink-0 bg-zinc-950/30">
+          {dockTabConfig.map(tab => {
+            const isActive = tab.type === activeDockTab;
+            const tabAccent = dockAccentColors[tab.type];
+            const count = dockTasks[tab.type]?.length || 0;
+            return (
+              <button
+                key={tab.type}
+                onClick={() => { setActiveDockTab(tab.type); setDockSearch(''); setDockAddingNew(false); }}
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 relative transition-all ${isActive ? `${tabAccent.text}` : 'text-zinc-600 hover:text-zinc-400'}`}
+                title={`${tab.label} (${count})`}
+              >
+                {tab.icon}
+                {count > 0 && (
+                  <span className={`text-[8px] font-mono leading-none ${isActive ? tabAccent.text : 'text-zinc-700'}`}>
+                    {count}
+                  </span>
+                )}
+                {isActive && (
+                  <div className={`absolute bottom-0 left-1/4 right-1/4 h-[2px] rounded-full ${tabAccent.text.replace('text-', 'bg-')}`} />
+                )}
               </button>
-            </div>
+            );
+          })}
+        </div>
+
+        {/* Urgent Banner - shows regardless of active tab */}
+        {urgentTasks.length > 0 && (
+          <div className="px-3 py-2 bg-red-950/15 border-b border-red-900/20 flex-shrink-0">
+            <button
+              onClick={() => setUrgentCollapsed(!urgentCollapsed)}
+              className="flex items-center justify-between w-full"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-[11px] font-semibold text-red-400">{urgentTasks.length} urgent</span>
+              </div>
+              {urgentCollapsed ? <ChevronDown size={12} className="text-red-400/60" /> : <ChevronUp size={12} className="text-red-400/60" />}
+            </button>
             {!urgentCollapsed && (
-              <div className="space-y-0.5">
+              <div className="mt-2 space-y-1">
                 {urgentTasks.map(task => (
-                  <div key={task.id} className="p-1.5 bg-red-950/20 border border-red-900/30 rounded-sm text-[10px] text-zinc-300 cursor-pointer hover:bg-red-950/30" onClick={() => setInspectorTask(task)}>
-                    {task.title}
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded bg-red-950/30 border border-red-900/20 cursor-pointer hover:bg-red-950/40 transition-colors"
+                    onClick={() => setInspectorTask(task)}
+                  >
+                    <span className="text-red-400 font-bold text-[10px]">!</span>
+                    <span className="text-[11px] text-zinc-300 truncate flex-1">{task.title}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const today = new Date();
+                        today.setHours(12, 0, 0, 0);
+                        onUpdate(task.id, { scheduledTime: today.getTime() });
+                      }}
+                      className="text-red-500/60 hover:text-emerald-400 transition-colors flex-shrink-0"
+                      title="Schedule today"
+                    >
+                      <ArrowRight size={11} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1069,110 +1038,113 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           </div>
         )}
 
-        <DockSection
-          title="Routines"
-          icon={<Repeat size={9} />}
-          type="ROUTINE"
-          tasks={dockTasks.ROUTINE}
-          onDragStart={handleDragStart}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onAdd={onAdd}
-          onSelect={(task) => setInspectorTask(task)}
-          collapsed={collapsedSections['ROUTINE']}
-          onToggle={() => toggleSection('ROUTINE')}
-        />
+        {/* Active Section Header + Search */}
+        <div className="px-3 pt-3 pb-2 flex-shrink-0">
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2">
+              <span className={activeAccent.text}>{activeTabConfig.icon}</span>
+              <span className="text-[13px] font-semibold text-zinc-200">{activeTabConfig.label}</span>
+              <span className="text-[10px] font-mono text-zinc-600 bg-zinc-900/60 px-1.5 py-0.5 rounded">
+                {activeTasks.length}
+              </span>
+            </div>
+            <button
+              onClick={() => { setDockAddingNew(true); setDockNewTitle(''); }}
+              className={`p-1.5 rounded-md transition-all ${activeAccent.hover} ${activeAccent.text} hover:bg-zinc-800`}
+              title={`Add to ${activeTabConfig.label}`}
+            >
+              <Plus size={13} />
+            </button>
+          </div>
 
-        <DockSection
-          title="Templates"
-          icon={<FileText size={9} />}
-          type="TEMPLATE"
-          tasks={dockTasks.TEMPLATE}
-          onDragStart={handleDragStart}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onAdd={onAdd}
-          onSelect={(task) => setInspectorTask(task)}
-          onExpand={(task, day, hour) => setExpandingTemplate(task)}
-          collapsed={collapsedSections['TEMPLATE']}
-          onToggle={() => toggleSection('TEMPLATE')}
-        />
-
-        <DockSection
-          title="Projects"
-          icon={<Package size={9} />}
-          type="PROJECT"
-          tasks={dockTasks.PROJECT}
-          onDragStart={handleDragStart}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onAdd={onAdd}
-          onSelect={(task) => setInspectorTask(task)}
-          collapsed={collapsedSections['PROJECT']}
-          onToggle={() => toggleSection('PROJECT')}
-        />
-
-        <DockSection
-          title="To Do"
-          icon={<ListTodo size={9} />}
-          type="TODO"
-          tasks={dockTasks.TODO}
-          onDragStart={handleDragStart}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onAdd={onAdd}
-          onSelect={(task) => setInspectorTask(task)}
-          collapsed={collapsedSections['TODO']}
-          onToggle={() => toggleSection('TODO')}
-        />
-
-        <DockSection
-          title="Later"
-          icon={<Clock size={9} />}
-          type="LATER"
-          tasks={dockTasks.LATER}
-          onDragStart={handleDragStart}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onAdd={onAdd}
-          onSelect={(task) => setInspectorTask(task)}
-          collapsed={collapsedSections['LATER']}
-          onToggle={() => toggleSection('LATER')}
-        />
-
-        <DockSection
-          title="Habits"
-          icon={<Target size={9} />}
-          type="HABIT"
-          tasks={dockTasks.HABIT}
-          onDragStart={handleDragStart}
-          onUpdate={onUpdate}
-          onDelete={onDelete}
-          onAdd={onAdd}
-          onSelect={(task) => setInspectorTask(task)}
-          currentDate={getDateKeyInTimeZone(currentTime, plannerTimeZone)}
-          collapsed={collapsedSections['HABIT']}
-          onToggle={() => toggleSection('HABIT')}
-        />
-      </div>
-
-      {/* Bandwidth Footer */}
-      <div className="p-4 border-t border-zinc-900/50 space-y-2.5 flex-shrink-0 bg-surface">
-        <div className="flex items-center justify-between text-[8px] font-bold text-zinc-600 tracking-[0.25em] uppercase">
-          <span>Bandwidth</span>
-          <span className="font-mono text-zinc-400">
-            {bandwidthPercent}%
-          </span>
+          {/* Search - compact, only shown when there are items */}
+          {(dockTasks[activeDockTab]?.length > 0 || dockSearch) && (
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-700" />
+              <input
+                value={dockSearch}
+                onChange={e => setDockSearch(e.target.value)}
+                placeholder={`Search ${activeTabConfig.label.toLowerCase()}...`}
+                className="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-md px-3 py-1.5 pl-8 text-[11px] text-zinc-300 focus:outline-none focus:border-zinc-700 placeholder:text-zinc-700 transition-all"
+              />
+            </div>
+          )}
         </div>
-        <div className="h-[3px] w-full bg-zinc-950 overflow-hidden relative rounded-full">
-          <div
-            className="absolute inset-y-0 left-0 bg-zinc-600 transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.1)] rounded-full"
-            style={{ width: `${bandwidthPercent}%` }}
-          />
+
+        {/* Add New Item Inline */}
+        {dockAddingNew && (
+          <div className="px-3 pb-2 flex-shrink-0">
+            <div className={`border-l-2 ${activeAccent.border} rounded-r-md bg-zinc-900/50 px-3 py-2`}>
+              <input
+                value={dockNewTitle}
+                onChange={e => setDockNewTitle(e.target.value)}
+                onBlur={() => { if (!dockNewTitle.trim()) { setDockAddingNew(false); setDockNewTitle(''); } }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleDockAdd();
+                  if (e.key === 'Escape') { setDockAddingNew(false); setDockNewTitle(''); }
+                }}
+                placeholder={`New ${activeTabConfig.label.toLowerCase().replace(/s$/, '')}...`}
+                className="w-full bg-transparent text-[11px] text-zinc-200 focus:outline-none placeholder:text-zinc-600"
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Items List */}
+        <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1">
+          {activeTasks.length === 0 && !dockAddingNew ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className={`${activeAccent.text} opacity-20 mb-2`}>
+                {activeTabConfig.icon}
+              </div>
+              <p className="text-[11px] text-zinc-600">No {activeTabConfig.label.toLowerCase()} yet</p>
+              <button
+                onClick={() => { setDockAddingNew(true); setDockNewTitle(''); }}
+                className="text-[10px] text-zinc-500 hover:text-zinc-300 mt-1 transition-colors"
+              >
+                + Add one
+              </button>
+            </div>
+          ) : (
+            [...activeTasks].sort((a, b) => {
+              // Urgent items first
+              if (a.urgent && !b.urgent) return -1;
+              if (!a.urgent && b.urgent) return 1;
+              return a.createdAt - b.createdAt;
+            }).map(task => (
+              <DockItemCard
+                key={task.id}
+                task={task}
+                type={activeDockTab}
+                onDragStart={handleDragStart}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onSelect={(task) => setInspectorTask(task)}
+                currentDate={currentDateKey}
+              />
+            ))
+          )}
         </div>
-      </div>
-    </>
-  );
+
+        {/* Footer - Clean stat */}
+        <div className="px-3 py-2.5 border-t border-zinc-800/40 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-zinc-600">{todayScheduledCount} of 12 scheduled today</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-16 h-1 bg-zinc-900 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-zinc-500 rounded-full transition-all duration-700"
+                  style={{ width: `${bandwidthPercent}%` }}
+                />
+              </div>
+              <span className="text-[9px] font-mono text-zinc-500">{bandwidthPercent}%</span>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="flex h-full bg-background relative" style={{ zoom: uiZoom }}>
@@ -1196,17 +1168,17 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
       {showMobileDock && (
         <>
           <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={() => setShowMobileDock(false)} />
-          <div className="lg:hidden fixed inset-y-0 left-0 w-[85%] max-w-sm bg-surface border-r border-border z-50 overflow-hidden shadow-2xl">
+          <div className="lg:hidden fixed inset-y-0 left-0 w-[85%] max-w-[320px] bg-zinc-950/95 backdrop-blur-md border-r border-zinc-800/50 z-50 overflow-hidden shadow-2xl">
             {/* Mobile Dock Header */}
-            <div className="h-12 border-b border-border flex items-center justify-between px-4 flex-shrink-0">
-              <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Dock</span>
-              <button onClick={() => setShowMobileDock(false)} className="text-zinc-500 hover:text-zinc-200">
-                <X size={20} />
+            <div className="h-11 border-b border-zinc-800/50 flex items-center justify-between px-4 flex-shrink-0">
+              <span className="text-[11px] font-semibold text-zinc-300 tracking-wide">Dock</span>
+              <button onClick={() => setShowMobileDock(false)} className="p-1 text-zinc-500 hover:text-zinc-200 rounded hover:bg-zinc-800/50 transition-all">
+                <X size={18} />
               </button>
             </div>
 
-            {/* Mobile Dock Content - Scrollable */}
-            <div className="h-[calc(100%-3rem)] overflow-y-auto">
+            {/* Mobile Dock Content */}
+            <div className="h-[calc(100%-2.75rem)] flex flex-col overflow-hidden">
               {renderDockContent()}
             </div>
           </div>
@@ -1214,17 +1186,17 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
       )}
 
       {/* Desktop Dock - Hidden on mobile/tablet */}
-      <div className={`hidden lg:flex border-r border-border bg-surface transition-all ${dockCollapsed ? 'w-12' : 'w-60'} flex-shrink-0 z-10`}>
+      <div className={`hidden lg:flex border-r border-zinc-800/50 bg-zinc-950/50 transition-all ${dockCollapsed ? 'w-12' : 'w-[272px]'} flex-shrink-0 z-10`}>
         {dockCollapsed ? (
-          <button onClick={() => setDockCollapsed(false)} className="w-full h-12 flex items-center justify-center text-zinc-500 hover:text-zinc-300">
+          <button onClick={() => setDockCollapsed(false)} className="w-full h-12 flex items-center justify-center text-zinc-600 hover:text-zinc-400 transition-colors">
             <ChevronRight size={16} />
           </button>
         ) : (
-          <div className="h-full flex flex-col">
-            <div className="h-12 border-b border-border flex items-center justify-between px-3 flex-shrink-0">
-              <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Dock</span>
-              <button onClick={() => setDockCollapsed(true)} className="text-zinc-600 hover:text-zinc-300">
-                <ChevronLeft size={16} />
+          <div className="h-full flex flex-col w-full">
+            <div className="h-11 border-b border-zinc-800/50 flex items-center justify-between px-3 flex-shrink-0">
+              <span className="text-[11px] font-semibold text-zinc-400 tracking-wide">Dock</span>
+              <button onClick={() => setDockCollapsed(true)} className="p-1 text-zinc-600 hover:text-zinc-400 rounded hover:bg-zinc-800/50 transition-all">
+                <ChevronLeft size={14} />
               </button>
             </div>
             {renderDockContent()}

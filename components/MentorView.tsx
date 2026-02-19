@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppState, ChatMessage, TaskStatus, HorizonGoal } from '../types';
 import { Send, Bot, User, Zap, Settings, ChevronDown, Target, Plus, CheckCircle2, Circle } from 'lucide-react';
 import { sendMessageToOpenRouter } from '../services/openRouterService';
+import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone } from '../utils/dateTime';
 
 interface Props {
   state: AppState;
@@ -86,9 +87,12 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate, onAddGoal, onUpdateG
 
     try {
       // Construct Context
+      const timeZone = state.userPreferences?.timeZone || DEFAULT_TIME_ZONE;
+      const todayKey = getDateKeyInTimeZone(new Date(), timeZone);
       const context = {
         identity: "Noeman",
         current_time: new Date().toLocaleString(),
+        timezone: timeZone,
         tasks_pending: state.tasks
           .filter(t => t.status !== TaskStatus.DONE)
           .map(t => ({
@@ -99,7 +103,14 @@ const MentorView: React.FC<Props> = ({ state, onChatUpdate, onAddGoal, onUpdateG
             is_overdue: t.deadline ? t.deadline < Date.now() : false
           })),
         metrics: state.metrics,
-        prayers_logged: Object.keys(state.prayerLog).filter(k => k.includes(new Date().toISOString().split('T')[0])),
+        prayers_logged: Object.keys(state.prayerLog).filter(k => k.includes(todayKey)),
+        planner_focus: state.dayMeta?.[todayKey]?.focus || '',
+        active_challenge: state.activeChallenge ? {
+          name: state.activeChallenge.name,
+          status: state.activeChallenge.status,
+          today: state.activeChallenge.history[todayKey] || null,
+        } : null,
+        protocol_progress_today: state.dailyProtocolState?.[todayKey] || {},
       };
 
       const agent = AGENTS[activeAgent];

@@ -372,6 +372,7 @@ export interface UserPreferences {
   planner: {
     dayViewLayout: DayViewLayout; // 'timeline' | 'periods' | 'kanban'
   };
+  timeZone?: string; // IANA timezone, e.g. 'Africa/Cairo'
   dateFormat?: 'US' | 'EU' | 'ISO'; // MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
   timeFormat?: '12h' | '24h';
   currency?: 'USD' | 'EGP' | 'EUR' | 'GBP';
@@ -495,4 +496,3 @@ export interface AppState {
   // Active Challenge (Iron Protocol)
   activeChallenge?: Challenge;
 }
-

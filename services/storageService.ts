@@ -1,4 +1,4 @@
-import { AppState } from '../types';
+import { AppState, UserPreferences } from '../types';
 import { db } from './firebase';
 import { getDefaultUserPreferences, getDefaultProtocolContexts, getDefaultWeeklyActivities } from '../defaultPreferences';
 import {
@@ -107,6 +107,42 @@ const INITIAL_STATE: AppState = {
   dailyProtocolState: {},
   timeBlocks: {}
 
+};
+
+const normalizeUserPreferences = (preferences: Partial<UserPreferences> | undefined): UserPreferences => {
+  const defaults = getDefaultUserPreferences();
+  return {
+    ...defaults,
+    ...preferences,
+    dashboard: {
+      ...defaults.dashboard,
+      ...(preferences?.dashboard || {}),
+      quickNavShortcuts: preferences?.dashboard?.quickNavShortcuts || defaults.dashboard.quickNavShortcuts,
+      quickActions: preferences?.dashboard?.quickActions || defaults.dashboard.quickActions,
+      widgets: preferences?.dashboard?.widgets || defaults.dashboard.widgets,
+    },
+    appearance: {
+      ...defaults.appearance,
+      ...(preferences?.appearance || {}),
+    },
+    planner: {
+      ...defaults.planner,
+      ...(preferences?.planner || {}),
+    },
+    timeZone: preferences?.timeZone || defaults.timeZone,
+  };
+};
+
+const normalizeState = (state: Partial<AppState> | null | undefined): AppState => {
+  const merged = { ...INITIAL_STATE, ...(state || {}) } as AppState;
+  return {
+    ...merged,
+    userPreferences: normalizeUserPreferences(state?.userPreferences),
+    protocolContexts: state?.protocolContexts || INITIAL_STATE.protocolContexts,
+    weeklyActivities: state?.weeklyActivities || INITIAL_STATE.weeklyActivities,
+    dailyProtocolState: state?.dailyProtocolState || {},
+    timeBlocks: state?.timeBlocks || {},
+  };
 };
 
 const cloneState = (state: AppState) => JSON.parse(JSON.stringify(state));
@@ -288,10 +324,11 @@ export const getClientId = () => getClientIdInternal();
 export const getSnapshotMeta = () => lastSnapshotMeta;
 
 export const applyRemoteState = (state: AppState, meta: SnapshotMeta) => {
-  persistLocalState(state);
+  const normalized = normalizeState(state);
+  persistLocalState(normalized);
   lastSnapshotMeta = meta;
   saveLocalMeta(meta);
-  lastSavedState = cloneState(state);
+  lastSavedState = cloneState(normalized);
 };
 
 // 1. LOAD
@@ -302,7 +339,7 @@ export const loadState = async (): Promise<AppState> => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      localData = { ...INITIAL_STATE, ...parsed };
+      localData = normalizeState(parsed);
     }
   } catch (e) {
     console.error('Local read error', e);
@@ -321,7 +358,7 @@ export const loadState = async (): Promise<AppState> => {
       if (snap.exists()) {
         const data = snap.data();
         const remoteMeta = extractMeta(data);
-        const remoteState = data?.data ? { ...INITIAL_STATE, ...data.data } : null;
+        const remoteState = data?.data ? normalizeState(data.data) : null;
 
         const useRemote = remoteState &&
           (remoteMeta.version > localMeta.version || remoteMeta.updatedAt > localMeta.updatedAt);
@@ -364,7 +401,7 @@ export const subscribeToRemoteState = (
     const unsubscribe = onSnapshot(docRef, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
-      const remoteState = data?.data ? { ...INITIAL_STATE, ...data.data } : null;
+      const remoteState = data?.data ? normalizeState(data.data) : null;
       if (!remoteState) return;
       const remoteMeta = extractMeta(data);
       onUpdate(remoteState, remoteMeta);

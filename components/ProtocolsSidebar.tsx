@@ -5,6 +5,7 @@ import {
   Sunrise, Sunset, Dumbbell, Briefcase, Footprints, Moon, Coffee, BookOpen,
   Heart, Zap, Brain, Utensils, Droplets, Pill, Leaf, Target, Clock
 } from 'lucide-react';
+import { getDayOfWeekFromDateKey } from '../utils/dateTime';
 
 // Icon mapping for protocol contexts
 const ICON_MAP: Record<string, React.FC<{ size?: number; className?: string }>> = {
@@ -43,8 +44,7 @@ const ProtocolsSidebar: React.FC<Props> = ({
   const [showWeeklyActivities, setShowWeeklyActivities] = useState(true);
 
   const currentDayKey = useMemo(() => {
-    const date = new Date(dateKey);
-    return DAY_KEYS[date.getDay()];
+    return DAY_KEYS[getDayOfWeekFromDateKey(dateKey)];
   }, [dateKey]);
 
   const todaysActivities = weeklyActivities[currentDayKey] || [];

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Task, Category, DockSection } from '../types';
 import { X, Trash2, Copy, ArrowLeft, Calendar, Clock, AlertCircle, CheckCircle2, Circle, Plus } from 'lucide-react';
+import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone } from '../utils/dateTime';
 
 interface Props {
     task: Task;
@@ -9,9 +10,10 @@ interface Props {
     onDelete: (id: string) => void;
     onUnschedule: (id: string) => void;
     onDuplicate: (task: Task) => void;
+    timeZone?: string;
 }
 
-const InspectorPanel: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, onUnschedule, onDuplicate }) => {
+const InspectorPanel: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, onUnschedule, onDuplicate, timeZone = DEFAULT_TIME_ZONE }) => {
     const [title, setTitle] = useState(task.title);
     const [notes, setNotes] = useState(task.notes || '');
     const [dateStr, setDateStr] = useState('');
@@ -22,13 +24,13 @@ const InspectorPanel: React.FC<Props> = ({ task, onClose, onUpdate, onDelete, on
         setNotes(task.notes || '');
         if (task.scheduledTime) {
             const d = new Date(task.scheduledTime);
-            setDateStr(d.toISOString().split('T')[0]);
+            setDateStr(getDateKeyInTimeZone(d, timeZone));
             setTimeStr(d.toTimeString().slice(0, 5));
         } else {
             setDateStr('');
             setTimeStr('');
         }
-    }, [task]);
+    }, [task, timeZone]);
 
     const handleTitleBlur = () => {
         if (title.trim() !== task.title) {

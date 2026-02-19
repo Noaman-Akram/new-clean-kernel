@@ -1,16 +1,18 @@
 import React, { useMemo } from 'react';
 import { Challenge, ChallengeDayStatus, ChallengeRule } from '../types';
 import { Check, X, Flame, Shield, Skull, Medal, AlertCircle } from 'lucide-react';
+import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone } from '../utils/dateTime';
 
 interface Props {
     challenge: Challenge;
     onUpdateRule: (ruleId: string, completed: boolean) => void;
     onFailDay: () => void;
     onCompleteDay: () => void; // Explicitly mark day as complete if all rules done? Or auto?
+    timeZone?: string;
 }
 
-const ChallengeWidget: React.FC<Props> = ({ challenge, onUpdateRule, onFailDay }) => {
-    const today = new Date().toISOString().split('T')[0];
+const ChallengeWidget: React.FC<Props> = ({ challenge, onUpdateRule, onFailDay, timeZone = DEFAULT_TIME_ZONE }) => {
+    const today = getDateKeyInTimeZone(new Date(), timeZone);
     const dayIndex = Math.floor((new Date().getTime() - challenge.startDate) / (1000 * 60 * 60 * 24));
 
     // Get current day state
@@ -29,7 +31,7 @@ const ChallengeWidget: React.FC<Props> = ({ challenge, onUpdateRule, onFailDay }
     // Generate the 30-day chain array
     const chain = useMemo(() => {
         return Array.from({ length: challenge.durationDays }).map((_, i) => {
-            const date = new Date(challenge.startDate + i * 86400000).toISOString().split('T')[0];
+            const date = getDateKeyInTimeZone(new Date(challenge.startDate + i * 86400000), timeZone);
             const historyItem = challenge.history[date];
 
             let status: ChallengeDayStatus | 'FUTURE' = 'FUTURE';
@@ -44,7 +46,7 @@ const ChallengeWidget: React.FC<Props> = ({ challenge, onUpdateRule, onFailDay }
 
             return { index: i + 1, date, status };
         });
-    }, [challenge, today, currentDayState]);
+    }, [challenge, today, currentDayState, timeZone]);
 
     if (isFailed) {
         return (

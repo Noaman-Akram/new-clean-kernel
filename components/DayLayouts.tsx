@@ -6,6 +6,7 @@ import {
   Inbox, CalendarClock, Timer, CheckCheck
 } from 'lucide-react';
 import { generateId } from '../utils';
+import { getLocalTimestampForDateKey } from '../utils/dateTime';
 
 // Shared Props for all layouts
 interface DayLayoutProps {
@@ -91,12 +92,10 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
     }
   }, []);
 
-  const handleAddTask = (hour: number = 0) => {
+  const handleAddTask = (hour: number = 12) => {
     if (newTaskTitle.trim()) {
-      const [y, m, d] = dateKey.split('-').map(Number);
-      const scheduledDate = new Date(y, m - 1, d, hour, 0, 0);
       onTaskAdd(newTaskTitle.trim(), Category.CORE, 'MED', {
-        scheduledTime: scheduledDate.getTime(),
+        scheduledTime: getLocalTimestampForDateKey(dateKey, hour, 0),
       });
       setNewTaskTitle('');
     }
@@ -436,12 +435,10 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
     { id: 'evening', label: 'Evening', hours: [18, 19, 20, 21, 22, 23], range: '6PM – 12AM' },
   ];
 
-  const handleAddTask = (hour: number = 0) => {
+  const handleAddTask = (hour: number = 12) => {
     if (newTaskTitle.trim()) {
-      const [y, m, d] = dateKey.split('-').map(Number);
-      const scheduledDate = new Date(y, m - 1, d, hour, 0, 0);
       onTaskAdd(newTaskTitle.trim(), Category.CORE, 'MED', {
-        scheduledTime: scheduledDate.getTime(),
+        scheduledTime: getLocalTimestampForDateKey(dateKey, hour, 0),
       });
       setNewTaskTitle('');
     }
@@ -761,8 +758,11 @@ export const DayLayoutKanban: React.FC<DayLayoutProps> = ({
   const handleAddTask = (columnId: string) => {
     if (newTaskTitle.trim()) {
       const options: any = {};
-      if (columnId === 'scheduled') {
-        options.scheduledTime = Date.now();
+      if (columnId === 'scheduled') options.scheduledTime = getLocalTimestampForDateKey(dateKey, 9, 0);
+      if (columnId === 'inbox') options.scheduledTime = getLocalTimestampForDateKey(dateKey, 12, 0);
+      if (columnId === 'inprogress') {
+        options.scheduledTime = getLocalTimestampForDateKey(dateKey, 9, 0);
+        options.status = TaskStatus.IN_PROGRESS;
       }
       onTaskAdd(newTaskTitle.trim(), Category.CORE, 'MED', options);
       setNewTaskTitle('');
@@ -785,11 +785,11 @@ export const DayLayoutKanban: React.FC<DayLayoutProps> = ({
 
     switch (columnId) {
       case 'inbox':
-        updates.scheduledTime = null;
+        updates.scheduledTime = getLocalTimestampForDateKey(dateKey, 12, 0);
         updates.status = TaskStatus.TODO;
         break;
       case 'scheduled':
-        updates.scheduledTime = Date.now();
+        updates.scheduledTime = getLocalTimestampForDateKey(dateKey, 9, 0);
         updates.status = TaskStatus.TODO;
         break;
       case 'inprogress':

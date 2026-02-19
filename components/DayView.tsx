@@ -14,6 +14,7 @@ import ProtocolsEditor from './ProtocolsEditor';
 import WeeklyActivitiesEditor from './WeeklyActivitiesEditor';
 import { DayLayoutTimeline, DayLayoutPeriods, DayLayoutKanban } from './DayLayouts';
 import { generateId } from '../utils';
+import { DEFAULT_TIME_ZONE, dateFromDateKey, getDateKeyInTimeZone } from '../utils/dateTime';
 
 interface Props {
   state: AppState;
@@ -82,7 +83,10 @@ const DayView: React.FC<Props> = ({
   onTimeBlockUpdate,
   onTimeBlockDelete,
 }) => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const timeZone = state.userPreferences?.timeZone || DEFAULT_TIME_ZONE;
+  const [selectedDate, setSelectedDate] = useState(() =>
+    dateFromDateKey(getDateKeyInTimeZone(new Date(), timeZone))
+  );
   const [captureValue, setCaptureValue] = useState('');
   const [editingTaskMenu, setEditingTaskMenu] = useState<string | null>(null);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null); // For inline title edit
@@ -95,11 +99,16 @@ const DayView: React.FC<Props> = ({
   const [showWeeklyEditor, setShowWeeklyEditor] = useState(false);
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
 
+  useEffect(() => {
+    setSelectedDate(prev => dateFromDateKey(getDateKeyInTimeZone(prev, timeZone)));
+  }, [timeZone]);
+
   // Get current layout from preferences
   const currentLayout: DayViewLayout = state.userPreferences?.planner?.dayViewLayout || 'timeline';
 
   // TimeBlocks for current day
-  const dayTimeBlocks = state.timeBlocks?.[selectedDate.toISOString().split('T')[0]] || [];
+  const dateKey = getDateKeyInTimeZone(selectedDate, timeZone);
+  const dayTimeBlocks = state.timeBlocks?.[dateKey] || [];
 
   // Layout handlers
   const handleLayoutChange = (layout: DayViewLayout) => {
@@ -108,19 +117,17 @@ const DayView: React.FC<Props> = ({
   };
 
   const handleTimeBlockAdd = (block: TimeBlock) => {
-    onTimeBlockAdd?.(selectedDate.toISOString().split('T')[0], block);
+    onTimeBlockAdd?.(dateKey, block);
   };
 
   const handleTimeBlockUpdate = (blockId: string, updates: Partial<TimeBlock>) => {
-    onTimeBlockUpdate?.(selectedDate.toISOString().split('T')[0], blockId, updates);
+    onTimeBlockUpdate?.(dateKey, blockId, updates);
   };
 
   const handleTimeBlockDelete = (blockId: string) => {
-    onTimeBlockDelete?.(selectedDate.toISOString().split('T')[0], blockId);
+    onTimeBlockDelete?.(dateKey, blockId);
   };
-
-  const dateKey = selectedDate.toISOString().split('T')[0];
-  const todayDate = new Date().toISOString().split('T')[0];
+  const todayDate = getDateKeyInTimeZone(new Date(), timeZone);
   const isToday = dateKey === todayDate;
 
   // Hijri Date
@@ -157,12 +164,12 @@ const DayView: React.FC<Props> = ({
     return state.tasks.filter(task => {
       if (task.scheduledTime && task.status !== TaskStatus.DONE) {
         const d = new Date(task.scheduledTime);
-        const dKey = d.toISOString().split('T')[0];
+        const dKey = getDateKeyInTimeZone(d, timeZone);
         return dKey < todayDate;
       }
       return false;
     }).sort((a, b) => (b.scheduledTime || 0) - (a.scheduledTime || 0));
-  }, [state.tasks, todayDate]);
+  }, [state.tasks, todayDate, timeZone]);
 
   const inboxTasks = daysTasks.filter(t => {
     // Unscheduled or scheduled at exactly 12:00 PM (default "inbox" time)
@@ -254,8 +261,10 @@ const DayView: React.FC<Props> = ({
 
   const getRelativeDateStr = (timestamp: number) => {
     const d = new Date(timestamp);
-    const dKey = d.toISOString().split('T')[0];
-    const diff = Math.floor((new Date(todayDate).getTime() - new Date(dKey).getTime()) / (1000 * 60 * 60 * 24));
+    const dKey = getDateKeyInTimeZone(d, timeZone);
+    const todayRef = dateFromDateKey(todayDate);
+    const dateRef = dateFromDateKey(dKey);
+    const diff = Math.floor((todayRef.getTime() - dateRef.getTime()) / (1000 * 60 * 60 * 24));
     if (diff === 1) return 'Yesterday';
     if (diff <= 7) return `${diff}d ago`;
     return d.toLocaleDateString();
@@ -313,14 +322,32 @@ const DayView: React.FC<Props> = ({
       <header className="h-14 border-b border-zinc-900 flex items-center justify-between px-6 bg-black/50 backdrop-blur-md z-40 shrink-0">
         <div className="flex items-center gap-6 min-w-0">
           <div className="flex items-center gap-2">
-            <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() - 1)))} className="p-1 hover:text-white text-zinc-700 transition-colors"><ChevronLeft size={14} /></button>
+            <button
+              onClick={() => setSelectedDate(prev => {
+                const next = new Date(prev);
+                next.setUTCDate(next.getUTCDate() - 1);
+                return next;
+              })}
+              className="p-1 hover:text-white text-zinc-700 transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
             <div className="flex flex-col items-center min-w-[120px]">
               <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">{selectedDate.toLocaleDateString(undefined, { weekday: 'short' })}</span>
-              <button onClick={() => setSelectedDate(new Date())} className="text-[10px] text-zinc-400 hover:text-white transition-colors">
+              <button onClick={() => setSelectedDate(dateFromDateKey(getDateKeyInTimeZone(new Date(), timeZone)))} className="text-[10px] text-zinc-400 hover:text-white transition-colors">
                 {selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
               </button>
             </div>
-            <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() + 1)))} className="p-1 hover:text-white text-zinc-700 transition-colors"><ChevronRight size={14} /></button>
+            <button
+              onClick={() => setSelectedDate(prev => {
+                const next = new Date(prev);
+                next.setUTCDate(next.getUTCDate() + 1);
+                return next;
+              })}
+              className="p-1 hover:text-white text-zinc-700 transition-colors"
+            >
+              <ChevronRight size={14} />
+            </button>
           </div>
 
           <div className="h-6 w-px bg-zinc-900"></div>

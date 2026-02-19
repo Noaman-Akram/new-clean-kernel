@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession, TimeBlock } from './types';
 import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
 import { auth } from './services/firebase';
 import { generateId } from './utils';
@@ -24,8 +24,10 @@ import {
   MapPin,
   Dumbbell,
   Calendar,
-  Zap
+  Zap,
+  Settings
 } from 'lucide-react';
+import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone } from './utils/dateTime';
 
 // Views
 import DashboardView from './components/DashboardView';
@@ -58,6 +60,7 @@ const App: React.FC = () => {
   // UI State - Local Only (Not Synced)
   const [currentPage, setCurrentPage] = useState<Page>(Page.COCKPIT);
   const [showBackupMenu, setShowBackupMenu] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
 
   const [syncStatus, setSyncStatus] = useState<'IDLE' | 'SAVING' | 'SAVED' | 'ERROR' | 'SYNCED'>('IDLE');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -69,6 +72,17 @@ const App: React.FC = () => {
   const hasHydratedRef = useRef(false);
   const [showChallengeSetup, setShowChallengeSetup] = useState(false);
   const lastRemoteVersionRef = useRef(0);
+  const TIME_ZONES = [
+    'Africa/Cairo',
+    'UTC',
+    'America/New_York',
+    'America/Chicago',
+    'America/Denver',
+    'America/Los_Angeles',
+    'Europe/London',
+    'Europe/Berlin',
+    'Asia/Dubai',
+  ];
 
   // --- AUTH ---
   useEffect(() => {
@@ -571,6 +585,48 @@ const App: React.FC = () => {
     });
   };
 
+  const handleTimeBlockAdd = (dateKey: string, block: TimeBlock) => {
+    setState(prev => prev ? ({
+      ...prev,
+      timeBlocks: {
+        ...prev.timeBlocks,
+        [dateKey]: [...(prev.timeBlocks?.[dateKey] || []), block],
+      }
+    }) : null);
+  };
+
+  const handleTimeBlockUpdate = (dateKey: string, blockId: string, updates: Partial<TimeBlock>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      timeBlocks: {
+        ...prev.timeBlocks,
+        [dateKey]: (prev.timeBlocks?.[dateKey] || []).map(block =>
+          block.id === blockId ? { ...block, ...updates } : block
+        ),
+      }
+    }) : null);
+  };
+
+  const handleTimeBlockDelete = (dateKey: string, blockId: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      timeBlocks: {
+        ...prev.timeBlocks,
+        [dateKey]: (prev.timeBlocks?.[dateKey] || []).filter(block => block.id !== blockId),
+      }
+    }) : null);
+  };
+
+  const handleTimeZoneChange = (timeZone: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      userPreferences: {
+        ...prev.userPreferences,
+        timeZone,
+      }
+    }) : null);
+  };
+
   // --- CHALLENGE / IRON PROTOCOL ---
   const handleStartChallenge = (challenge: Challenge) => {
     setState(prev => prev ? ({ ...prev, activeChallenge: challenge }) : null);
@@ -579,7 +635,8 @@ const App: React.FC = () => {
   const handleChallengeRuleUpdate = (ruleId: string, completed: boolean) => {
     setState(prev => {
       if (!prev?.activeChallenge) return null;
-      const today = new Date().toISOString().split('T')[0];
+      const timeZone = prev.userPreferences?.timeZone || DEFAULT_TIME_ZONE;
+      const today = getDateKeyInTimeZone(new Date(), timeZone);
       const currentDay = prev.activeChallenge.history[today] || {
         date: today,
         status: 'PENDING',
@@ -617,7 +674,8 @@ const App: React.FC = () => {
   const handleChallengeFailDay = () => {
     setState(prev => {
       if (!prev?.activeChallenge) return prev;
-      const today = new Date().toISOString().split('T')[0];
+      const timeZone = prev.userPreferences?.timeZone || DEFAULT_TIME_ZONE;
+      const today = getDateKeyInTimeZone(new Date(), timeZone);
       return {
         ...prev,
         activeChallenge: {
@@ -767,6 +825,9 @@ const App: React.FC = () => {
             onProtocolContextsUpdate={handleProtocolContextsUpdate}
             onWeeklyActivitiesUpdate={handleWeeklyActivitiesUpdate}
             onLayoutChange={handleLayoutChange}
+            onTimeBlockAdd={handleTimeBlockAdd}
+            onTimeBlockUpdate={handleTimeBlockUpdate}
+            onTimeBlockDelete={handleTimeBlockDelete}
           />
         );
       case Page.CRM:
@@ -1051,7 +1112,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             {/* BACKUP MENU */}
             <div className="relative">
-              <button onClick={() => setShowBackupMenu(!showBackupMenu)} className="text-[10px] text-zinc-500 hover:text-zinc-300 px-2 font-mono uppercase tracking-wider">
+              <button onClick={() => { setShowBackupMenu(!showBackupMenu); setShowSettingsMenu(false); }} className="text-[10px] text-zinc-500 hover:text-zinc-300 px-2 font-mono uppercase tracking-wider">
                 Backup
               </button>
               {showBackupMenu && (
@@ -1063,6 +1124,30 @@ const App: React.FC = () => {
                     Restore form JSON
                     <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
                   </label>
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <button onClick={() => { setShowSettingsMenu(!showSettingsMenu); setShowBackupMenu(false); }} className="text-[10px] text-zinc-500 hover:text-zinc-300 px-2 font-mono uppercase tracking-wider flex items-center gap-1">
+                <Settings size={11} />
+                Settings
+              </button>
+              {showSettingsMenu && state && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-700 rounded-md shadow-xl z-50 p-3 space-y-2">
+                  <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">Timezone</div>
+                  <select
+                    value={state.userPreferences?.timeZone || DEFAULT_TIME_ZONE}
+                    onChange={(e) => handleTimeZoneChange(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-xs text-zinc-200 focus:outline-none"
+                  >
+                    {TIME_ZONES.map(tz => (
+                      <option key={tz} value={tz}>{tz}</option>
+                    ))}
+                  </select>
+                  <div className="text-[10px] text-zinc-600">
+                    Global date keys and planner context use this timezone.
+                  </div>
                 </div>
               )}
             </div>
@@ -1141,28 +1226,6 @@ const App: React.FC = () => {
         )}
 
       </main>
-
-      {/* --- MOBILE NAVIGATION BAR --- */}
-      <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center justify-around px-2 z-50 fixed bottom-0 left-0 right-0 pb-safe">
-        <MobileNavIcon active={currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
-        <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Planner" />
-        <MobileNavIcon active={currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
-        <MobileNavIcon active={currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Marketing" />
-
-        {/* Mobile Menu for 'More' */}
-        <div className="relative group">
-          <MobileNavIcon
-            active={[Page.NETWORK, Page.MENTOR, Page.SUPPLICATIONS, Page.INTEL, Page.ARSENAL, Page.ACTIVITIES].includes(currentPage)}
-            onClick={() => { }} // Just visual indicator, usually would toggle a menu
-            icon={<Users size={20} />}
-            label="More"
-          />
-          {/* Simple dropdown for mobile 'More' - simplified for this iteration, strictly could rely on specific icons if space permits, 
-               but let's actually just list the most critical ones or make it scrollable. 
-               Let's make it a scrollable list instead of a 'More' button for better UX if we have many items.
-           */}
-        </div>
-      </div>
 
       {/* Redoing Mobile Nav to be scrollable horizontal list instead of "More" menu for simplicity and speed */}
       <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center gap-4 px-4 overflow-x-auto no-scrollbar z-50 fixed bottom-0 left-0 right-0 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">

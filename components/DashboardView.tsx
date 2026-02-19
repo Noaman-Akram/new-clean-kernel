@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import DashboardSettings from './DashboardSettings';
 import ChallengeWidget from './ChallengeWidget';
+import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone } from '../utils/dateTime';
 
 interface Props {
     state: AppState;
@@ -70,7 +71,8 @@ const DashboardView: React.FC<Props> = ({
     }, []);
 
     const nextPrayer = getNextPrayer();
-    const todayKey = new Date().toISOString().split('T')[0];
+    const timeZone = state.userPreferences?.timeZone || DEFAULT_TIME_ZONE;
+    const todayKey = getDateKeyInTimeZone(new Date(), timeZone);
     const prayerKey = `${todayKey}-${nextPrayer.name}`;
     const isPrayerDone = state.prayerLog[prayerKey];
 
@@ -225,6 +227,7 @@ const DashboardView: React.FC<Props> = ({
                     onUpdateRule={onChallengeRuleUpdate!}
                     onFailDay={onChallengeFailDay!}
                     onCompleteDay={() => { }}
+                    timeZone={timeZone}
                 />
             </div>
         );

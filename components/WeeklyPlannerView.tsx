@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { AppState, Task, DockSection, DayMeta, DayChecklistItem, ProtocolContext, WeeklyActivities, DayViewLayout } from '../types';
+import type { AppState, Task, DockSection, DayMeta, DayChecklistItem, ProtocolContext, WeeklyActivities, DayViewLayout, TimeBlock } from '../types';
 import { Category, TaskStatus } from '../types';
 import {
   ChevronLeft,
@@ -29,7 +29,6 @@ import {
   ArrowRight,
   ArrowLeft,
   Pencil,
-  MoreHorizontal,
   StickyNote,
   Calendar,
   ChevronDown,
@@ -48,6 +47,7 @@ import { getPrayerTimesForDate, formatTimeAMPM } from '../utils/prayerTimes';
 import { generateId } from '../utils';
 import DayView from './DayView';
 import WeeklyActivitiesEditor from './WeeklyActivitiesEditor';
+import { DEFAULT_TIME_ZONE, dateFromDateKey, dateKeyFromUtcDate, getDateKeyInTimeZone, getLocalTimestampForDateKey } from '../utils/dateTime';
 
 interface Props {
   state: AppState;
@@ -66,6 +66,9 @@ interface Props {
   onProtocolContextsUpdate?: (contexts: ProtocolContext[]) => void;
   onWeeklyActivitiesUpdate?: (activities: WeeklyActivities) => void;
   onLayoutChange?: (layout: DayViewLayout) => void;
+  onTimeBlockAdd?: (dateKey: string, block: TimeBlock) => void;
+  onTimeBlockUpdate?: (dateKey: string, blockId: string, updates: Partial<TimeBlock>) => void;
+  onTimeBlockDelete?: (dateKey: string, blockId: string) => void;
 }
 
 interface WeekDay {
@@ -104,6 +107,8 @@ const PRAYER_SHORT_NAMES: Record<string, string> = {
   'Midnight': 'MDN',
   'Last Third': 'LST',
 };
+
+const WEEKLY_DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
 const HourSlot: React.FC<{
   hour: number;
@@ -250,10 +255,17 @@ const DayColumn: React.FC<{
   stickyNote: string;
   activeHours: Set<number>;
   inboxTasks: Task[];
-}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onSelect, onContextMenu, onClickHour, showPrayers, getTaskTone, onUnschedule, onSetStatus, onOpenDayPanel, dayMeta, stickyNote, activeHours, inboxTasks }) => {
-  const cairoOffset = 2; // Fixed example offset, adjust as needed
-  const cairoTime = new Date(currentTime.getTime() + (cairoOffset * 60 * 60 * 1000));
-  const cairoHours = cairoTime.getUTCHours();
+  timeZone: string;
+  onTaskDragStart: (task: Task) => void;
+  onInboxDrop: (day: WeekDay) => void;
+  isInboxDragOver: boolean;
+  onInboxDragOver: (dayKey: string | null) => void;
+}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onSelect, onContextMenu, onClickHour, showPrayers, getTaskTone, onUnschedule, onSetStatus, onOpenDayPanel, dayMeta, stickyNote, activeHours, inboxTasks, timeZone, onTaskDragStart, onInboxDrop, isInboxDragOver, onInboxDragOver }) => {
+  const zoneHour = Number(new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: '2-digit',
+    hour12: false,
+  }).format(currentTime));
   const isCurrentDay = day.isToday;
   const prayers = getPrayerTimesForDate(day.date);
 
@@ -281,18 +293,32 @@ const DayColumn: React.FC<{
             </span>
           )}
         </div>
-        <div className="flex justify-between px-0.5 opacity-40 hover:opacity-100 transition-opacity">
-          <button onClick={(e) => onOpenDayPanel('notes', e)} className={`${hasMeta('notes') ? 'text-zinc-200 opacity-100' : 'text-zinc-700'} hover:text-zinc-300`}><FileText size={10} /></button>
-          <button onClick={(e) => onOpenDayPanel('habits', e)} className="text-zinc-700 hover:text-emerald-400"><CheckCircle2 size={10} /></button>
-          <button onClick={(e) => onOpenDayPanel('checklist', e)} className={`${hasMeta('checklist') ? 'text-blue-400 opacity-100' : 'text-zinc-700'} hover:text-blue-400`}><ListTodo size={10} /></button>
-          <button onClick={(e) => onOpenDayPanel('focus', e)} className={`${hasMeta('focus') ? 'text-purple-400 opacity-100' : 'text-zinc-700'} hover:text-purple-400`}><GripVertical size={10} /></button>
-          <button onClick={(e) => onOpenDayPanel('actions', e)} className="text-zinc-700 hover:text-zinc-400"><MoreHorizontal size={10} /></button>
+        <div className="flex justify-between px-0.5 opacity-60 hover:opacity-100 transition-opacity">
+          <button title="Day Notes" onClick={(e) => onOpenDayPanel('notes', e)} className={`${hasMeta('notes') ? 'text-zinc-200 opacity-100' : 'text-zinc-700'} hover:text-zinc-300`}><FileText size={10} /></button>
+          <button title="Rituals" onClick={(e) => onOpenDayPanel('habits', e)} className="text-zinc-700 hover:text-emerald-400"><CheckCircle2 size={10} /></button>
+          <button title="Priorities" onClick={(e) => onOpenDayPanel('checklist', e)} className={`${hasMeta('checklist') ? 'text-blue-400 opacity-100' : 'text-zinc-700'} hover:text-blue-400`}><ListTodo size={10} /></button>
+          <button title="Focus Intent" onClick={(e) => onOpenDayPanel('focus', e)} className={`${hasMeta('focus') ? 'text-purple-400 opacity-100' : 'text-zinc-700'} hover:text-purple-400`}><Target size={10} /></button>
+          <button title="Day Tools" onClick={(e) => onOpenDayPanel('actions', e)} className="text-zinc-700 hover:text-zinc-400"><Settings size={10} /></button>
         </div>
       </div>
-      <div className="flex-shrink-0 bg-black/20 border-b border-border p-1.5 space-y-1">
-        {inboxTasks.sort((a, b) => a.createdAt - b.createdAt).map(task => (
+      <div
+        className={`flex-shrink-0 border-b border-border p-1.5 space-y-1 min-h-[42px] transition-colors ${isInboxDragOver ? 'bg-emerald-950/20' : 'bg-black/20'}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          onInboxDragOver(day.dateStr);
+        }}
+        onDragLeave={() => onInboxDragOver(null)}
+        onDrop={(e) => {
+          e.preventDefault();
+          onInboxDragOver(null);
+          onInboxDrop(day);
+        }}
+      >
+        {[...inboxTasks].sort((a, b) => a.createdAt - b.createdAt).map(task => (
           <div
             key={task.id}
+            draggable
+            onDragStart={() => onTaskDragStart(task)}
             onClick={() => onSelect(task)}
             className={`group flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-900 border border-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer ${task.status === TaskStatus.DONE ? 'opacity-30' : ''}`}
           >
@@ -337,7 +363,7 @@ const DayColumn: React.FC<{
               onDelete={() => { }} // Not implemented in this view
               onStartSession={onStartSession}
               activeTaskId={activeTaskId}
-              isCurrentHour={isCurrentDay && cairoHours === hour}
+              isCurrentHour={isCurrentDay && zoneHour === hour}
               onSelect={onSelect}
               onContextMenu={(e) => onContextMenu(hour, e)}
               onClickHour={(e) => onClickHour(hour, e)}
@@ -552,10 +578,11 @@ const DockSection: React.FC<{
   );
 };
 
-const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onDayMetaUpdate, onPrayerToggle, onAdhkarToggle, onProtocolToggle, onWeeklyActivityToggle, onProtocolContextsUpdate, onWeeklyActivitiesUpdate, onLayoutChange }) => {
+const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onDayMetaUpdate, onPrayerToggle, onAdhkarToggle, onProtocolToggle, onWeeklyActivityToggle, onProtocolContextsUpdate, onWeeklyActivitiesUpdate, onLayoutChange, onTimeBlockAdd, onTimeBlockUpdate, onTimeBlockDelete }) => {
   const [showMobileDock, setShowMobileDock] = useState(false); // Mobile dock drawer
-  const [plannerView, setPlannerView] = useState<'week' | 'day'>('week');
+  const [plannerView, setPlannerView] = useState<'day' | 'week' | 'month'>('week');
   const [weekOffset, setWeekOffset] = useState(0);
+  const [monthOffset, setMonthOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [backlogCollapsed, setBacklogCollapsed] = useState(false);
   const [draggedTask, setDraggedTask] = useState<Task | null>(null);
@@ -578,6 +605,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const [uiZoom, setUiZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dayRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const plannerTimeZone = state.userPreferences?.timeZone || DEFAULT_TIME_ZONE;
 
   // Auto-switch to Day view on mobile
   useEffect(() => {
@@ -603,6 +631,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         setPlannerView('week');
       } else if (e.key.toLowerCase() === 'd') {
         setPlannerView('day');
+      } else if (e.key.toLowerCase() === 'm') {
+        setPlannerView('month');
       }
     };
 
@@ -641,28 +671,27 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   }, []);
 
   const getWeekDays = (): WeekDay[] => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const currentDay = today.getDay();
+    const todayKey = getDateKeyInTimeZone(new Date(), plannerTimeZone);
+    const today = dateFromDateKey(todayKey);
+    const currentDay = today.getUTCDay();
     const saturdayOffset = currentDay === 6 ? 0 : -(currentDay + 1);
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() + saturdayOffset + (weekOffset * 7));
+    weekStart.setUTCDate(today.getUTCDate() + saturdayOffset + (weekOffset * 7));
 
     const days: WeekDay[] = [];
     const dayNames = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
     for (let i = 0; i < 7; i++) {
       const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      const todayCheck = new Date();
-      todayCheck.setHours(0, 0, 0, 0);
-      const isToday = date.getTime() === todayCheck.getTime();
+      date.setUTCDate(weekStart.getUTCDate() + i);
+      const dateStr = dateKeyFromUtcDate(date);
+      const isToday = dateStr === todayKey;
 
       days.push({
         date,
-        dateStr: date.toISOString().split('T')[0],
+        dateStr,
         dayName: dayNames[i],
-        dayNum: date.getDate(),
+        dayNum: date.getUTCDate(),
         isToday
       });
     }
@@ -670,11 +699,60 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   };
 
   const weekDays = getWeekDays();
+  const todayDateKey = getDateKeyInTimeZone(new Date(), plannerTimeZone);
+
+  const monthViewData = useMemo(() => {
+    const anchorKey = getDateKeyInTimeZone(currentTime, plannerTimeZone);
+    const anchorDate = dateFromDateKey(anchorKey);
+    const firstOfMonth = new Date(Date.UTC(
+      anchorDate.getUTCFullYear(),
+      anchorDate.getUTCMonth() + monthOffset,
+      1,
+      12
+    ));
+    const monthStartDay = firstOfMonth.getUTCDay();
+    const saturdayFirstOffset = monthStartDay === 6 ? 0 : monthStartDay + 1;
+    const gridStart = new Date(firstOfMonth);
+    gridStart.setUTCDate(firstOfMonth.getUTCDate() - saturdayFirstOffset);
+
+    const cells = Array.from({ length: 42 }, (_, index) => {
+      const cellDate = new Date(gridStart);
+      cellDate.setUTCDate(gridStart.getUTCDate() + index);
+      const dateStr = dateKeyFromUtcDate(cellDate);
+      const dayTasks = state.tasks.filter(task => {
+        if (!task.scheduledTime) return false;
+        return getDateKeyInTimeZone(new Date(task.scheduledTime), plannerTimeZone) === dateStr;
+      });
+      const completedCount = dayTasks.filter(task => task.status === TaskStatus.DONE).length;
+      const protocolState = state.dailyProtocolState?.[dateStr] || {};
+      const protocolDoneCount = Object.values(protocolState).filter(Boolean).length;
+      const weekday = WEEKLY_DAY_KEYS[cellDate.getUTCDay()];
+      const weeklyCount = state.weeklyActivities?.[weekday]?.length || 0;
+
+      return {
+        date: cellDate,
+        dateStr,
+        isToday: dateStr === todayDateKey,
+        inCurrentMonth: cellDate.getUTCMonth() === firstOfMonth.getUTCMonth(),
+        scheduledCount: dayTasks.filter(task => task.status !== TaskStatus.DONE).length,
+        completedCount,
+        focus: state.dayMeta?.[dateStr]?.focus || '',
+        protocolDoneCount,
+        weeklyCount,
+      };
+    });
+
+    return {
+      monthLabel: firstOfMonth.toLocaleString('default', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
+      cells,
+    };
+  }, [currentTime, monthOffset, plannerTimeZone, state.tasks, state.dayMeta, state.dailyProtocolState, state.weeklyActivities, todayDateKey]);
 
   // Smart Density Logic: Identify hours visible across the week
   // If an hour (0-23) has NO tasks in ANY day of the current week, it is candidate for compression.
   const activeHours = useMemo(() => {
     const active = new Set<number>();
+    const weekDateKeys = new Set(weekDays.map(day => day.dateStr));
 
     // Always keep 8am - 6pm active for "Work Day" structure? 
     // User asked "save space when its possible", "unused cells... are shorter".
@@ -687,9 +765,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
       // If showing completed, we should count them.
       // Let's count ALL tasks in this week.
       const d = new Date(t.scheduledTime);
-      // Check if this task is in the current week view
-      const dayDiff = Math.floor((d.getTime() - weekDays[0].date.getTime()) / (1000 * 60 * 60 * 24));
-      if (dayDiff >= 0 && dayDiff <= 6) {
+      const taskDateKey = getDateKeyInTimeZone(d, plannerTimeZone);
+      if (weekDateKeys.has(taskDateKey)) {
         active.add(d.getHours());
       }
     });
@@ -709,7 +786,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     // Let's try pure data-driven first.
 
     return active;
-  }, [state.tasks, weekDays]);
+  }, [state.tasks, weekDays, plannerTimeZone]);
 
   const unscheduledTasks = state.tasks.filter(t => !t.scheduledTime && t.status !== TaskStatus.DONE);
 
@@ -729,6 +806,11 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
 
   // Get urgent tasks from ALL sections
   const urgentTasks = state.tasks.filter(t => t.urgent && t.status !== TaskStatus.DONE);
+  const todayKey = getDateKeyInTimeZone(new Date(), plannerTimeZone);
+  const todayScheduledCount = state.tasks.filter(t =>
+    !!t.scheduledTime && getDateKeyInTimeZone(new Date(t.scheduledTime), plannerTimeZone) === todayKey
+  ).length;
+  const bandwidthPercent = Math.min(100, Math.round((todayScheduledCount / 12) * 100));
 
 
 
@@ -839,6 +921,33 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     setDraggedTask(task);
   };
 
+  const handleInboxDrop = (day: WeekDay) => {
+    if (!draggedTask) return;
+    const inboxTimestamp = getLocalTimestampForDateKey(day.dateStr, 12, 0);
+    const section = draggedTask.dockSection;
+
+    if (section === 'ROUTINE') {
+      onAdd(draggedTask.title, draggedTask.category, draggedTask.impact, {
+        scheduledTime: inboxTimestamp,
+        duration: draggedTask.duration,
+        urgent: draggedTask.urgent,
+      });
+    } else if (section === 'PROJECT') {
+      onAdd(`${draggedTask.title} — session`, draggedTask.category, draggedTask.impact, {
+        scheduledTime: inboxTimestamp,
+        duration: draggedTask.duration || 60,
+        parentProject: draggedTask.id,
+        urgent: draggedTask.urgent,
+      });
+    } else {
+      onUpdate(draggedTask.id, { scheduledTime: inboxTimestamp });
+    }
+
+    setDraggedTask(null);
+    setDragOverHour(null);
+    setDragOverDay(null);
+  };
+
   const handleDrop = (day: WeekDay, hour: number) => {
     if (!draggedTask) return;
 
@@ -866,6 +975,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
 
     setDraggedTask(null);
     setDragOverHour(null);
+    setDragOverDay(null);
   };
 
   const handleTemplateExpand = (template: Task, day: WeekDay) => {
@@ -1040,7 +1150,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           onDelete={onDelete}
           onAdd={onAdd}
           onSelect={(task) => setInspectorTask(task)}
-          currentDate={currentTime.toISOString().split('T')[0]}
+          currentDate={getDateKeyInTimeZone(currentTime, plannerTimeZone)}
           collapsed={collapsedSections['HABIT']}
           onToggle={() => toggleSection('HABIT')}
         />
@@ -1051,13 +1161,13 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         <div className="flex items-center justify-between text-[8px] font-bold text-zinc-600 tracking-[0.25em] uppercase">
           <span>Bandwidth</span>
           <span className="font-mono text-zinc-400">
-            {Math.min(100, Math.round((state.tasks.filter(t => t.scheduledTime && new Date(t.scheduledTime).toDateString() === new Date().toDateString()).length / 12) * 100))}.2%
+            {bandwidthPercent}%
           </span>
         </div>
         <div className="h-[3px] w-full bg-zinc-950 overflow-hidden relative rounded-full">
           <div
             className="absolute inset-y-0 left-0 bg-zinc-600 transition-all duration-1000 shadow-[0_0_8px_rgba(255,255,255,0.1)] rounded-full"
-            style={{ width: `${Math.min(100, (state.tasks.filter(t => t.scheduledTime && new Date(t.scheduledTime).toDateString() === new Date().toDateString()).length / 12) * 100)}%` }}
+            style={{ width: `${bandwidthPercent}%` }}
           />
         </div>
       </div>
@@ -1134,6 +1244,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     const prev = new Date(currentTime);
                     prev.setDate(prev.getDate() - 1);
                     setCurrentTime(prev);
+                  } else if (plannerView === 'month') {
+                    setMonthOffset(monthOffset - 1);
                   } else {
                     setWeekOffset(weekOffset - 1);
                   }
@@ -1144,9 +1256,11 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               </button>
               <div className="text-xs md:text-[11px] font-bold text-zinc-400 min-w-[120px] text-center uppercase tracking-widest">
                 {plannerView === 'day' ? (
-                  currentTime.toLocaleDateString('default', { day: 'numeric', month: 'short', year: 'numeric' })
+                  currentTime.toLocaleDateString('default', { day: 'numeric', month: 'short', year: 'numeric', timeZone: plannerTimeZone })
+                ) : plannerView === 'month' ? (
+                  monthViewData.monthLabel
                 ) : (
-                  `${weekDays[0].dayNum} ${weekDays[0].date.toLocaleString('default', { month: 'short' })} - ${weekDays[6].dayNum} ${weekDays[6].date.toLocaleString('default', { month: 'short' })}`
+                  `${weekDays[0].dayNum} ${weekDays[0].date.toLocaleString('default', { month: 'short', timeZone: plannerTimeZone })} - ${weekDays[6].dayNum} ${weekDays[6].date.toLocaleString('default', { month: 'short', timeZone: plannerTimeZone })}`
                 )}
               </div>
               <button
@@ -1155,6 +1269,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     const next = new Date(currentTime);
                     next.setDate(next.getDate() + 1);
                     setCurrentTime(next);
+                  } else if (plannerView === 'month') {
+                    setMonthOffset(monthOffset + 1);
                   } else {
                     setWeekOffset(weekOffset + 1);
                   }
@@ -1170,6 +1286,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 const now = new Date();
                 setCurrentTime(now);
                 setWeekOffset(0);
+                setMonthOffset(0);
                 setTimeout(handleJumpToNow, 100);
               }}
               className="text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-colors uppercase tracking-tighter"
@@ -1181,6 +1298,15 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           {/* Center: View Switcher - Floating style */}
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-zinc-900/50 border border-zinc-800/50 rounded-full p-0.5">
             <button
+              onClick={() => setPlannerView('day')}
+              className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'day'
+                ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+            >
+              Day
+            </button>
+            <button
               onClick={() => setPlannerView('week')}
               className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'week'
                 ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
@@ -1190,28 +1316,18 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               Week
             </button>
             <button
-              onClick={() => setPlannerView('day')}
-              className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'day'
+              onClick={() => setPlannerView('month')}
+              className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'month'
                 ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
                 : 'text-zinc-600 hover:text-zinc-400'
                 }`}
             >
-              Day
+              Month
             </button>
           </div>
 
           {/* Right: Actions/Settings */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowPrayers(prev => !prev)}
-              className={`p-1.5 rounded transition-colors ${showPrayers ? 'text-emerald-500 bg-emerald-950/20' : 'text-zinc-600 hover:text-zinc-400'}`}
-              title="Toggle Prayers"
-            >
-              <Moon size={14} />
-            </button>
-
-            <div className="w-px h-4 bg-zinc-800/50" />
-
             <button
               onClick={() => setShowWeeklyEditor(true)}
               className="p-1.5 text-zinc-600 hover:text-zinc-300 transition-colors"
@@ -1268,14 +1384,14 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                       tasks={state.tasks.filter(t => {
                         if (!t.scheduledTime) return false;
                         if (!showCompleted && t.status === TaskStatus.DONE) return false;
-                        const taskDate = new Date(t.scheduledTime);
-                        taskDate.setHours(0, 0, 0, 0);
-                        return taskDate.getTime() === day.date.getTime();
+                        const taskDateKey = getDateKeyInTimeZone(new Date(t.scheduledTime), plannerTimeZone);
+                        return taskDateKey === day.dateStr;
                       })}
                       inboxTasks={state.tasks.filter(t => {
                         if (!t.scheduledTime) return false;
                         const d = new Date(t.scheduledTime);
-                        if (d.getFullYear() !== day.date.getFullYear() || d.getMonth() !== day.date.getMonth() || d.getDate() !== day.date.getDate()) return false;
+                        const taskDateKey = getDateKeyInTimeZone(d, plannerTimeZone);
+                        if (taskDateKey !== day.dateStr) return false;
                         return d.getHours() === 12 && d.getMinutes() === 0;
                       })}
                       dragOverHour={dragOverHour}
@@ -1301,12 +1417,17 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                       dayMeta={getDayMeta(day.dateStr)}
                       stickyNote={state.stickyNotes?.[day.dateStr] || ''}
                       activeHours={activeHours}
+                      timeZone={plannerTimeZone}
+                      onTaskDragStart={handleDragStart}
+                      onInboxDrop={handleInboxDrop}
+                      isInboxDragOver={dragOverDay === day.dateStr}
+                      onInboxDragOver={setDragOverDay}
                     />
                   ))}
                 </div>
               </div>
             </div>
-          ) : (
+          ) : plannerView === 'day' ? (
             <div className="h-full min-w-0 overflow-hidden">
               <DayView
                 state={state}
@@ -1325,7 +1446,64 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onProtocolContextsUpdate={onProtocolContextsUpdate}
                 onWeeklyActivitiesUpdate={onWeeklyActivitiesUpdate}
                 onLayoutChange={onLayoutChange}
+                onTimeBlockAdd={onTimeBlockAdd}
+                onTimeBlockUpdate={onTimeBlockUpdate}
+                onTimeBlockDelete={onTimeBlockDelete}
               />
+            </div>
+          ) : (
+            <div className="p-3 md:p-4">
+              <div className="grid grid-cols-7 gap-2">
+                {['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(dayName => (
+                  <div key={dayName} className="text-center text-[10px] uppercase tracking-widest text-zinc-600 font-bold py-1">
+                    {dayName}
+                  </div>
+                ))}
+                {monthViewData.cells.map(cell => (
+                  <button
+                    key={cell.dateStr}
+                    onClick={() => {
+                      setCurrentTime(dateFromDateKey(cell.dateStr));
+                      setPlannerView('day');
+                    }}
+                    className={`min-h-[90px] md:min-h-[108px] rounded-md border p-2 text-left transition-colors ${
+                      cell.inCurrentMonth
+                        ? 'bg-zinc-900/35 border-zinc-800 hover:border-zinc-700'
+                        : 'bg-zinc-950/20 border-zinc-900 text-zinc-700'
+                    } ${cell.isToday ? 'ring-1 ring-emerald-500/40 border-emerald-600/40' : ''}`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-[11px] font-bold ${cell.isToday ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                        {cell.date.getUTCDate()}
+                      </span>
+                      {cell.scheduledCount > 0 && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">
+                          {cell.scheduledCount}
+                        </span>
+                      )}
+                    </div>
+                    {cell.focus && (
+                      <div className="text-[9px] text-zinc-300 truncate mb-1">{cell.focus}</div>
+                    )}
+                    <div className="space-y-1 text-[8px] text-zinc-600">
+                      <div className="flex items-center justify-between">
+                        <span>Done</span>
+                        <span>{cell.completedCount}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Protocol</span>
+                        <span>{cell.protocolDoneCount}</span>
+                      </div>
+                      {cell.weeklyCount > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span>Weekly</span>
+                          <span>{cell.weeklyCount}</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -1339,7 +1517,10 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               tasks={state.tasks.filter(t => {
                 if (!t.scheduledTime) return false;
                 const d = new Date(t.scheduledTime);
-                return d.getDate() === hourOverlay.day.date.getDate() && d.getHours() === hourOverlay.hour;
+                return d.getFullYear() === hourOverlay.day.date.getFullYear()
+                  && d.getMonth() === hourOverlay.day.date.getMonth()
+                  && d.getDate() === hourOverlay.day.date.getDate()
+                  && d.getHours() === hourOverlay.hour;
               })}
               anchorEl={hourOverlay.anchor}
               dockTasks={dockTasks}
@@ -1360,6 +1541,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onClose={() => setInspectorTask(null)}
                 onUpdate={onUpdate}
                 onDelete={onDelete}
+                timeZone={plannerTimeZone}
                 onDuplicate={(task) => onAdd(task.title, task.category, task.impact, {
                   dockSection: task.dockSection,
                   duration: task.duration,

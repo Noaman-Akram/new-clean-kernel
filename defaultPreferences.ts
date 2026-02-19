@@ -200,6 +200,7 @@ export const getDefaultUserPreferences = (): UserPreferences => ({
   planner: {
     dayViewLayout: 'periods', // Default to periods view
   },
+  timeZone: 'Africa/Cairo',
   dateFormat: 'US',
   timeFormat: '12h',
   currency: 'USD',

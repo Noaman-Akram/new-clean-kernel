@@ -347,6 +347,7 @@ const ADHKAR_DATA = {
 import { getPrayerSchedule } from '../utils';
 import { AppState } from '../types';
 import { CheckCircle2, Circle, Zap } from 'lucide-react';
+import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone } from '../utils/dateTime';
 
 interface Props {
     state: AppState;
@@ -360,7 +361,8 @@ const SupplicationsView: React.FC<Props> = ({ state, onPrayerToggle, onAdhkarTog
 
     // Prayer Logic
     const prayers = getPrayerSchedule();
-    const todayKey = new Date().toISOString().split('T')[0];
+    const timeZone = state.userPreferences?.timeZone || DEFAULT_TIME_ZONE;
+    const todayKey = getDateKeyInTimeZone(new Date(), timeZone);
 
     // Adhkar Global State
     const adhkarKey = `${todayKey}-${activeTab}`;

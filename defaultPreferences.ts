@@ -1,5 +1,74 @@
-import { UserPreferences, QuickNavShortcut, QuickAction, DashboardWidgetConfig, Page } from './types';
+import { UserPreferences, QuickNavShortcut, QuickAction, DashboardWidgetConfig, Page, ProtocolContext, WeeklyActivities } from './types';
 import { generateId } from './utils';
+
+// Default Protocol Contexts
+export const getDefaultProtocolContexts = (): ProtocolContext[] => [
+  {
+    id: generateId(),
+    name: 'Morning',
+    icon: 'Sunrise',
+    items: [
+      { id: generateId(), text: 'Water (lots)' },
+      { id: generateId(), text: 'Supplements' },
+    ],
+  },
+  {
+    id: generateId(),
+    name: 'Walking',
+    icon: 'Footprints',
+    items: [
+      { id: generateId(), text: 'Azkar el Sabah' },
+    ],
+  },
+  {
+    id: generateId(),
+    name: 'Gym',
+    icon: 'Dumbbell',
+    items: [
+      { id: generateId(), text: 'AI/Tech learning' },
+    ],
+  },
+  {
+    id: generateId(),
+    name: 'Work',
+    icon: 'Briefcase',
+    items: [
+      { id: generateId(), text: 'Quran' },
+      { id: generateId(), text: 'Herbs' },
+      { id: generateId(), text: 'Protein only' },
+      { id: generateId(), text: 'Water' },
+      { id: generateId(), text: 'Supps' },
+    ],
+  },
+  {
+    id: generateId(),
+    name: 'After Work',
+    icon: 'Sunset',
+    items: [
+      { id: generateId(), text: 'Azkar el Masa2' },
+    ],
+  },
+];
+
+// Default Weekly Activities
+export const getDefaultWeeklyActivities = (): WeeklyActivities => ({
+  fri: [
+    { id: generateId(), text: 'Morning Run' },
+  ],
+  sat: [
+    { id: generateId(), text: 'Sport/Activity' },
+    { id: generateId(), text: 'Swimming' },
+    { id: generateId(), text: 'Socializing' },
+    { id: generateId(), text: 'Masjid Al Eman' },
+  ],
+  sun: [],
+  mon: [],
+  tue: [],
+  wed: [],
+  thu: [
+    { id: generateId(), text: 'Masjid' },
+  ],
+});
 
 // Default Quick Navigation Shortcuts
 export const getDefaultQuickNavShortcuts = (): QuickNavShortcut[] => [
@@ -127,6 +196,9 @@ export const getDefaultUserPreferences = (): UserPreferences => ({
   },
   appearance: {
     density: 'NORMAL',
+  },
+  planner: {
+    dayViewLayout: 'periods', // Default to periods view
   },
   dateFormat: 'US',
   timeFormat: '12h',

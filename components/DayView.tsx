@@ -1,14 +1,19 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { AppState, Task, TaskStatus, Category, Severity, PrayerName, DayMeta } from '../types';
+import { AppState, Task, TaskStatus, Category, Severity, PrayerName, DayMeta, ProtocolContext, WeeklyActivities, DayViewLayout, TimeBlock } from '../types';
 import { getPrayerTimesForDate, formatTimeAMPM } from '../utils/prayerTimes';
 import {
   Plus, Check, X, Circle, CheckCircle2, Clock, ChevronLeft, ChevronRight,
   Sunrise, Sun, CloudSun, Sunset, Moon, Play, Pause, MoreHorizontal,
   Edit2, Calendar as CalendarIcon, Zap, ChevronDown, ChevronUp, Layers, History, Search, AlertCircle,
   BarChart3, Target, Send, Layout, ListTodo, Quote, BookOpen, Dumbbell, Utensils,
-  Coffee, Feather, BrainCircuit, MoonStar
+  Coffee, Feather, BrainCircuit, MoonStar, Archive, LayoutGrid, Columns, Kanban, Settings
 } from 'lucide-react';
 import { getQuoteForDate } from '../utils/quotes';
+import ProtocolsSidebar from './ProtocolsSidebar';
+import ProtocolsEditor from './ProtocolsEditor';
+import WeeklyActivitiesEditor from './WeeklyActivitiesEditor';
+import { DayLayoutTimeline, DayLayoutPeriods, DayLayoutKanban } from './DayLayouts';
+import { generateId } from '../utils';
 
 interface Props {
   state: AppState;
@@ -22,6 +27,16 @@ interface Props {
   onDayMetaUpdate: (dateKey: string, updates: Partial<DayMeta>) => void;
   activeTaskId: string | null;
   onTaskSelect: (task: Task) => void;
+  // Protocol & Weekly Activities
+  onProtocolToggle?: (dateKey: string, itemId: string) => void;
+  onWeeklyActivityToggle?: (dateKey: string, activityId: string) => void;
+  onProtocolContextsUpdate?: (contexts: ProtocolContext[]) => void;
+  onWeeklyActivitiesUpdate?: (activities: WeeklyActivities) => void;
+  // Layout & TimeBlocks
+  onLayoutChange?: (layout: DayViewLayout) => void;
+  onTimeBlockAdd?: (dateKey: string, block: TimeBlock) => void;
+  onTimeBlockUpdate?: (dateKey: string, blockId: string, updates: Partial<TimeBlock>) => void;
+  onTimeBlockDelete?: (dateKey: string, blockId: string) => void;
 }
 
 const PRAYER_BLOCKS: { name: PrayerName; arabic: string; icon: any }[] = [
@@ -31,6 +46,8 @@ const PRAYER_BLOCKS: { name: PrayerName; arabic: string; icon: any }[] = [
   { name: 'Maghrib', arabic: 'المغرب', icon: Sunset },
   { name: 'Isha', arabic: 'العشاء', icon: Moon }
 ];
+
+const RITUAL_ITEMS = ['Azkar', 'Supplements', 'Workout', 'Quran'];
 
 const CATEGORY_LABELS: Record<string, string> = {
   [Category.CORE]: 'Core',
@@ -55,7 +72,15 @@ const DayView: React.FC<Props> = ({
   onAdhkarToggle,
   onDayMetaUpdate,
   activeTaskId,
-  onTaskSelect
+  onTaskSelect,
+  onProtocolToggle,
+  onWeeklyActivityToggle,
+  onProtocolContextsUpdate,
+  onWeeklyActivitiesUpdate,
+  onLayoutChange,
+  onTimeBlockAdd,
+  onTimeBlockUpdate,
+  onTimeBlockDelete,
 }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [captureValue, setCaptureValue] = useState('');
@@ -66,6 +91,33 @@ const DayView: React.FC<Props> = ({
   const [showAllMissed, setShowAllMissed] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showHistoryPicker, setShowHistoryPicker] = useState(false);
+  const [showProtocolsEditor, setShowProtocolsEditor] = useState(false);
+  const [showWeeklyEditor, setShowWeeklyEditor] = useState(false);
+  const [showLayoutPicker, setShowLayoutPicker] = useState(false);
+
+  // Get current layout from preferences
+  const currentLayout: DayViewLayout = state.userPreferences?.planner?.dayViewLayout || 'timeline';
+
+  // TimeBlocks for current day
+  const dayTimeBlocks = state.timeBlocks?.[selectedDate.toISOString().split('T')[0]] || [];
+
+  // Layout handlers
+  const handleLayoutChange = (layout: DayViewLayout) => {
+    onLayoutChange?.(layout);
+    setShowLayoutPicker(false);
+  };
+
+  const handleTimeBlockAdd = (block: TimeBlock) => {
+    onTimeBlockAdd?.(selectedDate.toISOString().split('T')[0], block);
+  };
+
+  const handleTimeBlockUpdate = (blockId: string, updates: Partial<TimeBlock>) => {
+    onTimeBlockUpdate?.(selectedDate.toISOString().split('T')[0], blockId, updates);
+  };
+
+  const handleTimeBlockDelete = (blockId: string) => {
+    onTimeBlockDelete?.(selectedDate.toISOString().split('T')[0], blockId);
+  };
 
   const dateKey = selectedDate.toISOString().split('T')[0];
   const todayDate = new Date().toISOString().split('T')[0];
@@ -93,7 +145,12 @@ const DayView: React.FC<Props> = ({
           d.getDate() === selectedDate.getDate();
       }
       return false;
-    }).sort((a, b) => (a.scheduledTime || 0) - (b.scheduledTime || 0));
+    }).sort((a, b) => {
+      if (a.scheduledTime !== b.scheduledTime) {
+        return (a.scheduledTime || 0) - (b.scheduledTime || 0);
+      }
+      return a.createdAt - b.createdAt;
+    });
   }, [state.tasks, selectedDate]);
 
   const missedTasks = useMemo(() => {
@@ -108,9 +165,10 @@ const DayView: React.FC<Props> = ({
   }, [state.tasks, todayDate]);
 
   const inboxTasks = daysTasks.filter(t => {
+    // Unscheduled or scheduled at exactly 12:00 PM (default "inbox" time)
     if (!t.scheduledTime) return true;
     const d = new Date(t.scheduledTime);
-    return d.getHours() === 12 && d.getMinutes() === 0; // Default time is inbox
+    return d.getHours() === 12 && d.getMinutes() === 0;
   });
 
   const scheduledTasks = daysTasks.filter(t => !inboxTasks.includes(t));
@@ -253,7 +311,7 @@ const DayView: React.FC<Props> = ({
     <div className="h-full flex flex-col bg-[#050505] text-zinc-400 font-mono selection:bg-zinc-800 selection:text-white overflow-hidden">
       {/* HEADER */}
       <header className="h-14 border-b border-zinc-900 flex items-center justify-between px-6 bg-black/50 backdrop-blur-md z-40 shrink-0">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 min-w-0">
           <div className="flex items-center gap-2">
             <button onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() - 1)))} className="p-1 hover:text-white text-zinc-700 transition-colors"><ChevronLeft size={14} /></button>
             <div className="flex flex-col items-center min-w-[120px]">
@@ -272,28 +330,79 @@ const DayView: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-4 text-[9px] text-zinc-500 uppercase tracking-widest font-bold">
-            {prayerTimes.map(p => (
-              <div key={p.name} className="flex items-center gap-1.5 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all cursor-default">
-                <span>{p.time.replace(/ (am|pm)/i, '').padStart(5, '0')}</span>
-                <span className="text-[7px] text-zinc-700">{p.name[0]}</span>
-              </div>
-            ))}
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Layout Switcher */}
+          <div className="relative">
+            <button
+              onClick={() => setShowLayoutPicker(!showLayoutPicker)}
+              className="flex items-center gap-2 px-2 py-1 rounded border border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 transition-all"
+              title="Change layout"
+            >
+              {currentLayout === 'timeline' && <LayoutGrid size={14} />}
+              {currentLayout === 'periods' && <Columns size={14} />}
+              {currentLayout === 'kanban' && <Kanban size={14} />}
+              <ChevronDown size={10} />
+            </button>
+
+            {showLayoutPicker && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowLayoutPicker(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl p-1 min-w-[160px]">
+                  <button
+                    onClick={() => handleLayoutChange('timeline')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded text-left text-[11px] transition-colors ${currentLayout === 'timeline' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-400 hover:bg-zinc-800'}`}
+                  >
+                    <LayoutGrid size={14} />
+                    <div>
+                      <div className="font-medium">Timeline</div>
+                      <div className="text-[9px] text-zinc-600">Horizontal scrollable</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleLayoutChange('periods')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded text-left text-[11px] transition-colors ${currentLayout === 'periods' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-400 hover:bg-zinc-800'}`}
+                  >
+                    <Columns size={14} />
+                    <div>
+                      <div className="font-medium">Periods</div>
+                      <div className="text-[9px] text-zinc-600">Morning / Afternoon / Evening</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleLayoutChange('kanban')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded text-left text-[11px] transition-colors ${currentLayout === 'kanban' ? 'bg-emerald-500/20 text-emerald-400' : 'text-zinc-400 hover:bg-zinc-800'}`}
+                  >
+                    <Kanban size={14} />
+                    <div>
+                      <div className="font-medium">Kanban</div>
+                      <div className="text-[9px] text-zinc-600">Inbox → Scheduled → Done</div>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
+          <div className="w-px h-5 bg-zinc-800" />
+
+          {/* Focus Mode Button */}
           <button
-            onClick={() => setIsFocusMode(!isFocusMode)}
+            onClick={() => {
+              if (!isFocusMode && pendingTasks.length > 0 && !activeTask) {
+                onStartSession(pendingTasks[0].id);
+              }
+              setIsFocusMode(!isFocusMode);
+            }}
             className={`flex items-center gap-2 px-3 py-1 rounded border transition-all text-[9px] font-bold uppercase tracking-widest ${isFocusMode ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700'}`}
           >
             {isFocusMode ? <Zap size={10} fill="currentColor" /> : <Layers size={10} />}
-            {isFocusMode ? 'Focus On' : 'Enter Focus'}
+            {isFocusMode ? 'Focus On' : pendingTasks.length > 0 ? `Focus (${pendingTasks.length})` : 'Enter Focus'}
           </button>
         </div>
       </header>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 flex min-h-0 overflow-hidden">
 
         {isFocusMode ? (
           <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500">
@@ -346,359 +455,250 @@ const DayView: React.FC<Props> = ({
           </div>
         ) : (
           <>
-            {/* LEFT SIDEBAR: CAPTURE & INBOX */}
-            <aside className="w-[300px] border-r border-zinc-900 flex flex-col p-6 space-y-8 bg-black/20 shrink-0">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Capture</h2>
-                  <BarChart3 size={12} className="text-zinc-800" />
-                </div>
-                <div className="relative group">
-                  <input
-                    type="text"
-                    value={captureValue}
-                    onChange={e => setCaptureValue(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleCapture(); }}
-                    placeholder="Capture task..."
-                    className="w-full bg-zinc-900/20 border border-zinc-800/50 rounded-lg px-4 py-3 text-xs text-zinc-300 placeholder:text-zinc-800 focus:border-zinc-700 outline-none transition-all font-mono"
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={handleCapture} className="p-1 text-zinc-600 hover:text-emerald-500"><Send size={12} /></button>
-                  </div>
-                </div>
-              </div>
+            {/* MAIN CONTENT AREA - Layout Based */}
+            <section className="flex-1 flex flex-col min-w-0 min-h-0 bg-black/40 relative overflow-hidden">
+              {currentLayout === 'timeline' && (
+                <DayLayoutTimeline
+                  dateKey={dateKey}
+                  inboxTasks={inboxTasks}
+                  scheduledTasks={scheduledTasks}
+                  completedTasks={completedTasks}
+                  activeTaskId={activeTaskId}
+                  prayerTimes={prayerTimes}
+                  timeBlocks={dayTimeBlocks}
+                  onTaskUpdate={onTaskUpdate}
+                  onTaskAdd={onTaskAdd}
+                  onTaskDelete={onTaskDelete}
+                  onStartSession={onStartSession}
+                  onTaskSelect={onTaskSelect}
+                  onTimeBlockAdd={handleTimeBlockAdd}
+                  onTimeBlockUpdate={handleTimeBlockUpdate}
+                  onTimeBlockDelete={handleTimeBlockDelete}
+                />
+              )}
 
-              <div className="flex-1 flex flex-col min-h-0 space-y-4">
-                {/* Missed Tasks (restored collapsible) */}
-                {isToday && missedTasks.length > 0 && (
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => setShowAllMissed(!showAllMissed)}
-                      className="flex items-center justify-between w-full px-1 text-[9px] text-zinc-700 hover:text-amber-500/50 transition-colors uppercase font-bold tracking-tighter"
-                    >
-                      <div className="flex items-center gap-1">
-                        <ChevronRight size={10} className={`transition-transform ${showAllMissed ? 'rotate-90' : ''}`} />
-                        <span>{missedTasks.length} Overdue items</span>
-                      </div>
-                      <span>{showAllMissed ? 'Hide' : 'View'}</span>
-                    </button>
-                    {showAllMissed && (
-                      <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar pt-2">
-                        {missedTasks.map(task => (
-                          <div key={task.id} className="group p-2 rounded hover:bg-zinc-900 transition-colors flex items-center gap-3">
-                            <button onClick={() => onTaskUpdate(task.id, { scheduledTime: Date.now() })} className="p-1 rounded text-zinc-700 hover:text-emerald-500 transition-colors" title="Push to Today"><Send size={10} className="rotate-90" /></button>
-                            <span className="text-[11px] text-zinc-500 truncate flex-1">{task.title}</span>
-                            <span className="text-[8px] text-zinc-800 font-bold uppercase">{getRelativeDateStr(task.scheduledTime!)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+              {currentLayout === 'periods' && (
+                <DayLayoutPeriods
+                  dateKey={dateKey}
+                  inboxTasks={inboxTasks}
+                  scheduledTasks={scheduledTasks}
+                  completedTasks={completedTasks}
+                  activeTaskId={activeTaskId}
+                  prayerTimes={prayerTimes}
+                  timeBlocks={dayTimeBlocks}
+                  onTaskUpdate={onTaskUpdate}
+                  onTaskAdd={onTaskAdd}
+                  onTaskDelete={onTaskDelete}
+                  onStartSession={onStartSession}
+                  onTaskSelect={onTaskSelect}
+                  onTimeBlockAdd={handleTimeBlockAdd}
+                  onTimeBlockUpdate={handleTimeBlockUpdate}
+                  onTimeBlockDelete={handleTimeBlockDelete}
+                />
+              )}
 
-                <div className="h-px bg-zinc-900 mx-2"></div>
-
-                <div className="flex-1 flex flex-col min-h-0">
-                  <div className="flex items-center justify-between mb-4 px-1">
-                    <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Inbox</h2>
-                    <span className="text-[10px] text-zinc-800 tabular-nums">{inboxTasks.length}p</span>
-                  </div>
-                  <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar pr-2">
-                    {inboxTasks.map(task => (
-                      <div key={task.id} className="group relative p-3 bg-zinc-900/10 border border-zinc-800/30 rounded hover:border-zinc-700 hover:bg-zinc-900/30 transition-all">
-                        <div className="flex items-start gap-3">
-                          <button onClick={() => handleToggleComplete(task)} className="mt-0.5 shrink-0">
-                            {task.status === TaskStatus.DONE ? <CheckCircle2 size={13} className="text-zinc-600" /> : <Circle size={13} className="text-zinc-800 group-hover:text-zinc-600" />}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-[11px] leading-relaxed block ${task.status === TaskStatus.DONE ? 'text-zinc-700 line-through' : 'text-zinc-400 group-hover:text-zinc-200'}`}>{task.title}</span>
-                          </div>
-                          <button onClick={() => onTaskSelect(task)} className="opacity-0 group-hover:opacity-100 p-1 text-zinc-700 hover:text-white transition-opacity"><Edit2 size={10} /></button>
-                        </div>
-                      </div>
-                    ))}
-                    {inboxTasks.length === 0 && <div className="py-12 text-center text-[10px] text-zinc-800 uppercase italic">Inbox Clear</div>}
-                  </div>
-                </div>
-              </div>
-            </aside>
-
-            {/* CENTER PANE: DAY INBOX */}
-            <section className="flex-1 flex flex-col min-w-0 bg-black/40 relative">
-              <div className="h-14 border-b border-zinc-900/50 flex items-center justify-between px-8 bg-zinc-950/20">
-                <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.4em]">Day Inbox</h2>
-                <div className="flex items-center gap-4 text-[9px] text-zinc-700 uppercase font-black">
-                  <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500/40"></div> CORE</div>
-                  <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-orange-500/40"></div> GROWTH</div>
-                  <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500/40"></div> SERVICE</div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-0 pb-32">
-                <div className="max-w-3xl mx-auto flex flex-col min-h-full">
-
-                  {/* UNSTRUCTURED INBOX */}
-                  {inboxTasks.length > 0 && (
-                    <div className="p-8 border-b border-zinc-900/30 bg-zinc-900/5">
-                      <div className="flex items-center gap-2 mb-4 opacity-50">
-                        <ListTodo size={12} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Unscheduled</span>
-                      </div>
-                      <div className="space-y-2">
-                        {inboxTasks.map(task => (
-                          <div key={task.id} className="group relative p-3 bg-zinc-900/40 border border-zinc-800/30 rounded hover:border-zinc-700 hover:bg-zinc-900/60 transition-all">
-                            <div className="flex items-start gap-3">
-                              <button onClick={() => handleToggleComplete(task)} className="mt-0.5 shrink-0">
-                                {task.status === TaskStatus.DONE ? <CheckCircle2 size={13} className="text-zinc-600" /> : <Circle size={13} className="text-zinc-700 group-hover:text-zinc-500" />}
-                              </button>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3">
-                                  <span className={`text-sm ${task.status === TaskStatus.DONE ? 'text-zinc-700 line-through' : 'text-zinc-300 group-hover:text-zinc-100'}`}>{task.title}</span>
-                                  {task.impact === 'HIGH' && <Zap size={10} className="text-amber-500/50" fill="currentColor" />}
-                                </div>
-                              </div>
-                              <button onClick={() => onTaskSelect(task)} className="opacity-0 group-hover:opacity-100 p-1 text-zinc-700 hover:text-white transition-opacity"><Edit2 size={10} /></button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* CHRONOLOGICAL TIMELINE LIST */}
-                  <div className="flex-1 p-8 space-y-4">
-                    {timelineItems.map((item, idx) => {
-                      if (item.type === 'prayer') {
-                        const p = item.data as any; // PrayerTime logic
-                        return (
-                          <div key={p.name} className="flex items-center gap-4 py-2 opacity-60 hover:opacity-100 transition-opacity select-none group">
-                            <span className="text-[9px] font-black text-zinc-600 uppercase tracking-widest w-16 text-right">{p.time.replace(/ (am|pm)/i, '')}</span>
-                            <div className="h-px bg-zinc-800/50 flex-1 group-hover:bg-zinc-700 transition-colors"></div>
-                            <div className="flex items-center gap-2 text-zinc-500">
-                              {p.icon && <p.icon size={12} />}
-                              <span className="text-[10px] font-bold uppercase tracking-widest">{p.name}</span>
-                            </div>
-                            <div className="h-px bg-zinc-800/50 flex-1 group-hover:bg-zinc-700 transition-colors"></div>
-                          </div>
-                        );
-                      } else {
-                        const task = item.data as Task;
-                        const isTaskActive = task.id === activeTaskId;
-                        return (
-                          <div key={task.id} className="flex gap-4 group">
-                            <div className="w-16 pt-3 text-right">
-                              <span className="text-[10px] font-bold text-zinc-600 group-hover:text-zinc-400 transition-colors">{formatTime(task.scheduledTime!)}</span>
-                            </div>
-                            <div className={`flex-1 relative flex items-center gap-4 p-3 rounded border transition-all ${isTaskActive ? 'bg-zinc-900 border-zinc-700 shadow-[0_4px_20px_rgba(0,0,0,0.5)]' : 'bg-transparent border-zinc-800/30 hover:bg-zinc-900/30 hover:border-zinc-700'}`}>
-                              <button onClick={() => handleToggleComplete(task)} className="shrink-0">
-                                {task.status === TaskStatus.DONE ? <CheckCircle2 size={15} className="text-zinc-600" /> : <Circle size={15} className="text-zinc-800 group-hover:text-zinc-600" />}
-                              </button>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3">
-                                  <span className={`text-sm ${task.status === TaskStatus.DONE ? 'text-zinc-700 line-through' : 'text-zinc-300'}`}>{task.title}</span>
-                                  {task.impact === 'HIGH' && <Zap size={10} className="text-white/20" fill="currentColor" />}
-                                </div>
-                              </div>
-
-                              <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all">
-                                <button onClick={() => onTaskSelect(task)} className="p-1.5 text-zinc-700 hover:text-white transition-colors" title="Edit"><Edit2 size={12} /></button>
-                                {!isTaskActive && task.status !== TaskStatus.DONE && (
-                                  <button onClick={() => onStartSession(task.id)} className="p-1.5 text-zinc-700 hover:text-white transition-colors" title="Start"><Play size={12} /></button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                    })}
-
-                    {/* EMPTY STATE */}
-                    {timelineItems.length === 0 && inboxTasks.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center text-zinc-800 space-y-4 py-20">
-                        <Layout size={48} className="opacity-20" />
-                        <p className="text-xs uppercase tracking-widest font-bold">The day is open</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* COMPACT TIMELINE WIDGET */}
-              <div className="absolute bottom-0 left-0 right-0 h-16 border-t border-zinc-900 bg-black/80 backdrop-blur-xl px-12 flex items-center z-50">
-                <div className="w-full relative h-8 flex items-center">
-                  {/* Base Line */}
-                  <div className="absolute left-0 right-0 top-1/2 h-px bg-zinc-800"></div>
-
-                  {/* Hour Markers (Minimal) */}
-                  {[6, 9, 12, 15, 18, 21].map(h => (
-                    <div key={h} className="absolute top-1/2 -mt-1 h-2 w-px bg-zinc-800" style={{ left: `${getTimelinePosition(new Date().setHours(h, 0, 0, 0))}%` }}></div>
-                  ))}
-
-                  {/* Prayer Markers */}
-                  {prayerTimes.map(p => {
-                    // Calculate percent
-                    const dummyTime = new Date(selectedDate);
-                    const [h, mAmPm] = p.time.split(':');
-                    const [m, ampm] = mAmPm.split(' ');
-                    let hours = parseInt(h);
-                    if (ampm.toLowerCase() === 'pm' && hours !== 12) hours += 12;
-                    if (ampm.toLowerCase() === 'am' && hours === 12) hours = 0;
-                    dummyTime.setHours(hours, parseInt(m), 0, 0);
-                    const pct = getTimelinePosition(dummyTime.getTime());
-
-                    return (
-                      <div key={p.name} className="absolute top-1/2 -translate-y-1/2 -ml-2 group cursor-help z-10" style={{ left: `${pct}%` }}>
-                        <div className="w-4 h-4 rounded-full bg-zinc-950 border border-zinc-800 flex items-center justify-center text-[8px] text-zinc-500 group-hover:text-white group-hover:border-zinc-600 transition-colors">
-                          {p.name[0]}
-                        </div>
-                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-zinc-900 text-[9px] px-1.5 py-0.5 rounded border border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
-                          {p.name} {p.time}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {/* Task Dots */}
-                  {scheduledTasks.map(t => {
-                    const pct = getTimelinePosition(t.scheduledTime!);
-                    return (
-                      <div key={t.id} className="absolute top-1/2 -translate-y-1/2 -ml-1 w-2 h-2 rounded-full bg-zinc-700 hover:bg-white hover:scale-150 transition-all cursor-pointer z-0" style={{ left: `${pct}%` }} title={t.title}></div>
-                    );
-                  })}
-
-                  {/* Current Time Indicator */}
-                  {isToday && (
-                    <div className="absolute top-0 bottom-0 w-px bg-red-500/50 z-0" style={{ left: `${getTimelinePosition(Date.now())}%` }}></div>
-                  )}
-                </div>
-              </div>
-
+              {currentLayout === 'kanban' && (
+                <DayLayoutKanban
+                  dateKey={dateKey}
+                  inboxTasks={inboxTasks}
+                  scheduledTasks={scheduledTasks}
+                  completedTasks={completedTasks}
+                  activeTaskId={activeTaskId}
+                  prayerTimes={prayerTimes}
+                  timeBlocks={dayTimeBlocks}
+                  onTaskUpdate={onTaskUpdate}
+                  onTaskAdd={onTaskAdd}
+                  onTaskDelete={onTaskDelete}
+                  onStartSession={onStartSession}
+                  onTaskSelect={onTaskSelect}
+                  onTimeBlockAdd={handleTimeBlockAdd}
+                  onTimeBlockUpdate={handleTimeBlockUpdate}
+                  onTimeBlockDelete={handleTimeBlockDelete}
+                />
+              )}
             </section>
 
-            {/* RIGHT SIDEBAR: RITUALS & STATS */}
-            <aside className="w-[300px] border-l border-zinc-900 flex flex-col p-8 space-y-12 bg-black/20 shrink-0">
-
-              <div className="space-y-4">
-                <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Niyyah</h2>
-                <div className="bg-zinc-900/30 border border-zinc-800/50 p-4 rounded-xl flex items-center gap-3">
-                  <Zap size={10} className="text-zinc-700" />
-                  <input
-                    value={state.dayMeta[dateKey]?.focus || ''}
-                    onChange={(e) => onDayMetaUpdate(dateKey, { focus: e.target.value })}
-                    placeholder="Today's primary intent..."
-                    className="w-full bg-transparent text-[11px] text-zinc-300 outline-none placeholder:text-zinc-800 font-mono tracking-tight"
-                  />
+            {/* RIGHT SIDEBAR: PROTOCOLS & WEEKLY ACTIVITIES */}
+            <aside className="w-[280px] border-l border-zinc-900 flex flex-col bg-black/20 shrink-0 overflow-hidden">
+              {/* Niyyah / Focus Input */}
+              <div className="p-5 border-b border-zinc-900 space-y-6">
+                {/* Niyyah / Focus Input */}
+                <div className="space-y-2">
+                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest px-1">Today's Intent</span>
+                  <div className="bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-lg flex items-center gap-3 transition-all focus-within:border-emerald-500/30 focus-within:shadow-[0_0_15px_rgba(16,185,129,0.05)] focus-within:bg-emerald-950/5 group/niyyah">
+                    <Zap size={12} className="text-zinc-700 group-focus-within/niyyah:text-emerald-500 transition-colors" />
+                    <input
+                      value={state.dayMeta[dateKey]?.focus || ''}
+                      onChange={(e) => onDayMetaUpdate(dateKey, { focus: e.target.value })}
+                      placeholder="Defining the focus..."
+                      className="w-full bg-transparent text-xs text-zinc-300 outline-none placeholder:text-zinc-800 font-mono tracking-tight"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-4 flex-1 min-h-0 flex flex-col">
-                <div className="flex items-center justify-between px-1">
-                  <h2 className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Rituals</h2>
-                  <Target size={12} className="text-zinc-800" />
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-1">
-                  {[
-                    {
-                      title: 'Spiritual',
-                      items: [
-                        { id: 'fajr', l: 'Fajr', type: 'prayer', icon: Sunrise },
-                        { id: 'dhuhr', l: 'Dhuhr', type: 'prayer', icon: Sun },
-                        { id: 'asr', l: 'Asr', type: 'prayer', icon: CloudSun },
-                        { id: 'maghrib', l: 'Maghrib', type: 'prayer', icon: Sunset },
-                        { id: 'isha', l: 'Isha', type: 'prayer', icon: Moon },
-                        { id: 'adhkar_m', l: 'Morning Athkar', type: 'adhkar', icon: Coffee },
-                        { id: 'adhkar_e', l: 'Evening Athkar', type: 'adhkar', icon: MoonStar },
-                        { id: 'quran', l: 'Quran', type: 'habit', icon: BookOpen },
-                      ]
-                    },
-                    {
-                      title: 'Physical',
-                      items: [
-                        { id: 'workout', l: 'Training', type: 'habit', icon: Dumbbell },
-                        { id: 'diet', l: 'Clean Eating', type: 'habit', icon: Utensils },
-                      ]
-                    },
-                    {
-                      title: 'Mind',
-                      items: [
-                        { id: 'journal', l: 'Journal', type: 'habit', icon: Feather },
-                        { id: 'read', l: 'Reading', type: 'habit', icon: BrainCircuit },
-                      ]
-                    }
-                  ].map(cat => (
-                    <div key={cat.title} className="space-y-2">
-                      <h3 className="text-[9px] font-black text-zinc-700 uppercase tracking-widest">{cat.title}</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        {cat.items.map(ceremony => {
-                          const key = `${dateKey}-${ceremony.id}`;
-                          let done = false;
-
-                          if (ceremony.type === 'prayer') done = state.prayerLog[key];
-                          else if (ceremony.type === 'adhkar') done = state.adhkarLog[key];
-                          else done = state.dayMeta[dateKey]?.rituals?.[ceremony.id] || false;
-
-                          const toggle = () => {
-                            if (ceremony.type === 'prayer') onPrayerToggle(key);
-                            else if (ceremony.type === 'adhkar') onAdhkarToggle(key);
-                            else {
-                              const currentRituals = state.dayMeta[dateKey]?.rituals || {};
-                              onDayMetaUpdate(dateKey, { rituals: { ...currentRituals, [ceremony.id]: !done } });
-                            }
-                          };
-
-                          const Icon = ceremony.icon;
-
-                          return (
-                            <button
-                              key={ceremony.id}
-                              onClick={toggle}
-                              className={`flex flex-col items-center justify-center gap-2 p-3 rounded-lg border transition-all duration-300 ${done ? 'bg-zinc-100 border-zinc-100 text-black shadow-[0_0_15px_rgba(255,255,255,0.1)]' : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-600 hover:bg-zinc-900 hover:border-zinc-700 hover:text-zinc-400'}`}
-                            >
-                              <Icon size={14} className={done ? 'text-black' : 'text-zinc-600'} />
-                              <span className="text-[9px] font-bold uppercase tracking-wide">{ceremony.l}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-8 border-t border-zinc-900 space-y-8">
+                {/* Rituals Checklist */}
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between text-[9px] font-black uppercase">
-                    <span className="text-zinc-600 tracking-widest">Day Capacity</span>
-                    <span className="text-zinc-400 tabular-nums">{Math.round(progress)}%</span>
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                      <Target size={10} className="text-zinc-600" />
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Daily Rituals</span>
+                    </div>
+                    <button
+                      onClick={() => onDayMetaUpdate(dateKey, { rituals: {} })}
+                      className="text-[8px] font-bold text-zinc-800 hover:text-red-500/60 transition-colors tracking-tighter"
+                    >
+                      RESET
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {RITUAL_ITEMS.map(item => {
+                      const isChecked = !!state.dayMeta[dateKey]?.rituals?.[item];
+                      return (
+                        <button
+                          key={item}
+                          onClick={() => {
+                            const current = state.dayMeta[dateKey]?.rituals || {};
+                            onDayMetaUpdate(dateKey, { rituals: { ...current, [item]: !isChecked } });
+                          }}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-md border transition-all duration-300 group/ritual ${isChecked
+                            ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
+                            : 'bg-zinc-900/20 border-zinc-800/40 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800/30'
+                            }`}
+                        >
+                          <div className={`w-3 h-3 rounded-sm border flex items-center justify-center transition-all ${isChecked
+                            ? 'bg-emerald-500 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                            : 'border-zinc-700 group-hover/ritual:border-zinc-500'
+                            }`}>
+                            {isChecked && <Check size={10} className="text-black" strokeWidth={4} />}
+                          </div>
+                          <span className="text-[10px] font-bold tracking-tight">{item}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Inbox / Unscheduled Tasks */}
+                {inboxTasks.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between px-1">
+                      <div className="flex items-center gap-2">
+                        <Archive size={10} className="text-zinc-600" />
+                        <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Inbox</span>
+                      </div>
+                      <span className="text-[9px] font-mono text-zinc-700">{inboxTasks.length}</span>
+                    </div>
+                    <div className="space-y-1">
+                      {inboxTasks.map(task => (
+                        <div
+                          key={task.id}
+                          onClick={() => onTaskSelect(task)}
+                          className="group/inbox-item flex items-center gap-2 p-2 rounded bg-zinc-900/40 border border-zinc-800/50 hover:border-emerald-500/30 hover:bg-emerald-950/5 transition-all cursor-pointer"
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full ${task.status === TaskStatus.DONE ? 'bg-zinc-700' : 'bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]'
+                            }`} />
+                          <span className={`text-[10px] flex-1 truncate ${task.status === TaskStatus.DONE ? 'text-zinc-600 line-through' : 'text-zinc-300'
+                            }`}>
+                            {task.title}
+                          </span>
+                          <ChevronRight size={10} className="text-zinc-800 group-hover/inbox-item:text-zinc-500 transition-colors" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Protocols Sidebar */}
+              <div className="flex-1 overflow-y-auto">
+                {onProtocolToggle && onWeeklyActivityToggle && onProtocolContextsUpdate && onWeeklyActivitiesUpdate ? (
+                  <ProtocolsSidebar
+                    protocolContexts={state.protocolContexts || []}
+                    weeklyActivities={state.weeklyActivities || {}}
+                    dailyProtocolState={state.dailyProtocolState || {}}
+                    dateKey={dateKey}
+                    onProtocolToggle={onProtocolToggle}
+                    onWeeklyActivityToggle={onWeeklyActivityToggle}
+                    onOpenProtocolsEditor={() => setShowProtocolsEditor(true)}
+                    onOpenWeeklyEditor={() => setShowWeeklyEditor(true)}
+                  />
+                ) : (
+                  <div className="p-4 text-center text-[10px] text-zinc-600">
+                    Protocols not configured
+                  </div>
+                )}
+              </div>
+
+              {/* Day Stats Footer - Context Aware */}
+              <div className="p-4 border-t border-zinc-900 space-y-3">
+                {/* Progress */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[9px] font-bold uppercase">
+                    <span className="text-zinc-600 tracking-widest">Progress</span>
+                    <span className="text-zinc-400 tabular-nums">{completedTasks.length}/{daysTasks.length}</span>
                   </div>
                   <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-white transition-all duration-1000 ease-out"
+                      className="h-full bg-emerald-500/70 transition-all duration-1000 ease-out"
                       style={{ width: `${progress}%` }}
                     />
                   </div>
                 </div>
 
-                <div className="p-5 bg-zinc-950/50 border border-zinc-900 rounded-xl space-y-2">
-                  <div className="flex items-center gap-2 text-[9px] font-black text-zinc-700 uppercase">
-                    <Layout size={10} /> Status
-                  </div>
-                  <p className="text-[10px] text-zinc-500 leading-relaxed italic">
-                    {activeTaskId ? "Active directive currently being processed in current block." : "System idle. Align new directives to Architecture to begin."}
-                  </p>
+                {/* Context Info */}
+                <div className="space-y-2 text-[9px]">
+                  {/* Active task or next up */}
+                  {activeTask ? (
+                    <div className="flex items-center gap-2 p-2 bg-emerald-950/20 border border-emerald-900/30 rounded">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-emerald-400 truncate flex-1">Active: {activeTask.title}</span>
+                    </div>
+                  ) : pendingTasks.length > 0 ? (
+                    <div className="flex items-center gap-2 p-2 bg-zinc-900/30 rounded">
+                      <Clock size={10} className="text-zinc-600" />
+                      <span className="text-zinc-500 truncate flex-1">Next: {pendingTasks[0].title}</span>
+                    </div>
+                  ) : daysTasks.length === 0 ? (
+                    <div className="text-center text-zinc-700 py-2 italic">No tasks scheduled</div>
+                  ) : (
+                    <div className="text-center text-emerald-500/60 py-2">All tasks complete ✓</div>
+                  )}
+
+                  {/* Missed tasks warning */}
+                  {isToday && missedTasks.length > 0 && (
+                    <div className="flex items-center gap-2 text-amber-500/70">
+                      <AlertCircle size={10} />
+                      <span>{missedTasks.length} overdue task{missedTasks.length > 1 ? 's' : ''}</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="pt-8 border-t border-zinc-900">
-                  <div className="flex gap-3">
-                    <Quote size={12} className="text-zinc-800 shrink-0" />
-                    <p className="text-[10px] text-zinc-600 font-serif italic leading-relaxed">
-                      "{getQuoteForDate(selectedDate)}"
-                    </p>
-                  </div>
+                {/* Quote */}
+                <div className="pt-2 border-t border-zinc-900/50">
+                  <p className="text-[8px] text-zinc-700 font-serif italic leading-relaxed line-clamp-2">
+                    "{getQuoteForDate(selectedDate)}"
+                  </p>
                 </div>
               </div>
             </aside>
+
+            {/* Protocols Editor Modal */}
+            {showProtocolsEditor && onProtocolContextsUpdate && (
+              <ProtocolsEditor
+                protocolContexts={state.protocolContexts || []}
+                onUpdate={onProtocolContextsUpdate}
+                onClose={() => setShowProtocolsEditor(false)}
+              />
+            )}
+
+            {/* Weekly Activities Editor Modal */}
+            {showWeeklyEditor && onWeeklyActivitiesUpdate && (
+              <WeeklyActivitiesEditor
+                weeklyActivities={state.weeklyActivities || {}}
+                onUpdate={onWeeklyActivitiesUpdate}
+                onClose={() => setShowWeeklyEditor(false)}
+              />
+            )}
           </>
         )}
       </main>

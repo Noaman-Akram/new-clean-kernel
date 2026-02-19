@@ -351,7 +351,7 @@ export interface QuickAction {
   enabled: boolean;
 }
 
-export type DashboardWidget = 'QUICK_NAV' | 'INSIGHTS' | 'KPIS' | 'FLIGHT_PLAN' | 'QUICK_ACTIONS';
+export type DashboardWidget = 'QUICK_NAV' | 'INSIGHTS' | 'KPIS' | 'FLIGHT_PLAN' | 'QUICK_ACTIONS' | 'CHALLENGE';
 
 export interface DashboardWidgetConfig {
   id: DashboardWidget;
@@ -368,6 +368,9 @@ export interface UserPreferences {
   appearance: {
     accentColor?: string; // For future theme customization
     density?: 'COMPACT' | 'NORMAL' | 'SPACIOUS';
+  };
+  planner: {
+    dayViewLayout: DayViewLayout; // 'timeline' | 'periods' | 'kanban'
   };
   dateFormat?: 'US' | 'EU' | 'ISO'; // MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
   timeFormat?: '12h' | '24h';
@@ -391,6 +394,72 @@ export interface FocusSession {
   duration: number; // seconds
   distractionsCount: number;
   completed: boolean;
+}
+
+// Day View Layout Types
+export type DayViewLayout = 'timeline' | 'periods' | 'kanban';
+
+// Time Block for scheduling
+export interface TimeBlock {
+  id: string;
+  title: string;
+  startHour: number; // 0-23
+  startMinute: number; // 0-59
+  duration: number; // in minutes
+  color?: string;
+  type: 'task' | 'routine' | 'custom';
+  taskId?: string; // Reference to task if linked
+}
+
+// Daily Protocols Types
+export interface ProtocolItem {
+  id: string;
+  text: string;
+}
+
+export interface ProtocolContext {
+  id: string;
+  name: string;        // "Morning", "Walking", "Gym", "Work", "After Work"
+  icon: string;        // emoji
+  items: ProtocolItem[];
+}
+
+export interface WeeklyActivity {
+  id: string;
+  text: string;
+}
+
+// Weekly activities keyed by day: "fri", "sat", "sun", "mon", "tue", "wed", "thu"
+export type WeeklyActivities = Record<string, WeeklyActivity[]>;
+
+// Daily protocol check state keyed by date: "2025-01-25" -> itemId -> checked
+export type DailyProtocolState = Record<string, Record<string, boolean>>;
+
+// Iron Protocol / Hard Mode Types
+export interface ChallengeRule {
+  id: string;
+  text: string; // The rule description (e.g., "No Sugar", "Pray in Masjid")
+  linkedRitualId?: string; // Optional link to existing ritual
+}
+
+export type ChallengeDayStatus = 'SUCCESS' | 'FAILED' | 'FROZEN' | 'PENDING';
+
+export interface ChallengeDay {
+  date: string; // ISO YYYY-MM-DD
+  status: ChallengeDayStatus;
+  completedRules: string[]; // IDs of rules completed this day
+  notes?: string;
+}
+
+export interface Challenge {
+  id: string;
+  name: string; // "The Iron Protocol"
+  startDate: number; // Timestamp
+  durationDays: number; // e.g., 30
+  rules: ChallengeRule[];
+  history: Record<string, ChallengeDay>; // Keyed by YYYY-MM-DD
+  status: 'ACTIVE' | 'COMPLETED' | 'FAILED' | 'ABANDONED';
+  startedAt: number;
 }
 
 export interface AppState {
@@ -417,4 +486,13 @@ export interface AppState {
   userPreferences: UserPreferences;
   distractions: Distraction[];
   focusSessions: FocusSession[];
+  // Daily Protocols & Weekly Activities
+  protocolContexts: ProtocolContext[];
+  weeklyActivities: WeeklyActivities;
+  dailyProtocolState: DailyProtocolState;
+  // Time Blocks for day scheduling (keyed by date: "YYYY-MM-DD")
+  timeBlocks: Record<string, TimeBlock[]>;
+  // Active Challenge (Iron Protocol)
+  activeChallenge?: Challenge;
 }
+

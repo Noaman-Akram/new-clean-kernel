@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession } from './types';
 import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
 import { auth } from './services/firebase';
 import { generateId } from './utils';
@@ -42,6 +42,7 @@ import WeeklyPlannerView from './components/WeeklyPlannerView';
 import DayView from './components/DayView';
 import GymView from './components/GymView';
 import FocusView from './components/FocusView';
+import ChallengeSetupModal from './components/ChallengeSetupModal';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState | null>(null);
@@ -66,6 +67,7 @@ const App: React.FC = () => {
   const isApplyingRemoteRef = useRef(false);
   const isDirtyRef = useRef(false);
   const hasHydratedRef = useRef(false);
+  const [showChallengeSetup, setShowChallengeSetup] = useState(false);
   const lastRemoteVersionRef = useRef(0);
 
   // --- AUTH ---
@@ -223,7 +225,7 @@ const App: React.FC = () => {
     if (options?.habitTracking) newTask.habitTracking = options.habitTracking;
     if (options?.parentProject) newTask.parentProject = options.parentProject;
 
-    setState(prev => prev ? ({ ...prev, tasks: [newTask, ...prev.tasks] }) : null);
+    setState(prev => prev ? ({ ...prev, tasks: [...prev.tasks, newTask] }) : null);
   };
 
   const handleTaskUpdate = (id: string, updates: Partial<Task>) => {
@@ -501,6 +503,142 @@ const App: React.FC = () => {
     }) : null);
   };
 
+  // --- PROTOCOLS & WEEKLY ACTIVITIES ---
+  const handleProtocolContextsUpdate = (contexts: ProtocolContext[]) => {
+    setState(prev => prev ? ({
+      ...prev,
+      protocolContexts: contexts
+    }) : null);
+  };
+
+  const handleWeeklyActivitiesUpdate = (activities: WeeklyActivities) => {
+    setState(prev => prev ? ({
+      ...prev,
+      weeklyActivities: activities
+    }) : null);
+  };
+
+  const handleProtocolToggle = (dateKey: string, itemId: string) => {
+    setState(prev => {
+      if (!prev) return null;
+      const currentState = prev.dailyProtocolState[dateKey] || {};
+      return {
+        ...prev,
+        dailyProtocolState: {
+          ...prev.dailyProtocolState,
+          [dateKey]: {
+            ...currentState,
+            [itemId]: !currentState[itemId]
+          }
+        }
+      };
+    });
+  };
+
+  const handleWeeklyActivityToggle = (dateKey: string, activityId: string) => {
+    // Weekly activities are stored with 'weekly_' prefix to differentiate from protocol items
+    setState(prev => {
+      if (!prev) return null;
+      const currentState = prev.dailyProtocolState[dateKey] || {};
+      const key = `weekly_${activityId}`;
+      return {
+        ...prev,
+        dailyProtocolState: {
+          ...prev.dailyProtocolState,
+          [dateKey]: {
+            ...currentState,
+            [key]: !currentState[key]
+          }
+        }
+      };
+    });
+  };
+
+  // --- LAYOUT CHANGE ---
+  const handleLayoutChange = (layout: DayViewLayout) => {
+    setState(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        userPreferences: {
+          ...prev.userPreferences,
+          planner: {
+            ...prev.userPreferences?.planner,
+            dayViewLayout: layout
+          }
+        }
+      };
+    });
+  };
+
+  // --- CHALLENGE / IRON PROTOCOL ---
+  const handleStartChallenge = (challenge: Challenge) => {
+    setState(prev => prev ? ({ ...prev, activeChallenge: challenge }) : null);
+  };
+
+  const handleChallengeRuleUpdate = (ruleId: string, completed: boolean) => {
+    setState(prev => {
+      if (!prev?.activeChallenge) return null;
+      const today = new Date().toISOString().split('T')[0];
+      const currentDay = prev.activeChallenge.history[today] || {
+        date: today,
+        status: 'PENDING',
+        completedRules: []
+      };
+
+      let newCompletedRules = currentDay.completedRules;
+      if (completed) {
+        if (!newCompletedRules.includes(ruleId)) newCompletedRules = [...newCompletedRules, ruleId];
+      } else {
+        newCompletedRules = newCompletedRules.filter(id => id !== ruleId);
+      }
+
+      // Check if all rules done
+      const allDone = prev.activeChallenge.rules.every(r => newCompletedRules.includes(r.id));
+      const newStatus = allDone ? 'SUCCESS' : 'PENDING';
+
+      return {
+        ...prev,
+        activeChallenge: {
+          ...prev.activeChallenge,
+          history: {
+            ...prev.activeChallenge.history,
+            [today]: {
+              ...currentDay,
+              completedRules: newCompletedRules,
+              status: newStatus
+            }
+          }
+        }
+      };
+    });
+  };
+
+  const handleChallengeFailDay = () => {
+    setState(prev => {
+      if (!prev?.activeChallenge) return prev;
+      const today = new Date().toISOString().split('T')[0];
+      return {
+        ...prev,
+        activeChallenge: {
+          ...prev.activeChallenge,
+          status: 'FAILED', // FAIL THE WHOLE CHALLENGE? Or just the day?
+          // Iron Protocol usually ignores one day = fail everything.
+          // But let's fail the challenge status itself.
+          history: {
+            ...prev.activeChallenge.history,
+            [today]: {
+              ...prev.activeChallenge.history[today],
+              date: today,
+              status: 'FAILED',
+              completedRules: prev.activeChallenge.history[today]?.completedRules || []
+            }
+          }
+        }
+      };
+    });
+  };
+
   // --- BACKUP UTILS ---
   const handleExportBackup = () => {
     if (!state) return;
@@ -607,6 +745,9 @@ const App: React.FC = () => {
           onNoteUpdate={handleNoteUpdate}
           onNavigate={handleNavigate}
           onPreferencesUpdate={handlePreferencesUpdate}
+          onStartChallenge={() => setShowChallengeSetup(true)}
+          onChallengeRuleUpdate={handleChallengeRuleUpdate}
+          onChallengeFailDay={handleChallengeFailDay}
         />;
       case Page.WEEKLY:
         return (
@@ -621,6 +762,11 @@ const App: React.FC = () => {
             onDayMetaUpdate={handleDayMetaUpdate}
             onPrayerToggle={handlePrayerToggle}
             onAdhkarToggle={handleAdhkarToggle}
+            onProtocolToggle={handleProtocolToggle}
+            onWeeklyActivityToggle={handleWeeklyActivityToggle}
+            onProtocolContextsUpdate={handleProtocolContextsUpdate}
+            onWeeklyActivitiesUpdate={handleWeeklyActivitiesUpdate}
+            onLayoutChange={handleLayoutChange}
           />
         );
       case Page.CRM:

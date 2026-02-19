@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { AppState, Task, DockSection, DayMeta, DayChecklistItem } from '../types';
+import type { AppState, Task, DockSection, DayMeta, DayChecklistItem, ProtocolContext, WeeklyActivities, DayViewLayout } from '../types';
 import { Category, TaskStatus } from '../types';
 import {
   ChevronLeft,
@@ -39,13 +39,15 @@ import {
   Layers,
   Target,
   Package,
-  Circle
+  Circle,
+  Settings
 } from 'lucide-react';
 import InspectorPanel from './InspectorPanel';
 import HourOverlay from './HourOverlay';
 import { getPrayerTimesForDate, formatTimeAMPM } from '../utils/prayerTimes';
 import { generateId } from '../utils';
 import DayView from './DayView';
+import WeeklyActivitiesEditor from './WeeklyActivitiesEditor';
 
 interface Props {
   state: AppState;
@@ -58,6 +60,12 @@ interface Props {
   onDayMetaUpdate: (dateKey: string, updates: Partial<DayMeta>) => void;
   onPrayerToggle?: (key: string) => void;
   onAdhkarToggle?: (key: string) => void;
+  // Protocols & Weekly Activities
+  onProtocolToggle?: (dateKey: string, itemId: string) => void;
+  onWeeklyActivityToggle?: (dateKey: string, activityId: string) => void;
+  onProtocolContextsUpdate?: (contexts: ProtocolContext[]) => void;
+  onWeeklyActivitiesUpdate?: (activities: WeeklyActivities) => void;
+  onLayoutChange?: (layout: DayViewLayout) => void;
 }
 
 interface WeekDay {
@@ -241,7 +249,8 @@ const DayColumn: React.FC<{
   dayMeta: DayMeta;
   stickyNote: string;
   activeHours: Set<number>;
-}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onSelect, onContextMenu, onClickHour, showPrayers, getTaskTone, onUnschedule, onSetStatus, onOpenDayPanel, dayMeta, stickyNote, activeHours }) => {
+  inboxTasks: Task[];
+}> = ({ day, tasks, dragOverHour, onDrop, onDragOver, onUpdate, onDelete, onStartSession, activeTaskId, currentTime, onSelect, onContextMenu, onClickHour, showPrayers, getTaskTone, onUnschedule, onSetStatus, onOpenDayPanel, dayMeta, stickyNote, activeHours, inboxTasks }) => {
   const cairoOffset = 2; // Fixed example offset, adjust as needed
   const cairoTime = new Date(currentTime.getTime() + (cairoOffset * 60 * 60 * 1000));
   const cairoHours = cairoTime.getUTCHours();
@@ -280,6 +289,35 @@ const DayColumn: React.FC<{
           <button onClick={(e) => onOpenDayPanel('actions', e)} className="text-zinc-700 hover:text-zinc-400"><MoreHorizontal size={10} /></button>
         </div>
       </div>
+      <div className="flex-shrink-0 bg-black/20 border-b border-border p-1.5 space-y-1">
+        {inboxTasks.sort((a, b) => a.createdAt - b.createdAt).map(task => (
+          <div
+            key={task.id}
+            onClick={() => onSelect(task)}
+            className={`group flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-900 border border-zinc-800/50 hover:border-zinc-700 transition-all cursor-pointer ${task.status === TaskStatus.DONE ? 'opacity-30' : ''}`}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetStatus(task.id, task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE);
+              }}
+              className="shrink-0"
+            >
+              {task.status === TaskStatus.DONE ? (
+                <div className="w-2.5 h-2.5 bg-emerald-500/80 rounded-[1px]" />
+              ) : (
+                <div className="w-2.5 h-2.5 rounded-[1px] border border-zinc-800 group-hover:border-zinc-700" />
+              )}
+            </button>
+            <span className={`text-[10px] truncate flex-1 font-sans ${task.status === TaskStatus.DONE ? 'line-through text-zinc-600' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+              {task.title}
+            </span>
+          </div>
+        ))}
+        {inboxTasks.length === 0 && (
+          <div className="text-[8px] text-zinc-800 py-1 text-center italic tracking-widest uppercase opacity-40">Inbox</div>
+        )}
+      </div>
       <div>
         {Array.from({ length: 24 }, (_, i) => i).map(hour => {
           const hourTasks = tasks.filter(t => t.scheduledTime && new Date(t.scheduledTime).getHours() === hour);
@@ -314,6 +352,22 @@ const DayColumn: React.FC<{
       </div>
     </div>
   );
+};
+
+// Helper function to format relative dates for dock badges
+const formatRelativeDate = (timestamp: number): string => {
+  const now = new Date();
+  const date = new Date(timestamp);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const taskDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.floor((today.getTime() - taskDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[date.getMonth()]} ${date.getDate()}`;
 };
 
 const DockSection: React.FC<{
@@ -396,14 +450,20 @@ const DockSection: React.FC<{
             </div>
           )}
           <div className="ml-[18px] border-l border-zinc-900/50">
-            {tasks.map(task => {
+            {[...tasks].sort((a, b) => a.createdAt - b.createdAt).map(task => {
               const baseStyles = `group flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-all hover:bg-zinc-900/40 border-b border-transparent hover:border-zinc-900/50`;
+              const dateBadge = (
+                <span className="text-[8px] font-mono text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  {formatRelativeDate(task.createdAt)}
+                </span>
+              );
 
               if (type === 'TEMPLATE') {
                 return (
                   <div key={task.id} className={baseStyles}>
                     <div className="w-1 h-3 bg-blue-500/20 rounded-full group-hover:bg-blue-500/40 transition-colors" />
                     <div className="flex-1 text-[10px] text-zinc-400 truncate group-hover:text-zinc-200 transition-colors sans-serif tracking-tight">{task.title}</div>
+                    {dateBadge}
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all transform translate-x-1 group-hover:translate-x-0">
                       <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-blue-400"><Pencil size={9} /></button>
                       <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={9} /></button>
@@ -435,6 +495,7 @@ const DockSection: React.FC<{
                     <div className={`flex-1 text-[10px] truncate transition-colors ${isChecked ? 'text-zinc-500 line-through' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
                       {task.title}
                     </div>
+                    {dateBadge}
                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-zinc-300"><Pencil size={9} /></button>
                       <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={9} /></button>
@@ -444,15 +505,42 @@ const DockSection: React.FC<{
               }
 
               return (
-                <div key={task.id} draggable onDragStart={() => onDragStart(task)} className={`${baseStyles} cursor-move`}>
+                <div
+                  key={task.id}
+                  draggable
+                  onDragStart={() => onDragStart(task)}
+                  onClick={() => {
+                    const today = new Date();
+                    today.setHours(12, 0, 0, 0);
+                    onUpdate(task.id, { scheduledTime: today.getTime() });
+                  }}
+                  className={`${baseStyles} cursor-move active:scale-[0.98]`}
+                >
                   <GripVertical size={8} className="text-zinc-800 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className={`flex-1 text-[10px] truncate transition-colors ${task.urgent ? 'text-zinc-200 font-medium' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
                     {task.urgent && <span className="text-red-500/80 mr-1.5 font-black shrink-0">!</span>}
                     {task.title}
                   </div>
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-zinc-300"><Pencil size={9} /></button>
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={9} /></button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-[7px] font-mono text-zinc-600 bg-zinc-900 border border-zinc-800/50 px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                      {new Date(task.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const today = new Date();
+                          today.setHours(12, 0, 0, 0);
+                          onUpdate(task.id, { scheduledTime: today.getTime() });
+                        }}
+                        className="text-emerald-600 hover:text-emerald-400"
+                        title="Move to Today"
+                      >
+                        <ArrowRight size={9} />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="text-zinc-600 hover:text-zinc-300"><Pencil size={9} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-zinc-600 hover:text-red-500"><Trash2 size={9} /></button>
+                    </div>
                   </div>
                 </div>
               );
@@ -464,7 +552,7 @@ const DockSection: React.FC<{
   );
 };
 
-const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onDayMetaUpdate, onPrayerToggle, onAdhkarToggle }) => {
+const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSession, activeTaskId, onDelete, onStickyNoteUpdate, onDayMetaUpdate, onPrayerToggle, onAdhkarToggle, onProtocolToggle, onWeeklyActivityToggle, onProtocolContextsUpdate, onWeeklyActivitiesUpdate, onLayoutChange }) => {
   const [showMobileDock, setShowMobileDock] = useState(false); // Mobile dock drawer
   const [plannerView, setPlannerView] = useState<'week' | 'day'>('week');
   const [weekOffset, setWeekOffset] = useState(0);
@@ -486,6 +574,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   const [dockSearch, setDockSearch] = useState('');
   const [urgentCollapsed, setUrgentCollapsed] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [showWeeklyEditor, setShowWeeklyEditor] = useState(false);
   const [uiZoom, setUiZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const dayRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -500,6 +589,25 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (e.key.toLowerCase() === 'w') {
+        setPlannerView('week');
+      } else if (e.key.toLowerCase() === 'd') {
+        setPlannerView('day');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const toggleSection = (type: string) => {
@@ -522,6 +630,14 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Auto-scroll to current time on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleJumpToNow();
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const getWeekDays = (): WeekDay[] => {
@@ -772,15 +888,6 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
   // Render dock content (reused in desktop & mobile)
   const renderDockContent = () => (
     <>
-      {/* ARCHIVE Toggle */}
-      <div className="px-2 py-3 border-b border-zinc-900/50 flex items-center justify-between group/archive cursor-pointer hover:bg-zinc-900/20 transition-colors flex-shrink-0">
-        <div className="flex items-center gap-2.5">
-          <Circle size={8} fill="currentColor" className="text-zinc-100" />
-          <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-[0.2em]">Archive</span>
-        </div>
-        <ChevronRight size={10} className="text-zinc-700 group-hover/archive:text-zinc-400 transition-colors" />
-      </div>
-
       {/* Input Index */}
       <div className="p-3 border-b border-zinc-900/30 flex-shrink-0">
         <div className="space-y-2">
@@ -793,6 +900,10 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               className="w-full bg-zinc-950/30 border border-zinc-900/50 rounded-sm px-2 py-2 pl-7 text-[10px] text-zinc-400 focus:outline-none focus:border-zinc-800 placeholder:text-zinc-800 transition-all font-mono"
             />
           </div>
+
+          {/* Separator */}
+          <div className="h-px bg-zinc-800/50 my-1" />
+
           <div className="relative group">
             <Plus size={10} className="absolute left-2.5 top-2.5 text-zinc-700 group-focus-within:text-zinc-400 transition-colors" />
             <input
@@ -1014,67 +1125,99 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
       {/* Planner */}
       <div className="flex-1 flex flex-col relative">
         <div className="h-12 border-b border-border flex items-center justify-between px-2 md:px-4 z-10 bg-background">
-          <button onClick={() => setWeekOffset(weekOffset - 1)} className="p-1.5 md:p-2 text-zinc-500 hover:text-zinc-300">
-            <ChevronLeft size={16} className="md:w-5 md:h-5" />
-          </button>
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="text-xs md:text-sm font-medium text-zinc-300">
-              {weekDays[0].dayNum} {weekDays[0].date.toLocaleString('default', { month: 'short' })} - {weekDays[6].dayNum} {weekDays[6].date.toLocaleString('default', { month: 'short' })}
-            </div>
-            <button
-              onClick={() => setWeekOffset(0)}
-              className="hidden md:block px-2 py-1 text-[10px] text-zinc-400 bg-zinc-900/60 border border-zinc-800 rounded hover:bg-zinc-900"
-            >
-              Today
-            </button>
-          </div>
-          <div className="flex items-center gap-1 md:gap-2">
-            {/* View Switcher - Always visible */}
-            <div className="flex items-center gap-0.5 bg-zinc-900 rounded p-0.5 md:mr-2">
+          {/* Left: Day/Week context indicator */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <button
-                onClick={() => setPlannerView('week')}
-                className={`px-2 md:px-3 py-1.5 rounded transition-colors text-[10px] md:text-xs font-medium ${plannerView === 'week'
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'text-zinc-600 hover:text-zinc-400'
-                  }`}
+                onClick={() => {
+                  if (plannerView === 'day') {
+                    const prev = new Date(currentTime);
+                    prev.setDate(prev.getDate() - 1);
+                    setCurrentTime(prev);
+                  } else {
+                    setWeekOffset(weekOffset - 1);
+                  }
+                }}
+                className="p-1 text-zinc-500 hover:text-zinc-300"
               >
-                <span className="hidden sm:inline">Week</span>
-                <span className="sm:hidden">W</span>
+                <ChevronLeft size={14} />
               </button>
+              <div className="text-xs md:text-[11px] font-bold text-zinc-400 min-w-[120px] text-center uppercase tracking-widest">
+                {plannerView === 'day' ? (
+                  currentTime.toLocaleDateString('default', { day: 'numeric', month: 'short', year: 'numeric' })
+                ) : (
+                  `${weekDays[0].dayNum} ${weekDays[0].date.toLocaleString('default', { month: 'short' })} - ${weekDays[6].dayNum} ${weekDays[6].date.toLocaleString('default', { month: 'short' })}`
+                )}
+              </div>
               <button
-                onClick={() => setPlannerView('day')}
-                className={`px-2 md:px-3 py-1.5 rounded transition-colors text-[10px] md:text-xs font-medium ${plannerView === 'day'
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'text-zinc-600 hover:text-zinc-400'
-                  }`}
+                onClick={() => {
+                  if (plannerView === 'day') {
+                    const next = new Date(currentTime);
+                    next.setDate(next.getDate() + 1);
+                    setCurrentTime(next);
+                  } else {
+                    setWeekOffset(weekOffset + 1);
+                  }
+                }}
+                className="p-1 text-zinc-500 hover:text-zinc-300"
               >
-                <span className="hidden sm:inline">Day</span>
-                <span className="sm:hidden">D</span>
+                <ChevronRight size={14} />
               </button>
             </div>
 
             <button
-              onClick={handleJumpToNow}
-              className="hidden md:block px-3 py-1.5 text-xs text-zinc-300 bg-zinc-900 border border-zinc-800 rounded hover:bg-zinc-800"
+              onClick={() => {
+                const now = new Date();
+                setCurrentTime(now);
+                setWeekOffset(0);
+                setTimeout(handleJumpToNow, 100);
+              }}
+              className="text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-colors uppercase tracking-tighter"
             >
-              Now
+              TODAY
             </button>
+          </div>
+
+          {/* Center: View Switcher - Floating style */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-zinc-900/50 border border-zinc-800/50 rounded-full p-0.5">
+            <button
+              onClick={() => setPlannerView('week')}
+              className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'week'
+                ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => setPlannerView('day')}
+              className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'day'
+                ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                : 'text-zinc-600 hover:text-zinc-400'
+                }`}
+            >
+              Day
+            </button>
+          </div>
+
+          {/* Right: Actions/Settings */}
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setShowPrayers(prev => !prev)}
-              className={`hidden md:block px-2 py-1 text-[10px] border rounded ${showPrayers ? 'border-emerald-700 text-emerald-300 bg-emerald-950/30' : 'border-zinc-800 text-zinc-500 bg-zinc-900'
-                }`}
+              className={`p-1.5 rounded transition-colors ${showPrayers ? 'text-emerald-500 bg-emerald-950/20' : 'text-zinc-600 hover:text-zinc-400'}`}
+              title="Toggle Prayers"
             >
-              Prayers
+              <Moon size={14} />
             </button>
+
+            <div className="w-px h-4 bg-zinc-800/50" />
+
             <button
-              onClick={() => setShowCompleted(prev => !prev)}
-              className={`hidden md:block px-2 py-1 text-[10px] border rounded ${showCompleted ? 'border-zinc-700 text-zinc-300 bg-zinc-900/70' : 'border-zinc-800 text-zinc-500 bg-zinc-900'
-                }`}
+              onClick={() => setShowWeeklyEditor(true)}
+              className="p-1.5 text-zinc-600 hover:text-zinc-300 transition-colors"
+              title="Settings"
             >
-              Done
-            </button>
-            <button onClick={() => setWeekOffset(weekOffset + 1)} className="p-1.5 md:p-2 text-zinc-500 hover:text-zinc-300">
-              <ChevronRight size={16} className="md:w-5 md:h-5" />
+              <Settings size={14} />
             </button>
           </div>
         </div>
@@ -1129,6 +1272,12 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                         taskDate.setHours(0, 0, 0, 0);
                         return taskDate.getTime() === day.date.getTime();
                       })}
+                      inboxTasks={state.tasks.filter(t => {
+                        if (!t.scheduledTime) return false;
+                        const d = new Date(t.scheduledTime);
+                        if (d.getFullYear() !== day.date.getFullYear() || d.getMonth() !== day.date.getMonth() || d.getDate() !== day.date.getDate()) return false;
+                        return d.getHours() === 12 && d.getMinutes() === 0;
+                      })}
                       dragOverHour={dragOverHour}
                       onDrop={handleDrop}
                       onDragOver={setDragOverHour}
@@ -1158,7 +1307,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               </div>
             </div>
           ) : (
-            <div className="h-full">
+            <div className="h-full min-w-0 overflow-hidden">
               <DayView
                 state={state}
                 onTaskUpdate={onUpdate}
@@ -1168,8 +1317,14 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 onStickyNoteUpdate={onStickyNoteUpdate}
                 onPrayerToggle={onPrayerToggle || (() => { })}
                 onAdhkarToggle={onAdhkarToggle || (() => { })}
+                onDayMetaUpdate={onDayMetaUpdate}
                 activeTaskId={activeTaskId}
                 onTaskSelect={(task) => setInspectorTask(task)}
+                onProtocolToggle={onProtocolToggle}
+                onWeeklyActivityToggle={onWeeklyActivityToggle}
+                onProtocolContextsUpdate={onProtocolContextsUpdate}
+                onWeeklyActivitiesUpdate={onWeeklyActivitiesUpdate}
+                onLayoutChange={onLayoutChange}
               />
             </div>
           )}
@@ -1373,6 +1528,15 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               </>
             )
           }
+
+          {/* Weekly Activities Editor Modal */}
+          {showWeeklyEditor && onWeeklyActivitiesUpdate && (
+            <WeeklyActivitiesEditor
+              weeklyActivities={state.weeklyActivities || {}}
+              onUpdate={onWeeklyActivitiesUpdate}
+              onClose={() => setShowWeeklyEditor(false)}
+            />
+          )}
 
           {/* Template Modal */}
           {

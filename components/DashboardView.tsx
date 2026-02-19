@@ -30,6 +30,7 @@ import {
     LayoutGrid
 } from 'lucide-react';
 import DashboardSettings from './DashboardSettings';
+import ChallengeWidget from './ChallengeWidget';
 
 interface Props {
     state: AppState;
@@ -40,9 +41,26 @@ interface Props {
     activeTaskId: string | null;
     onNavigate?: (page: Page) => void;
     onPreferencesUpdate?: (preferences: UserPreferences) => void;
+    // Challenge Props
+    onStartChallenge?: () => void;
+    onChallengeRuleUpdate?: (ruleId: string, completed: boolean) => void;
+    onChallengeFailDay?: () => void;
 }
 
-const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPrayerToggle, onStartSession, activeTaskId, onNavigate, onPreferencesUpdate }) => {
+
+const DashboardView: React.FC<Props> = ({
+    state,
+    onTaskUpdate,
+    onTaskAdd,
+    onPrayerToggle,
+    onStartSession,
+    activeTaskId,
+    onNavigate,
+    onPreferencesUpdate,
+    onStartChallenge,
+    onChallengeRuleUpdate,
+    onChallengeFailDay
+}) => {
     const [now, setNow] = useState(new Date());
     const [showSettings, setShowSettings] = useState(false);
 
@@ -170,9 +188,46 @@ const DashboardView: React.FC<Props> = ({ state, onTaskUpdate, onTaskAdd, onPray
                 return renderKPIs();
             case 'FLIGHT_PLAN':
                 return renderFlightPlan();
+            case 'CHALLENGE':
+                return renderChallenge();
             default:
                 return null;
         }
+    };
+
+    const renderChallenge = () => {
+        if (!state.activeChallenge) {
+            // Placeholder to start
+            if (!onStartChallenge) return null;
+            return (
+                <div key="challenge-placeholder" className="bg-zinc-900/30 border border-zinc-800 rounded-xl p-6 flex flex-col items-center justify-center text-center gap-3 shrink-0">
+                    <div className="p-3 bg-zinc-800/50 rounded-full">
+                        <Flame size={20} className="text-zinc-500" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-widest">Protocol Inactive</h3>
+                        <p className="text-[10px] text-zinc-500 mt-1">Discipline awaits. Initiate the Iron Protocol.</p>
+                    </div>
+                    <button
+                        onClick={() => onStartChallenge()}
+                        className="px-4 py-2 bg-zinc-100 text-black text-[10px] font-bold uppercase tracking-widest rounded hover:bg-white transition-colors"
+                    >
+                        Initialize
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <div key="challenge" className="shrink-0">
+                <ChallengeWidget
+                    challenge={state.activeChallenge}
+                    onUpdateRule={onChallengeRuleUpdate!}
+                    onFailDay={onChallengeFailDay!}
+                    onCompleteDay={() => { }}
+                />
+            </div>
+        );
     };
 
     const renderQuickActions = () => {

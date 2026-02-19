@@ -1,6 +1,6 @@
 import { AppState } from '../types';
 import { db } from './firebase';
-import { getDefaultUserPreferences } from '../defaultPreferences';
+import { getDefaultUserPreferences, getDefaultProtocolContexts, getDefaultWeeklyActivities } from '../defaultPreferences';
 import {
   addDoc,
   collection,
@@ -101,7 +101,12 @@ const INITIAL_STATE: AppState = {
   dayMeta: {},
   userPreferences: getDefaultUserPreferences(),
   distractions: [],
-  focusSessions: []
+  focusSessions: [],
+  protocolContexts: getDefaultProtocolContexts(),
+  weeklyActivities: getDefaultWeeklyActivities(),
+  dailyProtocolState: {},
+  timeBlocks: {}
+
 };
 
 const cloneState = (state: AppState) => JSON.parse(JSON.stringify(state));

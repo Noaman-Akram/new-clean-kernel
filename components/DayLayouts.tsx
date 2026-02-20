@@ -141,11 +141,11 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
       {/* INBOX SECTION */}
       <div className="border-b border-zinc-900 p-4 shrink-0 max-h-[180px] overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-            <Inbox size={12} className="text-zinc-600" />
+          <h3 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+            <Inbox size={12} className="text-zinc-500" />
             Day Inbox
           </h3>
-          <span className="text-[9px] text-zinc-600 tabular-nums">{inboxTasks.length} tasks</span>
+          <span className="text-[10px] text-zinc-400 tabular-nums">{inboxTasks.length} tasks</span>
         </div>
 
         <div className="flex items-center gap-2 mb-3">
@@ -154,7 +154,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
             placeholder="Add task for today..."
-            className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-700"
+            className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700"
           />
           <button onClick={handleAddTask} className="p-2 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30">
             <Plus size={14} />
@@ -186,7 +186,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                   <div className="w-3.5 h-3.5 rounded-[2px] border-2 border-zinc-800 group-hover:border-zinc-600 transition-colors" />
                 )}
               </button>
-              <span className={`text-[11px] font-medium flex-1 ${task.status === TaskStatus.DONE ? 'text-zinc-600 line-through' : 'text-zinc-300'}`}>
+              <span className={`text-[11px] font-medium flex-1 ${task.status === TaskStatus.DONE ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
                 {task.title}
               </span>
               <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -196,7 +196,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                       e.stopPropagation();
                       onStartSession(task.id);
                     }}
-                    className="text-[9px] font-bold text-emerald-500 hover:text-emerald-400"
+                    className="text-[10px] font-bold text-emerald-500 hover:text-emerald-400"
                   >
                     START
                   </button>
@@ -206,7 +206,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                     e.stopPropagation();
                     onTaskDelete(task.id);
                   }}
-                  className="text-zinc-600 hover:text-red-500"
+                  className="text-zinc-500 hover:text-red-400"
                 >
                   <Trash2 size={11} />
                 </button>
@@ -214,7 +214,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
             </div>
           ))}
           {inboxTasks.length === 0 && (
-            <div className="text-[10px] text-zinc-700 italic py-2">No tasks in inbox</div>
+            <div className="text-[11px] text-zinc-500 italic py-2">No tasks in inbox</div>
           )}
         </div>
       </div>
@@ -222,8 +222,8 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
       {/* HORIZONTAL TIMELINE */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <div className="p-4 pb-2 shrink-0">
-          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-            <Clock size={12} className="text-zinc-600" />
+          <h3 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+            <Clock size={12} className="text-zinc-500" />
             Schedule
           </h3>
         </div>
@@ -251,7 +251,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                   {/* Hour Header */}
                   <div className={`px-4 py-3 border-b flex items-center justify-between shrink-0 ${isCurrentHour ? 'border-emerald-500/20' : 'border-zinc-800/30'
                     }`}>
-                    <span className={`text-[11px] font-bold font-mono tracking-tighter ${isCurrentHour ? 'text-emerald-400' : 'text-zinc-600'}`}>
+                    <span className={`text-[11px] font-bold font-mono tracking-tighter ${isCurrentHour ? 'text-emerald-400' : 'text-zinc-400'}`}>
                       {formatHour(hour)}
                     </span>
                     {isCurrentHour && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.4)]" />}
@@ -263,7 +263,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                       <div key={prayer.name} className="flex items-center gap-2 text-[10px] text-zinc-500 bg-zinc-900/40 p-2 rounded-lg border border-zinc-800/40">
                         {PRAYER_ICONS[prayer.name]}
                         <span className="font-semibold uppercase tracking-tighter">{prayer.name}</span>
-                        <span className="ml-auto text-[9px] text-zinc-700 font-mono">{prayer.time}</span>
+                        <span className="ml-auto text-[10px] text-zinc-500 font-mono">{prayer.time}</span>
                       </div>
                     ))}
 
@@ -294,7 +294,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                               <div className="w-3.5 h-3.5 rounded-[2px] border-2 border-zinc-800 group-hover:border-zinc-600 transition-colors" />
                             )}
                           </button>
-                          <span className={`text-[11px] leading-tight font-medium flex-1 ${task.status === TaskStatus.DONE ? 'text-zinc-700 line-through' : 'text-zinc-300'
+                          <span className={`text-[11px] leading-tight font-medium flex-1 ${task.status === TaskStatus.DONE ? 'text-zinc-500 line-through' : 'text-zinc-200'
                             }`}>
                             {task.title}
                           </span>
@@ -307,7 +307,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                                 e.stopPropagation();
                                 onStartSession(task.id);
                               }}
-                              className="text-[9px] font-bold text-emerald-500/80 hover:text-emerald-400 tracking-tighter"
+                              className="text-[10px] font-bold text-emerald-500/80 hover:text-emerald-400 tracking-tighter"
                             >
                               START
                             </button>
@@ -317,7 +317,7 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                               e.stopPropagation();
                               onTaskDelete(task.id);
                             }}
-                            className="text-zinc-700 hover:text-red-500 transition-colors"
+                            className="text-zinc-500 hover:text-red-400 transition-colors"
                           >
                             <Trash2 size={12} />
                           </button>
@@ -334,12 +334,12 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                           <span className="truncate flex-1 font-bold uppercase tracking-tight">{block.title}</span>
                           <button
                             onClick={() => onTimeBlockDelete(block.id)}
-                            className="opacity-0 group-hover:opacity-100 text-zinc-700 hover:text-red-500 transition-opacity"
+                            className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-400 transition-opacity"
                           >
                             <Trash2 size={11} />
                           </button>
                         </div>
-                        <div className="text-[9px] text-zinc-700 mt-1 uppercase tracking-widest font-mono font-bold">{block.duration}m</div>
+                        <div className="text-[10px] text-zinc-500 mt-1 uppercase tracking-widest font-mono font-bold">{block.duration}m</div>
                       </div>
                     ))}
 
@@ -355,13 +355,13 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
                         />
                         <div className="flex gap-1.5">
                           <button onClick={() => handleAddTask(hour)} className="flex-1 text-[10px] font-bold bg-emerald-500/20 text-emerald-400 rounded py-1.5 border border-emerald-500/20 uppercase tracking-tighter">TASK</button>
-                          <button onClick={() => setSelectedHour(null)} className="px-3 text-[10px] font-bold text-zinc-600 hover:text-zinc-400 transition-colors uppercase">X</button>
+                          <button onClick={() => setSelectedHour(null)} className="px-3 text-[10px] font-bold text-zinc-500 hover:text-zinc-300 transition-colors uppercase">X</button>
                         </div>
                       </div>
                     ) : (
                       <button
                         onClick={() => setSelectedHour(hour)}
-                        className="w-full py-2 text-[10px] text-zinc-700 hover:text-zinc-500 border border-dashed border-zinc-800/50 rounded-lg hover:bg-zinc-800/20 transition-all flex items-center justify-center gap-1.5"
+                        className="w-full py-2 text-[11px] text-zinc-500 hover:text-zinc-500 border border-dashed border-zinc-800/50 rounded-lg hover:bg-zinc-800/20 transition-all flex items-center justify-center gap-1.5"
                       >
                         <Plus size={10} />
                         CREATE
@@ -379,8 +379,8 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
           {prayerTimes.map(prayer => (
             <div key={prayer.name} className="flex items-center gap-1.5">
               {PRAYER_ICONS[prayer.name]}
-              <span className="text-[9px] text-zinc-500">{prayer.name}</span>
-              <span className="text-[9px] text-zinc-600">{prayer.time}</span>
+              <span className="text-[10px] text-zinc-400">{prayer.name}</span>
+              <span className="text-[10px] text-zinc-400">{prayer.time}</span>
             </div>
           ))}
         </div>
@@ -391,13 +391,13 @@ export const DayLayoutTimeline: React.FC<DayLayoutProps> = ({
         <div className="border-t border-zinc-900 p-4 shrink-0">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle2 size={12} className="text-emerald-500/50" />
-            <span className="text-[10px] text-zinc-600">{completedTasks.length} completed</span>
+            <span className="text-[11px] text-zinc-400">{completedTasks.length} completed</span>
           </div>
           <div className="flex flex-wrap gap-1">
             {completedTasks.slice(0, 5).map(task => (
-              <span key={task.id} className="text-[10px] text-zinc-700 line-through">{task.title}</span>
+              <span key={task.id} className="text-[11px] text-zinc-500 line-through">{task.title}</span>
             ))}
-            {completedTasks.length > 5 && <span className="text-[10px] text-zinc-700">+{completedTasks.length - 5} more</span>}
+            {completedTasks.length > 5 && <span className="text-[11px] text-zinc-500">+{completedTasks.length - 5} more</span>}
           </div>
         </div>
       )}
@@ -487,11 +487,11 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
       {/* INBOX SECTION */}
       <div className="border-b border-zinc-900 p-4 shrink-0 max-h-[200px] overflow-y-auto">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-            <Inbox size={12} className="text-zinc-600" />
+          <h3 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+            <Inbox size={12} className="text-zinc-500" />
             Inbox
           </h3>
-          <span className="text-[9px] text-zinc-600 tabular-nums">{inboxTasks.length} tasks</span>
+          <span className="text-[10px] text-zinc-400 tabular-nums">{inboxTasks.length} tasks</span>
         </div>
 
         <div className="flex items-center gap-2 mb-3">
@@ -500,7 +500,7 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddTask()}
             placeholder="Add task for today..."
-            className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-700"
+            className="flex-1 bg-zinc-900/50 border border-zinc-800 rounded px-3 py-2 text-xs text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700"
           />
           <button onClick={handleAddTask} className="p-2 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30">
             <Plus size={14} />
@@ -517,21 +517,21 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                 }`}
             >
               <button onClick={() => handleToggleComplete(task)} className="shrink-0">
-                <Circle size={14} className="text-zinc-600 hover:text-zinc-400" />
+                <Circle size={14} className="text-zinc-500 hover:text-zinc-300" />
               </button>
               <span className="flex-1 text-sm text-zinc-300">{task.title}</span>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
-                <button onClick={() => onStartSession(task.id)} className="p-1 text-zinc-600 hover:text-emerald-400">
+                <button onClick={() => onStartSession(task.id)} className="p-1 text-zinc-500 hover:text-emerald-400">
                   <Play size={12} />
                 </button>
-                <button onClick={() => onTaskSelect(task)} className="p-1 text-zinc-600 hover:text-white">
+                <button onClick={() => onTaskSelect(task)} className="p-1 text-zinc-500 hover:text-white">
                   <Edit2 size={12} />
                 </button>
               </div>
             </div>
           ))}
           {inboxTasks.length === 0 && (
-            <div className="text-[11px] text-zinc-700 italic py-4 text-center">No tasks - add one above</div>
+            <div className="text-[11px] text-zinc-500 italic py-4 text-center">No tasks - add one above</div>
           )}
         </div>
       </div>
@@ -560,7 +560,7 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                         <div className={`text-sm font-bold ${isCurrent ? 'text-emerald-400' : 'text-zinc-300'}`}>
                           {period.label}
                         </div>
-                        <div className="text-[9px] text-zinc-600">{period.range}</div>
+                        <div className="text-[10px] text-zinc-400">{period.range}</div>
                       </div>
                     </div>
                     {isCurrent && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
@@ -576,7 +576,7 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                     >
                       {PRAYER_ICONS[prayer.name]}
                       <span className="text-[11px] font-medium text-zinc-400 flex-1 uppercase tracking-tight">{prayer.name}</span>
-                      <span className="text-[10px] text-zinc-600 font-mono">{prayer.time}</span>
+                      <span className="text-[11px] text-zinc-400 font-mono">{prayer.time}</span>
                       <Circle size={10} className="text-zinc-800" />
                     </div>
                   ))}
@@ -609,11 +609,11 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                           )}
                         </button>
                         <div className="flex-1 min-w-0">
-                          <div className={`text-[11px] leading-tight font-medium ${task.status === TaskStatus.DONE ? 'text-zinc-700 line-through' : 'text-zinc-300'
+                          <div className={`text-[11px] leading-tight font-medium ${task.status === TaskStatus.DONE ? 'text-zinc-500 line-through' : 'text-zinc-200'
                             }`}>
                             {task.title}
                           </div>
-                          <div className="text-[9px] text-zinc-600 font-mono mt-1 opacity-60 group-hover/task:opacity-100">
+                          <div className="text-[10px] text-zinc-400 font-mono mt-1 opacity-60 group-hover/task:opacity-100">
                             {formatHour(new Date(task.scheduledTime!).getHours(), new Date(task.scheduledTime!).getMinutes())}
                           </div>
                         </div>
@@ -626,7 +626,7 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                               e.stopPropagation();
                               onStartSession(task.id);
                             }}
-                            className="text-[9px] font-bold text-emerald-500/80 hover:text-emerald-400 tracking-tighter"
+                            className="text-[10px] font-bold text-emerald-500/80 hover:text-emerald-400 tracking-tighter"
                           >
                             START
                           </button>
@@ -636,7 +636,7 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                             e.stopPropagation();
                             onTaskDelete(task.id);
                           }}
-                          className="ml-auto text-zinc-700 hover:text-red-500 transition-colors"
+                          className="ml-auto text-zinc-500 hover:text-red-400 transition-colors"
                         >
                           <Trash2 size={12} />
                         </button>
@@ -651,13 +651,13 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                     >
                       <div className="flex-1 min-w-0">
                         <div className="text-[11px] font-bold text-blue-400/90 truncate uppercase tracking-tight">{block.title}</div>
-                        <div className="text-[9px] text-zinc-600 font-mono mt-0.5">
+                        <div className="text-[10px] text-zinc-400 font-mono mt-0.5">
                           {formatHour(block.startHour, block.startMinute)} — {block.duration}M
                         </div>
                       </div>
                       <button
                         onClick={() => onTimeBlockDelete(block.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-700 hover:text-red-500 transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-opacity"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -683,7 +683,7 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                         </button>
                         <button
                           onClick={() => setAddingToPeriod(null)}
-                          className="px-3 text-[10px] text-zinc-600 hover:text-zinc-400"
+                          className="px-3 text-[11px] text-zinc-400 hover:text-zinc-400"
                         >
                           Cancel
                         </button>
@@ -692,7 +692,7 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
                   ) : (
                     <button
                       onClick={() => setAddingToPeriod(period.id)}
-                      className="w-full py-2 text-[10px] text-zinc-600 hover:text-zinc-400 border border-dashed border-zinc-800 rounded hover:border-zinc-700 flex items-center justify-center gap-1"
+                      className="w-full py-2 text-[11px] text-zinc-400 hover:text-zinc-400 border border-dashed border-zinc-800 rounded hover:border-zinc-700 flex items-center justify-center gap-1"
                     >
                       <Plus size={12} />
                       Add Block
@@ -709,10 +709,10 @@ export const DayLayoutPeriods: React.FC<DayLayoutProps> = ({
       {completedTasks.length > 0 && (
         <div className="border-t border-zinc-900 px-4 py-3 flex items-center gap-3 shrink-0">
           <CheckCircle2 size={14} className="text-emerald-500/50" />
-          <span className="text-[10px] text-zinc-600">{completedTasks.length} completed today</span>
+          <span className="text-[11px] text-zinc-400">{completedTasks.length} completed today</span>
           <div className="flex-1 flex gap-2 overflow-hidden">
             {completedTasks.slice(0, 3).map(task => (
-              <span key={task.id} className="text-[10px] text-zinc-700 line-through truncate">{task.title}</span>
+              <span key={task.id} className="text-[11px] text-zinc-500 line-through truncate">{task.title}</span>
             ))}
           </div>
         </div>
@@ -830,7 +830,7 @@ export const DayLayoutKanban: React.FC<DayLayoutProps> = ({
                   {COLUMN_ICONS[column.id]}
                   <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">{column.label}</span>
                 </div>
-                <span className="text-[10px] text-zinc-600 tabular-nums">{column.tasks.length}</span>
+                <span className="text-[11px] text-zinc-400 tabular-nums">{column.tasks.length}</span>
               </div>
 
               {/* Column Content */}
@@ -865,12 +865,12 @@ export const DayLayoutKanban: React.FC<DayLayoutProps> = ({
                         )}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <div className={`text-[11px] leading-tight font-medium ${task.status === TaskStatus.DONE ? 'text-zinc-700 line-through' : 'text-zinc-300'
+                        <div className={`text-[11px] leading-tight font-medium ${task.status === TaskStatus.DONE ? 'text-zinc-500 line-through' : 'text-zinc-200'
                           }`}>
                           {task.title}
                         </div>
                         {task.scheduledTime && column.id === 'scheduled' && (
-                          <div className="text-[9px] text-zinc-600 font-mono mt-1 opacity-60">
+                          <div className="text-[10px] text-zinc-400 font-mono mt-1 opacity-60">
                             {new Date(task.scheduledTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                           </div>
                         )}
@@ -884,7 +884,7 @@ export const DayLayoutKanban: React.FC<DayLayoutProps> = ({
                             e.stopPropagation();
                             onStartSession(task.id);
                           }}
-                          className="text-[9px] font-bold text-emerald-500/80 hover:text-emerald-400 tracking-tighter"
+                          className="text-[10px] font-bold text-emerald-500/80 hover:text-emerald-400 tracking-tighter"
                         >
                           START
                         </button>
@@ -894,7 +894,7 @@ export const DayLayoutKanban: React.FC<DayLayoutProps> = ({
                           e.stopPropagation();
                           onTaskDelete(task.id);
                         }}
-                        className="ml-auto text-zinc-700 hover:text-red-500 transition-colors"
+                        className="ml-auto text-zinc-500 hover:text-red-400 transition-colors"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -915,13 +915,13 @@ export const DayLayoutKanban: React.FC<DayLayoutProps> = ({
                       />
                       <div className="flex gap-1">
                         <button onClick={() => handleAddTask(column.id)} className="flex-1 text-[10px] bg-emerald-500/20 text-emerald-400 rounded py-1">Add</button>
-                        <button onClick={() => setAddingToColumn(null)} className="px-2 text-[10px] text-zinc-600">X</button>
+                        <button onClick={() => setAddingToColumn(null)} className="px-2 text-[11px] text-zinc-400">X</button>
                       </div>
                     </div>
                   ) : (
                     <button
                       onClick={() => setAddingToColumn(column.id)}
-                      className="w-full py-2 text-[10px] text-zinc-600 hover:text-zinc-400 border border-dashed border-zinc-800 rounded hover:border-zinc-700"
+                      className="w-full py-2 text-[11px] text-zinc-400 hover:text-zinc-400 border border-dashed border-zinc-800 rounded hover:border-zinc-700"
                     >
                       + Add Task
                     </button>
@@ -936,15 +936,15 @@ export const DayLayoutKanban: React.FC<DayLayoutProps> = ({
       {/* RITUALS & HABITS BAR */}
       <div className="border-t border-zinc-900 px-4 py-3 shrink-0">
         <div className="flex items-center gap-2 mb-2">
-          <Moon size={12} className="text-zinc-600" />
-          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Prayers</span>
+          <Moon size={12} className="text-zinc-500" />
+          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Prayers</span>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {prayerTimes.map(prayer => (
             <div key={prayer.name} className="flex items-center gap-1.5 px-2 py-1 bg-zinc-900/50 rounded border border-zinc-800/50">
               {PRAYER_ICONS[prayer.name]}
               <span className="text-[10px] text-zinc-400">{prayer.name}</span>
-              <span className="text-[9px] text-zinc-600">{prayer.time}</span>
+              <span className="text-[10px] text-zinc-400">{prayer.time}</span>
               <Circle size={12} className="text-zinc-700 ml-1" />
             </div>
           ))}

@@ -170,11 +170,11 @@ const HourSlot: React.FC<{
                 <span className="text-emerald-500/50 grayscale-[30%]">
                   {PRAYER_ICONS_MAP[prayer.icon] || <Sun size={9} />}
                 </span>
-                <span className="text-[8px] font-bold text-zinc-600 opacity-80 group-hover/prayer:text-zinc-400 font-mono tracking-tight uppercase">
+                <span className="text-[9px] font-bold text-zinc-500 group-hover/prayer:text-zinc-300 font-mono tracking-tight uppercase">
                   {PRAYER_SHORT_NAMES[prayer.name] || prayer.name.slice(0, 3).toUpperCase()}
                 </span>
               </div>
-              <span className="text-[7px] font-medium text-zinc-700/60 font-mono tracking-tighter pr-[1px]">
+              <span className="text-[8px] font-medium text-zinc-600 font-mono tracking-tighter pr-[1px]">
                 {formatTimeAMPM(prayerDate.getHours(), minutes)}
               </span>
             </div>
@@ -212,16 +212,16 @@ const HourSlot: React.FC<{
                 : 'border-zinc-600 hover:border-zinc-400'
                 }`}
             />
-            <span className="truncate font-medium flex-1 text-zinc-300">
+            <span className="truncate font-medium flex-1 text-zinc-200">
               {task.title.replace(' — session', '')}
-              {task.title.includes(' — session') && <span className="text-zinc-600 font-normal ml-1">session</span>}
+              {task.title.includes(' — session') && <span className="text-zinc-500 font-normal ml-1">session</span>}
             </span>
             {task.urgent && <div className="w-1 h-1 rounded-full bg-red-500/80 ml-1" />}
           </div>
         ))}
         {showMore && (
           <div
-            className="flex items-center justify-center h-[17px] rounded-[1px] bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800/50 cursor-pointer text-[9px] text-zinc-500 transition-colors"
+            className="flex items-center justify-center h-[17px] rounded-[1px] bg-zinc-900/50 hover:bg-zinc-800 border border-zinc-800/50 cursor-pointer text-[10px] text-zinc-400 transition-colors"
             onClick={onClickHour}
           >
             +{hiddenCount} more items
@@ -282,23 +282,23 @@ const DayColumn: React.FC<{
       <div className={`h-16 border-b border-border px-2 py-1 flex flex-col justify-between ${day.isToday ? 'bg-emerald-950/10' : ''}`}>
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-[7px] text-zinc-600 uppercase font-bold tracking-wider">{day.dayName}</div>
+            <div className="text-[9px] text-zinc-400 uppercase font-bold tracking-wider">{day.dayName}</div>
             <div className={`text-base font-light ${day.isToday ? 'text-emerald-400' : 'text-zinc-300'}`}>
               {day.dayNum}
             </div>
           </div>
           {dayMeta.focus && (
-            <span className="text-[8px] text-zinc-500 border border-zinc-800 rounded px-1 py-0.5 opacity-60">
+            <span className="text-[9px] text-zinc-400 border border-zinc-800 rounded px-1.5 py-0.5">
               {dayMeta.focus}
             </span>
           )}
         </div>
-        <div className="flex justify-between px-0.5 opacity-60 hover:opacity-100 transition-opacity">
-          <button title="Day Notes" onClick={(e) => onOpenDayPanel('notes', e)} className={`${hasMeta('notes') ? 'text-zinc-200 opacity-100' : 'text-zinc-700'} hover:text-zinc-300`}><FileText size={10} /></button>
-          <button title="Rituals" onClick={(e) => onOpenDayPanel('habits', e)} className="text-zinc-700 hover:text-emerald-400"><CheckCircle2 size={10} /></button>
-          <button title="Priorities" onClick={(e) => onOpenDayPanel('checklist', e)} className={`${hasMeta('checklist') ? 'text-blue-400 opacity-100' : 'text-zinc-700'} hover:text-blue-400`}><ListTodo size={10} /></button>
-          <button title="Focus Intent" onClick={(e) => onOpenDayPanel('focus', e)} className={`${hasMeta('focus') ? 'text-purple-400 opacity-100' : 'text-zinc-700'} hover:text-purple-400`}><Target size={10} /></button>
-          <button title="Day Tools" onClick={(e) => onOpenDayPanel('actions', e)} className="text-zinc-700 hover:text-zinc-400"><Settings size={10} /></button>
+        <div className="flex justify-between px-0.5 opacity-70 hover:opacity-100 transition-opacity">
+          <button title="Day Notes" onClick={(e) => onOpenDayPanel('notes', e)} className={`${hasMeta('notes') ? 'text-zinc-200' : 'text-zinc-600'} hover:text-zinc-300`}><FileText size={11} /></button>
+          <button title="Rituals" onClick={(e) => onOpenDayPanel('habits', e)} className="text-zinc-600 hover:text-emerald-400"><CheckCircle2 size={11} /></button>
+          <button title="Priorities" onClick={(e) => onOpenDayPanel('checklist', e)} className={`${hasMeta('checklist') ? 'text-blue-400' : 'text-zinc-600'} hover:text-blue-400`}><ListTodo size={11} /></button>
+          <button title="Focus Intent" onClick={(e) => onOpenDayPanel('focus', e)} className={`${hasMeta('focus') ? 'text-purple-400' : 'text-zinc-600'} hover:text-purple-400`}><Target size={11} /></button>
+          <button title="Day Tools" onClick={(e) => onOpenDayPanel('actions', e)} className="text-zinc-600 hover:text-zinc-400"><Settings size={11} /></button>
         </div>
       </div>
       <div
@@ -335,13 +335,13 @@ const DayColumn: React.FC<{
                 <div className="w-2.5 h-2.5 rounded-[1px] border border-zinc-800 group-hover:border-zinc-700" />
               )}
             </button>
-            <span className={`text-[10px] truncate flex-1 font-sans ${task.status === TaskStatus.DONE ? 'line-through text-zinc-600' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+            <span className={`text-[11px] truncate flex-1 font-sans ${task.status === TaskStatus.DONE ? 'line-through text-zinc-500' : 'text-zinc-300 group-hover:text-zinc-100'}`}>
               {task.title}
             </span>
           </div>
         ))}
         {inboxTasks.length === 0 && (
-          <div className="text-[8px] text-zinc-800 py-1 text-center italic tracking-widest uppercase opacity-40">Inbox</div>
+          <div className="text-[9px] text-zinc-600 py-1 text-center italic tracking-widest uppercase">Inbox</div>
         )}
       </div>
       <div>
@@ -452,13 +452,13 @@ const DockItemCard: React.FC<{
               <div className="w-4 h-4 rounded border border-zinc-700 hover:border-emerald-500/50 transition-colors" />
             )}
           </button>
-          <span className={`text-[11px] leading-tight transition-colors ${isChecked ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
+          <span className={`text-xs leading-tight transition-colors ${isChecked ? 'text-zinc-500 line-through' : 'text-zinc-200'}`}>
             {task.title}
           </span>
         </div>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded hover:bg-zinc-800/50"><Pencil size={10} /></button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-600 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={10} /></button>
+          <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-500 hover:text-zinc-200 rounded hover:bg-zinc-800/50"><Pencil size={11} /></button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-500 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={11} /></button>
         </div>
       </div>
     );
@@ -471,13 +471,13 @@ const DockItemCard: React.FC<{
         className={`group relative border-l-2 ${accent.border} rounded-r-md px-3 py-2.5 cursor-pointer transition-all ${accent.hover}`}
         onClick={() => onSelect(task)}
       >
-        <div className="text-[11px] text-zinc-300 leading-tight">{task.title}</div>
-        <div className="text-[9px] text-zinc-600 mt-0.5 font-mono">
+        <div className="text-xs text-zinc-200 leading-tight">{task.title}</div>
+        <div className="text-[10px] text-zinc-500 mt-0.5">
           {task.templateSteps ? `${task.templateSteps.length} steps` : 'Template'}
         </div>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-600 hover:text-blue-400 rounded hover:bg-zinc-800/50"><Pencil size={10} /></button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-600 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={10} /></button>
+          <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-500 hover:text-blue-400 rounded hover:bg-zinc-800/50"><Pencil size={11} /></button>
+          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-500 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={11} /></button>
         </div>
       </div>
     );
@@ -494,11 +494,11 @@ const DockItemCard: React.FC<{
       <div className="flex items-center gap-2">
         <GripVertical size={10} className="text-zinc-800 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         <div className="flex-1 min-w-0">
-          <div className={`text-[11px] leading-tight truncate ${task.urgent ? 'text-zinc-100 font-medium' : 'text-zinc-300'}`}>
+          <div className={`text-xs leading-tight truncate ${task.urgent ? 'text-zinc-100 font-medium' : 'text-zinc-200'}`}>
             {task.urgent && <span className="text-red-400 mr-1 font-bold">!</span>}
             {task.title}
           </div>
-          <div className="text-[9px] text-zinc-600 mt-0.5 font-mono">
+          <div className="text-[10px] text-zinc-500 mt-0.5">
             {formatRelativeDate(task.createdAt)}
             {type === 'PROJECT' && ' · Project'}
           </div>
@@ -517,8 +517,8 @@ const DockItemCard: React.FC<{
         >
           <ArrowRight size={10} />
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded hover:bg-zinc-800/50"><Pencil size={10} /></button>
-        <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-600 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={10} /></button>
+        <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-500 hover:text-zinc-200 rounded hover:bg-zinc-800/50"><Pencil size={11} /></button>
+        <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-500 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={11} /></button>
       </div>
     </div>
   );
@@ -972,22 +972,22 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           className="group/sec flex items-center gap-2 px-1 py-1.5 cursor-pointer select-none"
           onClick={() => toggleSection(config.type)}
         >
-          <span className={`${accent.text} opacity-60 group-hover/sec:opacity-100 transition-opacity`}>
+          <span className={`${accent.text} opacity-70 group-hover/sec:opacity-100 transition-opacity`}>
             {config.icon}
           </span>
-          <span className="text-[11px] font-semibold text-zinc-400 group-hover/sec:text-zinc-200 transition-colors flex-1">
+          <span className="text-xs font-semibold text-zinc-300 group-hover/sec:text-zinc-100 transition-colors flex-1">
             {config.label}
           </span>
           {filtered.length > 0 && (
-            <span className="text-[9px] font-mono text-zinc-600 min-w-[14px] text-right">{filtered.length}</span>
+            <span className="text-[10px] font-mono text-zinc-500 min-w-[14px] text-right">{filtered.length}</span>
           )}
           <button
             onClick={(e) => { e.stopPropagation(); setAddingToSection(config.type); setDockNewTitle(''); }}
-            className="p-0.5 text-zinc-700 hover:text-zinc-400 opacity-0 group-hover/sec:opacity-100 transition-all"
+            className="p-0.5 text-zinc-600 hover:text-zinc-300 opacity-0 group-hover/sec:opacity-100 transition-all"
           >
-            <Plus size={11} />
+            <Plus size={12} />
           </button>
-          <ChevronRight size={10} className={`text-zinc-700 transition-transform duration-150 ${collapsed ? '' : 'rotate-90'}`} />
+          <ChevronRight size={11} className={`text-zinc-600 transition-transform duration-150 ${collapsed ? '' : 'rotate-90'}`} />
         </div>
 
         {/* Section Content */}
@@ -1005,7 +1005,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     if (e.key === 'Escape') { setAddingToSection(null); setDockNewTitle(''); }
                   }}
                   placeholder={`Add ${config.label.toLowerCase().replace(/s$/, '')}...`}
-                  className="w-full bg-transparent text-[11px] text-zinc-200 focus:outline-none placeholder:text-zinc-600"
+                  className="w-full bg-transparent text-xs text-zinc-200 focus:outline-none placeholder:text-zinc-500"
                   autoFocus
                 />
               </div>
@@ -1038,7 +1038,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         {/* Quick Add - always visible at top */}
         <div className="px-3 py-2.5 border-b border-zinc-800/40 flex-shrink-0">
           <div className="relative">
-            <Plus size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+            <Plus size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
             <input
               placeholder="Quick add to inbox..."
               onKeyDown={(e) => {
@@ -1050,18 +1050,18 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                   }
                 }
               }}
-              className="w-full bg-zinc-900/30 border border-zinc-800/40 rounded-md pl-8 pr-3 py-1.5 text-[11px] text-zinc-300 focus:outline-none focus:border-zinc-700 focus:bg-zinc-900/50 placeholder:text-zinc-700 transition-all"
+              className="w-full bg-zinc-900/30 border border-zinc-800/40 rounded-md pl-8 pr-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-zinc-600 focus:bg-zinc-900/50 placeholder:text-zinc-600 transition-all"
             />
           </div>
           {/* Search - only if there are items */}
           {(totalDockItems > 3 || dockSearch) && (
             <div className="relative mt-1.5">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-700" />
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
               <input
                 value={dockSearch}
                 onChange={e => setDockSearch(e.target.value)}
                 placeholder="Filter..."
-                className="w-full bg-transparent border border-zinc-800/30 rounded-md pl-8 pr-3 py-1 text-[10px] text-zinc-400 focus:outline-none focus:border-zinc-700 placeholder:text-zinc-800 transition-all"
+                className="w-full bg-transparent border border-zinc-800/30 rounded-md pl-8 pr-3 py-1.5 text-[11px] text-zinc-300 focus:outline-none focus:border-zinc-600 placeholder:text-zinc-600 transition-all"
               />
             </div>
           )}
@@ -1076,7 +1076,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
             >
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-                <span className="text-[11px] font-semibold text-red-400">{urgentTasks.length} urgent</span>
+                <span className="text-xs font-semibold text-red-400">{urgentTasks.length} urgent</span>
               </div>
               <ChevronRight size={10} className={`text-red-400/50 transition-transform duration-150 ${urgentCollapsed ? '' : 'rotate-90'}`} />
             </button>
@@ -1088,8 +1088,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                     className="flex items-center gap-2 px-2 py-1.5 rounded bg-red-950/30 cursor-pointer hover:bg-red-950/40 transition-colors"
                     onClick={() => setInspectorTask(task)}
                   >
-                    <span className="text-red-400 font-bold text-[10px]">!</span>
-                    <span className="text-[11px] text-zinc-300 truncate flex-1">{task.title}</span>
+                    <span className="text-red-400 font-bold text-[11px]">!</span>
+                    <span className="text-xs text-zinc-200 truncate flex-1">{task.title}</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1120,7 +1120,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         {/* Footer */}
         <div className="px-3 py-2 border-t border-zinc-800/30 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-zinc-600">{totalDockItems} items</span>
+            <span className="text-[11px] text-zinc-500">{totalDockItems} items</span>
             <div className="flex items-center gap-1.5">
               <div className="w-14 h-1 bg-zinc-900 rounded-full overflow-hidden">
                 <div
@@ -1128,7 +1128,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                   style={{ width: `${bandwidthPercent}%` }}
                 />
               </div>
-              <span className="text-[9px] font-mono text-zinc-600">{bandwidthPercent}%</span>
+              <span className="text-[10px] font-mono text-zinc-500">{bandwidthPercent}%</span>
             </div>
           </div>
         </div>
@@ -1216,7 +1216,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
               >
                 <ChevronLeft size={14} />
               </button>
-              <div className="text-xs md:text-[11px] font-bold text-zinc-400 min-w-[120px] text-center uppercase tracking-widest">
+              <div className="text-xs md:text-xs font-bold text-zinc-300 min-w-[120px] text-center uppercase tracking-widest">
                 {plannerView === 'day' ? (
                   currentTime.toLocaleDateString('default', { day: 'numeric', month: 'short', year: 'numeric', timeZone: plannerTimeZone })
                 ) : plannerView === 'month' ? (
@@ -1251,7 +1251,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 setMonthOffset(0);
                 setTimeout(handleJumpToNow, 100);
               }}
-              className="text-[9px] font-bold text-emerald-500/60 hover:text-emerald-400 transition-colors uppercase tracking-tighter"
+              className="text-[10px] font-bold text-emerald-500/80 hover:text-emerald-400 transition-colors uppercase tracking-tight"
             >
               TODAY
             </button>
@@ -1261,27 +1261,27 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-zinc-900/50 border border-zinc-800/50 rounded-full p-0.5">
             <button
               onClick={() => setPlannerView('day')}
-              className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'day'
+              className={`px-4 py-1 rounded-full transition-all text-[11px] uppercase font-bold tracking-wider ${plannerView === 'day'
                 ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                : 'text-zinc-600 hover:text-zinc-400'
+                : 'text-zinc-500 hover:text-zinc-300'
                 }`}
             >
               Day
             </button>
             <button
               onClick={() => setPlannerView('week')}
-              className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'week'
+              className={`px-4 py-1 rounded-full transition-all text-[11px] uppercase font-bold tracking-wider ${plannerView === 'week'
                 ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                : 'text-zinc-600 hover:text-zinc-400'
+                : 'text-zinc-500 hover:text-zinc-300'
                 }`}
             >
               Week
             </button>
             <button
               onClick={() => setPlannerView('month')}
-              className={`px-4 py-1 rounded-full transition-all text-[10px] uppercase font-bold tracking-widest ${plannerView === 'month'
+              className={`px-4 py-1 rounded-full transition-all text-[11px] uppercase font-bold tracking-wider ${plannerView === 'month'
                 ? 'bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                : 'text-zinc-600 hover:text-zinc-400'
+                : 'text-zinc-500 hover:text-zinc-300'
                 }`}
             >
               Month
@@ -1292,7 +1292,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowWeeklyEditor(true)}
-              className="p-1.5 text-zinc-600 hover:text-zinc-300 transition-colors"
+              className="p-1.5 text-zinc-500 hover:text-zinc-200 transition-colors"
               title="Settings"
             >
               <Settings size={14} />

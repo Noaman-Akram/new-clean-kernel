@@ -382,7 +382,7 @@ const DayView: React.FC<Props> = ({
                     <LayoutGrid size={14} />
                     <div>
                       <div className="font-medium">Timeline</div>
-                      <div className="text-[9px] text-zinc-600">Horizontal scrollable</div>
+                      <div className="text-[10px] text-zinc-400">Horizontal scrollable</div>
                     </div>
                   </button>
                   <button
@@ -392,7 +392,7 @@ const DayView: React.FC<Props> = ({
                     <Columns size={14} />
                     <div>
                       <div className="font-medium">Periods</div>
-                      <div className="text-[9px] text-zinc-600">Morning / Afternoon / Evening</div>
+                      <div className="text-[10px] text-zinc-400">Morning / Afternoon / Evening</div>
                     </div>
                   </button>
                   <button
@@ -402,7 +402,7 @@ const DayView: React.FC<Props> = ({
                     <Kanban size={14} />
                     <div>
                       <div className="font-medium">Kanban</div>
-                      <div className="text-[9px] text-zinc-600">Inbox → Scheduled → Done</div>
+                      <div className="text-[10px] text-zinc-400">Inbox → Scheduled → Done</div>
                     </div>
                   </button>
                 </div>
@@ -420,7 +420,7 @@ const DayView: React.FC<Props> = ({
               }
               setIsFocusMode(!isFocusMode);
             }}
-            className={`flex items-center gap-2 px-3 py-1 rounded border transition-all text-[9px] font-bold uppercase tracking-widest ${isFocusMode ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'border-zinc-800 text-zinc-600 hover:text-zinc-300 hover:border-zinc-700'}`}
+            className={`flex items-center gap-2 px-3 py-1 rounded border transition-all text-[10px] font-bold uppercase tracking-wider ${isFocusMode ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'}`}
           >
             {isFocusMode ? <Zap size={10} fill="currentColor" /> : <Layers size={10} />}
             {isFocusMode ? 'Focus On' : pendingTasks.length > 0 ? `Focus (${pendingTasks.length})` : 'Enter Focus'}
@@ -436,7 +436,7 @@ const DayView: React.FC<Props> = ({
             {activeTask ? (
               <div className="max-w-xl w-full space-y-12 text-center">
                 <div className="space-y-4">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white text-[9px] font-bold uppercase tracking-[0.3em]">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.3em]">
                     Executing Directive
                   </div>
                   <h2 className="text-4xl font-medium text-white tracking-tight leading-tight">{activeTask.title}</h2>
@@ -551,7 +551,7 @@ const DayView: React.FC<Props> = ({
               <div className="p-5 border-b border-zinc-900 space-y-6">
                 {/* Niyyah / Focus Input */}
                 <div className="space-y-2">
-                  <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest px-1">Today's Intent</span>
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest px-1">Today's Intent</span>
                   <div className="bg-zinc-900/30 border border-zinc-800/50 p-3 rounded-lg flex items-center gap-3 transition-all focus-within:border-emerald-500/30 focus-within:shadow-[0_0_15px_rgba(16,185,129,0.05)] focus-within:bg-emerald-950/5 group/niyyah">
                     <Zap size={12} className="text-zinc-700 group-focus-within/niyyah:text-emerald-500 transition-colors" />
                     <input
@@ -568,11 +568,11 @@ const DayView: React.FC<Props> = ({
                   <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-2">
                       <Target size={10} className="text-zinc-600" />
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Daily Rituals</span>
+                      <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Daily Rituals</span>
                     </div>
                     <button
                       onClick={() => onDayMetaUpdate(dateKey, { rituals: {} })}
-                      className="text-[8px] font-bold text-zinc-800 hover:text-red-500/60 transition-colors tracking-tighter"
+                      className="text-[10px] font-bold text-zinc-600 hover:text-red-500/60 transition-colors tracking-tighter"
                     >
                       RESET
                     </button>
@@ -611,9 +611,9 @@ const DayView: React.FC<Props> = ({
                     <div className="flex items-center justify-between px-1">
                       <div className="flex items-center gap-2">
                         <Archive size={10} className="text-zinc-600" />
-                        <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Inbox</span>
+                        <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Inbox</span>
                       </div>
-                      <span className="text-[9px] font-mono text-zinc-700">{inboxTasks.length}</span>
+                      <span className="text-[10px] font-mono text-zinc-500">{inboxTasks.length}</span>
                     </div>
                     <div className="space-y-1">
                       {inboxTasks.map(task => (
@@ -660,7 +660,7 @@ const DayView: React.FC<Props> = ({
               <div className="p-4 border-t border-zinc-900 space-y-3">
                 {/* Progress */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-[9px] font-bold uppercase">
+                  <div className="flex items-center justify-between text-[10px] font-bold uppercase">
                     <span className="text-zinc-600 tracking-widest">Progress</span>
                     <span className="text-zinc-400 tabular-nums">{completedTasks.length}/{daysTasks.length}</span>
                   </div>
@@ -673,7 +673,7 @@ const DayView: React.FC<Props> = ({
                 </div>
 
                 {/* Context Info */}
-                <div className="space-y-2 text-[9px]">
+                <div className="space-y-2 text-[10px]">
                   {/* Active task or next up */}
                   {activeTask ? (
                     <div className="flex items-center gap-2 p-2 bg-emerald-950/20 border border-emerald-900/30 rounded">
@@ -702,7 +702,7 @@ const DayView: React.FC<Props> = ({
 
                 {/* Quote */}
                 <div className="pt-2 border-t border-zinc-900/50">
-                  <p className="text-[8px] text-zinc-700 font-serif italic leading-relaxed line-clamp-2">
+                  <p className="text-[10px] text-zinc-500 font-serif italic leading-relaxed line-clamp-2">
                     "{getQuoteForDate(selectedDate)}"
                   </p>
                 </div>

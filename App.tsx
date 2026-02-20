@@ -974,7 +974,7 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="flex h-screen w-screen bg-background text-zinc-400 font-sans overflow-hidden selection:bg-zinc-700 selection:text-zinc-200">
+    <div className="flex h-screen w-screen bg-background text-zinc-300 font-sans overflow-hidden selection:bg-zinc-700 selection:text-zinc-100">
 
       {/* --- SIDEBAR (DESKTOP) --- */}
       <nav className="hidden md:flex h-full w-[64px] flex-col items-center py-6 border-r border-border bg-surface z-50 flex-shrink-0 overflow-x-hidden">
@@ -1083,7 +1083,7 @@ const App: React.FC = () => {
         </div>
 
         <div className="mt-auto flex flex-col gap-4 items-center">
-          <div className="w-6 h-6 rounded bg-zinc-800 border border-border flex items-center justify-center text-[10px] font-mono text-zinc-500 cursor-default">
+          <div className="w-6 h-6 rounded bg-zinc-800 border border-border flex items-center justify-center text-[11px] font-mono text-zinc-400 cursor-default">
             NK
           </div>
         </div>
@@ -1093,7 +1093,7 @@ const App: React.FC = () => {
       {/* GLOBAL TOOLTIP LAYER (Desktop Only) */}
       {hoveredNav && (
         <div
-          className="fixed left-[70px] bg-surface border border-border text-zinc-200 text-[10px] font-medium px-2 py-1 rounded shadow-xl z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none whitespace-nowrap hidden md:block"
+          className="fixed left-[70px] bg-surface border border-border text-zinc-200 text-[11px] font-medium px-2.5 py-1 rounded shadow-xl z-[100] animate-in fade-in zoom-in-95 duration-150 pointer-events-none whitespace-nowrap hidden md:block"
           style={{ top: hoveredNav.top }}
         >
           {hoveredNav.label}
@@ -1104,15 +1104,15 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col min-w-0 bg-background relative overflow-hidden h-[calc(100vh-64px)] md:h-screen">
         {/* Top Bar */}
         <div className="h-12 border-b border-border flex items-center justify-between px-4 bg-background/60 backdrop-blur-xl sticky top-0 z-40">
-          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
-            <span className="text-zinc-300 font-medium">{currentPage}</span>
-            <span className="opacity-30">/</span>
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
+            <span className="text-zinc-200 font-medium">{currentPage}</span>
+            <span className="opacity-40">/</span>
             <span>{authUser ? 'CLOUD_SYNC' : 'LOCAL_ENV'}</span>
           </div>
           <div className="flex items-center gap-3">
             {/* BACKUP MENU */}
             <div className="relative">
-              <button onClick={() => { setShowBackupMenu(!showBackupMenu); setShowSettingsMenu(false); }} className="text-[10px] text-zinc-500 hover:text-zinc-300 px-2 font-mono uppercase tracking-wider">
+              <button onClick={() => { setShowBackupMenu(!showBackupMenu); setShowSettingsMenu(false); }} className="text-[11px] text-zinc-400 hover:text-zinc-200 px-2 font-mono uppercase tracking-wider">
                 Backup
               </button>
               {showBackupMenu && (
@@ -1129,13 +1129,13 @@ const App: React.FC = () => {
             </div>
 
             <div className="relative">
-              <button onClick={() => { setShowSettingsMenu(!showSettingsMenu); setShowBackupMenu(false); }} className="text-[10px] text-zinc-500 hover:text-zinc-300 px-2 font-mono uppercase tracking-wider flex items-center gap-1">
+              <button onClick={() => { setShowSettingsMenu(!showSettingsMenu); setShowBackupMenu(false); }} className="text-[11px] text-zinc-400 hover:text-zinc-200 px-2 font-mono uppercase tracking-wider flex items-center gap-1">
                 <Settings size={11} />
                 Settings
               </button>
               {showSettingsMenu && state && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-zinc-900 border border-zinc-700 rounded-md shadow-xl z-50 p-3 space-y-2">
-                  <div className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">Timezone</div>
+                  <div className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider">Timezone</div>
                   <select
                     value={state.userPreferences?.timeZone || DEFAULT_TIME_ZONE}
                     onChange={(e) => handleTimeZoneChange(e.target.value)}
@@ -1145,7 +1145,7 @@ const App: React.FC = () => {
                       <option key={tz} value={tz}>{tz}</option>
                     ))}
                   </select>
-                  <div className="text-[10px] text-zinc-600">
+                  <div className="text-[11px] text-zinc-500">
                     Global date keys and planner context use this timezone.
                   </div>
                 </div>
@@ -1154,17 +1154,17 @@ const App: React.FC = () => {
 
             {/* Sync Indicator */}
             {!loading && (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-surface border border-border rounded text-[10px] font-mono">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-surface border border-border rounded text-[11px] font-mono">
                 <div className={`w-1.5 h-1.5 rounded-full ${!authUser ? 'bg-zinc-600' :
                   syncStatus === 'SAVING' ? 'bg-amber-500 animate-pulse' :
                     syncStatus === 'SAVED' || syncStatus === 'SYNCED' ? 'bg-emerald-500' :
                       syncStatus === 'ERROR' ? 'bg-red-500' :
                         'bg-zinc-600'
                   }`} />
-                <span className="text-zinc-500 hidden sm:inline">
+                <span className="text-zinc-400 hidden sm:inline">
                   {syncLabel()}
                 </span>
-                <span className="text-zinc-500 sm:hidden">
+                <span className="text-zinc-400 sm:hidden">
                   {syncLabelShort()}
                 </span>
               </div>
@@ -1270,13 +1270,13 @@ const MobileNavIcon = ({ active, onClick, icon, label }: { active: boolean, onCl
     onClick={onClick}
     className={`
        flex flex-col items-center justify-center gap-1 min-w-[50px]
-       ${active ? 'text-emerald-400' : 'text-zinc-500'}
+       ${active ? 'text-emerald-400' : 'text-zinc-400'}
     `}
   >
     <div className={`${active ? 'bg-emerald-950/50 rounded-xl px-3 py-1' : ''}`}>
       {icon}
     </div>
-    <span className="text-[9px] font-mono uppercase tracking-wider">{label}</span>
+    <span className="text-[10px] font-mono uppercase tracking-wider">{label}</span>
   </button>
 );
 

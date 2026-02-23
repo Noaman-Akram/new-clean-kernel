@@ -411,7 +411,7 @@ const dockSectionConfig: { type: DockSection; icon: React.ReactNode; label: stri
   { type: 'ROUTINE', icon: <Repeat size={12} />, label: 'Routines' },
   { type: 'TEMPLATE', icon: <FileText size={12} />, label: 'Templates' },
   { type: 'PROJECT', icon: <Package size={12} />, label: 'Projects' },
-  { type: 'TODO', icon: <ListTodo size={12} />, label: 'To Do' },
+  { type: 'TODO', icon: <ListTodo size={12} />, label: 'Inbox' },
   { type: 'LATER', icon: <Clock size={12} />, label: 'Later' },
   { type: 'HABIT', icon: <Target size={12} />, label: 'Habits' },
 ];
@@ -736,7 +736,9 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
     return active;
   }, [state.tasks, weekDays, plannerTimeZone]);
 
-  const unscheduledTasks = state.tasks.filter(t => !t.scheduledTime && t.status !== TaskStatus.DONE);
+  const unscheduledTasks = state.tasks
+    .filter(t => !t.scheduledTime && t.status !== TaskStatus.DONE)
+    .sort((a, b) => a.createdAt - b.createdAt);
 
   const filteredDockTasks = unscheduledTasks.filter(t => {
     if (!dockSearch.trim()) return true;
@@ -800,7 +802,7 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
       case 'HABIT':
         return 'Habit';
       default:
-        return 'To Do';
+        return 'Inbox';
     }
   };
 
@@ -1428,11 +1430,10 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                       setCurrentTime(dateFromDateKey(cell.dateStr));
                       setPlannerView('day');
                     }}
-                    className={`min-h-[90px] md:min-h-[108px] rounded-md border p-2 text-left transition-colors ${
-                      cell.inCurrentMonth
+                    className={`min-h-[90px] md:min-h-[108px] rounded-md border p-2 text-left transition-colors ${cell.inCurrentMonth
                         ? 'bg-zinc-900/35 border-zinc-800 hover:border-zinc-700'
                         : 'bg-zinc-950/20 border-zinc-900 text-zinc-700'
-                    } ${cell.isToday ? 'ring-1 ring-emerald-500/40 border-emerald-600/40' : ''}`}
+                      } ${cell.isToday ? 'ring-1 ring-emerald-500/40 border-emerald-600/40' : ''}`}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className={`text-[11px] font-bold ${cell.isToday ? 'text-emerald-400' : 'text-zinc-400'}`}>

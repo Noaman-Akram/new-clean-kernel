@@ -119,9 +119,11 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
     };
 
     const stripHtml = (html: string) => {
+        if (!html) return '';
+        const spacedHtml = html.replace(/<\/(div|p|h[1-6]|li|ul|ol)>/ig, ' </$1>').replace(/<br[^>]*>/ig, ' ');
         const tmp = document.createElement('div');
-        tmp.innerHTML = html;
-        return tmp.textContent || tmp.innerText || '';
+        tmp.innerHTML = spacedHtml;
+        return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
     };
 
     const calculateDiff = (versionHtml: string) => {
@@ -135,7 +137,7 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
     };
 
     return (
-        <div className="h-full flex bg-background animate-fade-in overflow-hidden">
+        <div className="h-full flex bg-background animate-fade-in overflow-hidden notes-editor-root">
 
             {/* SEARCH OVERLAY */}
             {isSearchOpen && (
@@ -403,14 +405,36 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                     suppressContentEditableWarning
                                     onPaste={(e) => {
                                         e.preventDefault();
-                                        const text = e.clipboardData.getData('text/plain');
-                                        document.execCommand('insertText', false, text);
+                                        const html = e.clipboardData.getData('text/html');
+                                        if (html) {
+                                            const doc = new DOMParser().parseFromString(html, 'text/html');
+                                            const walk = (node: Node) => {
+                                                if (node.nodeType === Node.ELEMENT_NODE) {
+                                                    const el = node as HTMLElement;
+                                                    if (el.style) {
+                                                        el.style.color = '';
+                                                        el.style.backgroundColor = '';
+                                                        el.style.fontFamily = '';
+                                                        el.style.fontSize = '';
+                                                        el.style.lineHeight = '';
+                                                    }
+                                                    el.removeAttribute('class');
+                                                    el.removeAttribute('id');
+                                                }
+                                                Array.from(node.childNodes).forEach(walk);
+                                            };
+                                            walk(doc.body);
+                                            document.execCommand('insertHTML', false, doc.body.innerHTML);
+                                        } else {
+                                            const text = e.clipboardData.getData('text/plain');
+                                            document.execCommand('insertText', false, text);
+                                        }
                                     }}
                                     onInput={(e) => {
                                         if (!activeNote) return;
                                         onUpdate(activeNote.id, { content: e.currentTarget.innerHTML, updatedAt: Date.now() });
                                     }}
-                                    className="flex-1 w-full bg-transparent px-4 md:px-8 py-2 outline-none text-zinc-300 font-mono text-sm leading-relaxed min-h-[300px] pb-32 selection:bg-emerald-900 selection:text-emerald-100"
+                                    className="flex-1 w-full bg-transparent px-4 md:px-8 py-2 outline-none text-zinc-300 font-mono text-sm leading-relaxed min-h-[300px] pb-32"
                                     placeholder="Start typing..."
                                     style={{
                                         listStylePosition: 'inside'
@@ -504,6 +528,14 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
             {/* Injected global CSS for ContentEditable specifically handling ul/ol properly in Tailwind context */}
             <style dangerouslySetInnerHTML={{
                 __html: `
+                .notes-editor-root ::selection {
+                    background-color: #064e3b !important;
+                    color: #d1fae5 !important;
+                }
+                .notes-editor-root *::selection {
+                    background-color: #064e3b !important;
+                    color: #d1fae5 !important;
+                }
                 [contenteditable="true"] ul { list-style-type: disc; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
                 [contenteditable="true"] ol { list-style-type: decimal; margin-left: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
                 [contenteditable="true"] b, [contenteditable="true"] strong { font-weight: 700; color: #fff; }

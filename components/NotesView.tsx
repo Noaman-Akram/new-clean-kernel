@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppState, Note, NoteFolder, NoteVersion } from '../types';
 import { generateId } from '../utils';
-import { Plus, Search, FileText, Calendar, ArrowLeft, Folder, History, FolderPlus, X, Bold, List, CornerDownLeft, RotateCcw, Trash2, CheckCircle2, Save, ListOrdered } from 'lucide-react';
+import { Plus, Search, FileText, Calendar, ArrowLeft, Folder, History, FolderPlus, X, Bold, List, CornerDownLeft, RotateCcw, Trash2, CheckCircle2, Save, ListOrdered, Inbox } from 'lucide-react';
 
 interface Props {
     state: AppState;
@@ -16,7 +16,7 @@ interface Props {
 const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolderAdd, onFolderUpdate, onFolderDelete }) => {
     const [selectedId, setSelectedId] = useState<string | null>(state.notes[0]?.id || null);
     const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'unfoldered' | 'all'>('unfoldered');
+    const [viewMode, setViewMode] = useState<'inbox' | 'all'>('inbox');
 
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -37,7 +37,7 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
     if (activeFolderId) {
         listNotes = state.notes.filter(n => n.folderId === activeFolderId);
     } else {
-        if (viewMode === 'unfoldered') {
+        if (viewMode === 'inbox') {
             listNotes = state.notes.filter(n => !n.folderId);
         }
     }
@@ -213,10 +213,10 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                     {!activeFolderId && (
                         <div className="flex bg-[#111] border border-[#222] rounded-sm p-0.5">
                             <button
-                                onClick={() => setViewMode('unfoldered')}
-                                className={`flex-1 text-[11px] py-1.5 rounded-sm font-medium transition-colors ${viewMode === 'unfoldered' ? 'bg-[#222] text-[#fff]' : 'text-[#888] hover:text-[#ccc]'}`}
+                                onClick={() => setViewMode('inbox')}
+                                className={`flex-1 flex items-center justify-center gap-1.5 text-[11px] py-1.5 rounded-sm font-medium transition-colors ${viewMode === 'inbox' ? 'bg-[#222] text-[#fff]' : 'text-[#888] hover:text-[#ccc]'}`}
                             >
-                                Unfoldered
+                                <Inbox size={12} /> Inbox
                             </button>
                             <button
                                 onClick={() => setViewMode('all')}
@@ -342,7 +342,7 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                     onChange={(e) => onUpdate(activeNote.id, { folderId: e.target.value || undefined })}
                                     className="bg-transparent text-xs text-[#888] hover:text-[#ccc] outline-none cursor-pointer border-none p-0 focus:ring-0 appearance-none font-mono"
                                 >
-                                    <option value="">[ /Unfoldered ]</option>
+                                    <option value="">[ /Inbox ]</option>
                                     {state.noteFolders.map(f => (
                                         <option key={f.id} value={f.id}>[ /{f.name} ]</option>
                                     ))}
@@ -393,11 +393,15 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                     />
                                 </div>
 
-                                {/* Rich Text Editor Box */}
                                 <div
                                     ref={editorRef}
                                     contentEditable
                                     suppressContentEditableWarning
+                                    onPaste={(e) => {
+                                        e.preventDefault();
+                                        const text = e.clipboardData.getData('text/plain');
+                                        document.execCommand('insertText', false, text);
+                                    }}
                                     onInput={(e) => {
                                         if (!activeNote) return;
                                         onUpdate(activeNote.id, { content: e.currentTarget.innerHTML, updatedAt: Date.now() });

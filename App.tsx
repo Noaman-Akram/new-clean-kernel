@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession, TimeBlock } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, NoteFolder, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession, TimeBlock } from './types';
 import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
 import { auth } from './services/firebase';
 import { generateId } from './utils';
@@ -303,6 +303,29 @@ const App: React.FC = () => {
 
   const handleNoteAdd = (note: Note) => {
     setState(prev => prev ? ({ ...prev, notes: [note, ...prev.notes] }) : null);
+  };
+
+  const handleNoteDelete = (id: string) => {
+    setState(prev => prev ? ({ ...prev, notes: prev.notes.filter(n => n.id !== id) }) : null);
+  };
+
+  const handleNoteFolderAdd = (folder: NoteFolder) => {
+    setState(prev => prev ? ({ ...prev, noteFolders: [folder, ...prev.noteFolders] }) : null);
+  };
+
+  const handleNoteFolderUpdate = (id: string, updates: Partial<NoteFolder>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      noteFolders: prev.noteFolders.map(f => f.id === id ? { ...f, ...updates } : f)
+    }) : null);
+  };
+
+  const handleNoteFolderDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      noteFolders: prev.noteFolders.filter(f => f.id !== id),
+      notes: prev.notes.map(n => n.folderId === id ? { ...n, folderId: undefined } : n)
+    }) : null);
   };
 
   const handleResourceAdd = (res: Resource) => {
@@ -856,7 +879,15 @@ const App: React.FC = () => {
       case Page.SUPPLICATIONS:
         return <SupplicationsView state={state} onPrayerToggle={handlePrayerToggle} onAdhkarToggle={handleAdhkarToggle} />;
       case Page.INTEL:
-        return <NotesView state={state} onUpdate={handleNoteUpdate} onAdd={handleNoteAdd} />;
+        return <NotesView
+          state={state}
+          onUpdate={handleNoteUpdate}
+          onAdd={handleNoteAdd}
+          onDelete={handleNoteDelete}
+          onFolderAdd={handleNoteFolderAdd}
+          onFolderUpdate={handleNoteFolderUpdate}
+          onFolderDelete={handleNoteFolderDelete}
+        />;
       case Page.ARSENAL:
         return <ResourcesView state={state} onAdd={handleResourceAdd} onUpdate={handleResourceUpdate} onRemove={handleResourceDelete} />;
       case Page.ACTIVITIES:

@@ -190,12 +190,26 @@ export interface ShoppingListItem {
   createdAt: number;
 }
 
+export interface NoteVersion {
+  id: string;
+  timestamp: number;
+  content: string;
+}
+
+export interface NoteFolder {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
 export interface Note {
   id: string;
   title: string;
   content: string;
   updatedAt: number;
   tags: string[];
+  folderId?: string;
+  versions?: NoteVersion[];
 }
 
 export interface Resource {
@@ -471,6 +485,7 @@ export interface AppState {
   accounts: Account[];
   shoppingList: ShoppingListItem[];
   notes: Note[];
+  noteFolders: NoteFolder[];
   resources: Resource[];
   marketing: MarketingItem[];
   metrics: SystemMetrics;

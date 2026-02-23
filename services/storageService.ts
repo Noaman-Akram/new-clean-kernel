@@ -48,6 +48,7 @@ const INITIAL_STATE: AppState = {
   clients: [],
   transactions: [],
   notes: [],
+  noteFolders: [],
   resources: [],
   marketing: [],
   activities: [],
@@ -138,6 +139,7 @@ const normalizeState = (state: Partial<AppState> | null | undefined): AppState =
   return {
     ...merged,
     userPreferences: normalizeUserPreferences(state?.userPreferences),
+    noteFolders: state?.noteFolders || [],
     protocolContexts: state?.protocolContexts || INITIAL_STATE.protocolContexts,
     weeklyActivities: state?.weeklyActivities || INITIAL_STATE.weeklyActivities,
     dailyProtocolState: state?.dailyProtocolState || {},
@@ -296,6 +298,7 @@ const computeChanges = (prevState: AppState, nextState: AppState): ChangeRecord[
   changes.push(...diffArrayById('account', prevState.accounts, nextState.accounts));
   changes.push(...diffArrayById('shoppingItem', prevState.shoppingList, nextState.shoppingList));
   changes.push(...diffArrayById('note', prevState.notes, nextState.notes));
+  changes.push(...diffArrayById('noteFolder', prevState.noteFolders, nextState.noteFolders));
   changes.push(...diffArrayById('resource', prevState.resources, nextState.resources));
   changes.push(...diffArrayById('marketingItem', prevState.marketing, nextState.marketing));
   changes.push(...diffArrayById('horizonGoal', prevState.horizonGoals, nextState.horizonGoals));

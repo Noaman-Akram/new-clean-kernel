@@ -995,6 +995,18 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
         {/* Section Content */}
         {!collapsed && (
           <div className="space-y-0.5 pb-1">
+            {filtered.map(task => (
+              <DockItemCard
+                key={task.id}
+                task={task}
+                type={config.type}
+                onDragStart={handleDragStart}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onSelect={(t) => setInspectorTask(t)}
+                currentDate={currentDateKey}
+              />
+            ))}
             {/* Inline add */}
             {isAdding && (
               <div className={`border-l-2 ${accent.border} rounded-r-md bg-zinc-900/40 px-3 py-2 ml-1`}>
@@ -1012,18 +1024,6 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                 />
               </div>
             )}
-            {filtered.map(task => (
-              <DockItemCard
-                key={task.id}
-                task={task}
-                type={config.type}
-                onDragStart={handleDragStart}
-                onUpdate={onUpdate}
-                onDelete={onDelete}
-                onSelect={(t) => setInspectorTask(t)}
-                currentDate={currentDateKey}
-              />
-            ))}
           </div>
         )}
       </div>
@@ -1431,8 +1431,8 @@ const WeeklyPlannerView: React.FC<Props> = ({ state, onAdd, onUpdate, onStartSes
                       setPlannerView('day');
                     }}
                     className={`min-h-[90px] md:min-h-[108px] rounded-md border p-2 text-left transition-colors ${cell.inCurrentMonth
-                        ? 'bg-zinc-900/35 border-zinc-800 hover:border-zinc-700'
-                        : 'bg-zinc-950/20 border-zinc-900 text-zinc-700'
+                      ? 'bg-zinc-900/35 border-zinc-800 hover:border-zinc-700'
+                      : 'bg-zinc-950/20 border-zinc-900 text-zinc-700'
                       } ${cell.isToday ? 'ring-1 ring-emerald-500/40 border-emerald-600/40' : ''}`}
                   >
                     <div className="flex items-center justify-between mb-1">

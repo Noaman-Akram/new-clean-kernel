@@ -135,49 +135,49 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
     };
 
     return (
-        <div className="h-full flex bg-background animate-fade-in overflow-hidden relative text-[#e0e0e0]">
+        <div className="h-full flex bg-background animate-fade-in overflow-hidden">
 
             {/* SEARCH OVERLAY */}
             {isSearchOpen && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center pt-[10vh] px-4">
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-start justify-center pt-[10vh] px-4 backdrop-blur-sm">
                     <div className="absolute inset-0" onClick={() => setIsSearchOpen(false)}></div>
-                    <div className="bg-[#0f0f0f] border border-[#2a2a2a] rounded-sm w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] relative z-10">
-                        <div className="flex items-center gap-3 p-4 border-b border-[#2a2a2a]">
-                            <Search className="text-[#666]" size={18} />
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-lg w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] relative z-10">
+                        <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
+                            <Search className="text-zinc-500" size={18} />
                             <input
                                 ref={searchInputRef}
                                 autoFocus
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="flex-1 bg-transparent text-sm text-[#e0e0e0] outline-none placeholder:text-[#666] font-mono tracking-wide"
+                                className="flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600 font-mono"
                                 placeholder="Search Intel (Titles & Content)..."
                                 onKeyDown={e => e.key === 'Escape' && setIsSearchOpen(false)}
                             />
-                            <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="p-1 hover:bg-[#1a1a1a] rounded-sm text-[#666] hover:text-[#e0e0e0] transition-colors">
+                            <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="p-1.5 hover:bg-zinc-900 rounded-md text-zinc-500 hover:text-zinc-300 transition-colors">
                                 <X size={16} />
                             </button>
                         </div>
                         <div className="overflow-y-auto p-2 no-scrollbar">
                             {searchQuery.trim() === '' ? (
-                                <div className="py-12 text-center text-[#666] flex flex-col items-center gap-4 font-mono text-xs">
+                                <div className="py-12 text-center text-zinc-600 flex flex-col items-center gap-4 font-mono text-xs">
                                     <Search size={20} className="opacity-50" />
                                     <span>Type to dynamically search the entire database...</span>
                                 </div>
                             ) : searchResults.length === 0 ? (
-                                <div className="py-12 text-center text-[#666] font-mono text-xs">No results found for "<span className="text-[#e0e0e0]">{searchQuery}</span>"</div>
+                                <div className="py-12 text-center text-zinc-500 font-mono text-xs">No results found for "<span className="text-zinc-300">{searchQuery}</span>"</div>
                             ) : (
                                 searchResults.map(note => (
                                     <div
                                         key={note.id}
                                         onClick={() => { setSelectedId(note.id); activeNote?.folderId !== note.folderId && setActiveFolderId(note.folderId || null); setIsSearchOpen(false); setSearchQuery(''); }}
-                                        className="group p-3 hover:bg-[#161616] cursor-pointer flex items-start gap-3 transition-colors rounded-sm"
+                                        className="group p-3 hover:bg-zinc-900 cursor-pointer flex items-start gap-3 transition-colors rounded-lg"
                                     >
                                         <div className="mt-0.5 flex-shrink-0">
-                                            <FileText size={14} className="text-[#059669]" />
+                                            <FileText size={14} className="text-emerald-500" />
                                         </div>
                                         <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-                                            <h4 className="text-[#e0e0e0] font-medium truncate text-sm">{note.title || 'Untitled'}</h4>
-                                            <p className="text-[#666] text-xs line-clamp-2 font-mono">
+                                            <h4 className="text-zinc-200 font-medium truncate text-sm">{note.title || 'Untitled'}</h4>
+                                            <p className="text-zinc-500 text-xs line-clamp-2 font-mono">
                                                 {stripHtml(note.content) || 'No content...'}
                                             </p>
                                         </div>
@@ -185,8 +185,8 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                 ))
                             )}
                         </div>
-                        <div className="h-8 border-t border-[#2a2a2a] bg-[#0a0a0a] flex items-center px-4">
-                            <span className="text-[10px] text-[#666] font-mono"><kbd className="bg-[#1a1a1a] px-1 py-0.5 rounded-sm border border-[#2a2a2a]">ESC</kbd> to close</span>
+                        <div className="h-8 border-t border-zinc-800 bg-zinc-950 flex items-center px-4">
+                            <span className="text-[10px] text-zinc-500 font-mono"><kbd className="bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">ESC</kbd> to close</span>
                         </div>
                     </div>
                 </div>
@@ -195,32 +195,32 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
             {/* SIDEBAR LIST */}
             <div className={`
                 ${selectedId ? 'hidden md:flex' : 'flex'}
-                w-full md:w-72 border-r border-border flex-col bg-surface/30
+                w-full md:w-80 border-r border-border flex-col bg-surface/30
             `}>
                 <div className="p-4 border-b border-border space-y-4 shrink-0">
-                    <div className="flex items-center justify-between text-[#888]">
-                        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#e0e0e0]">Intel Database</span>
+                    <div className="flex items-center justify-between text-zinc-400">
+                        <span className="text-xs font-mono font-bold uppercase tracking-wider">Intel Database</span>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => setIsSearchOpen(true)} className="hover:text-white transition-colors" title="Search (Cmd+K)">
+                            <button onClick={() => setIsSearchOpen(true)} className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors" title="Search (Cmd+K)">
                                 <Search size={14} />
                             </button>
-                            <button onClick={handleCreate} className="hover:text-white transition-colors">
+                            <button onClick={handleCreate} className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors">
                                 <Plus size={14} />
                             </button>
                         </div>
                     </div>
                     {/* View Tabs */}
                     {!activeFolderId && (
-                        <div className="flex bg-[#111] border border-[#222] rounded-sm p-0.5">
+                        <div className="flex bg-zinc-900/50 border border-zinc-800 rounded p-1">
                             <button
                                 onClick={() => setViewMode('inbox')}
-                                className={`flex-1 flex items-center justify-center gap-1.5 text-[11px] py-1.5 rounded-sm font-medium transition-colors ${viewMode === 'inbox' ? 'bg-[#222] text-[#fff]' : 'text-[#888] hover:text-[#ccc]'}`}
+                                className={`flex-1 flex items-center justify-center gap-1.5 text-xs py-1.5 rounded-sm font-medium transition-colors ${viewMode === 'inbox' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
                             >
                                 <Inbox size={12} /> Inbox
                             </button>
                             <button
                                 onClick={() => setViewMode('all')}
-                                className={`flex-1 text-[11px] py-1.5 rounded-sm font-medium transition-colors ${viewMode === 'all' ? 'bg-[#222] text-[#fff]' : 'text-[#888] hover:text-[#ccc]'}`}
+                                className={`flex-1 text-xs py-1.5 rounded-sm font-medium transition-colors ${viewMode === 'all' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
                             >
                                 All Notes
                             </button>
@@ -229,10 +229,10 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                 </div>
 
                 {/* FOLDERS SECTION */}
-                <div className="p-3 border-b border-border space-y-1 shrink-0 bg-[#080808]">
-                    <div className="flex items-center justify-between text-[#666] mb-2 px-2">
-                        <span className="text-[10px] font-bold uppercase tracking-widest">Collections</span>
-                        <button onClick={() => setIsAddingFolder(true)} className="hover:text-white transition-colors"><Plus size={12} /></button>
+                <div className="p-3 border-b border-border space-y-1 shrink-0 bg-black/10">
+                    <div className="flex items-center justify-between text-zinc-500 mb-2 px-2">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Collections</span>
+                        <button onClick={() => setIsAddingFolder(true)} className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-200 transition-colors"><Plus size={12} /></button>
                     </div>
                     {isAddingFolder && (
                         <div className="flex items-center mb-2 px-2">
@@ -250,7 +250,7 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                     }
                                 }}
                                 onBlur={() => setIsAddingFolder(false)}
-                                className="w-full bg-[#111] border border-[#333] rounded-sm px-2 py-1 text-xs text-[#e0e0e0] outline-none"
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 outline-none"
                                 placeholder="Folder Name..."
                             />
                         </div>
@@ -258,7 +258,7 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                     {activeFolderId && (
                         <button
                             onClick={() => setActiveFolderId(null)}
-                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-[#888] hover:text-white hover:bg-[#151515] transition-colors rounded-sm"
+                            className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors rounded"
                         >
                             <ArrowLeft size={12} />
                             Back to root
@@ -267,13 +267,13 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                     {state.noteFolders.map(folder => (
                         <div
                             key={folder.id}
-                            className={`group flex items-center justify-between px-2 py-1.5 rounded-sm cursor-pointer text-xs transition-colors ${activeFolderId === folder.id ? 'bg-[#151515] text-[#10b981]' : 'text-[#888] hover:bg-[#111] hover:text-[#ccc]'}`}
+                            className={`group flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${activeFolderId === folder.id ? 'bg-zinc-800 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}
                         >
                             <div className="flex items-center gap-2 flex-1" onClick={() => setActiveFolderId(folder.id)}>
-                                <Folder size={12} className={activeFolderId === folder.id ? 'text-[#10b981]' : 'text-[#666]'} />
+                                <Folder size={12} className={activeFolderId === folder.id ? 'text-emerald-500' : 'text-zinc-500'} />
                                 <span className="font-medium truncate">{folder.name}</span>
                             </div>
-                            <button onClick={(e) => { e.stopPropagation(); onFolderDelete(folder.id); }} className="opacity-0 group-hover:opacity-100 px-1 text-[#666] hover:text-[#ef4444] transition-opacity">
+                            <button onClick={(e) => { e.stopPropagation(); onFolderDelete(folder.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-opacity">
                                 <Trash2 size={10} />
                             </button>
                         </div>
@@ -281,9 +281,9 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                 </div>
 
                 {/* NOTES LIST */}
-                <div className="flex-1 overflow-y-auto no-scrollbar bg-[#0a0a0a]">
+                <div className="flex-1 overflow-y-auto no-scrollbar">
                     {listNotes.length === 0 ? (
-                        <div className="py-8 text-center text-[#555] text-xs font-mono">No notes found.</div>
+                        <div className="py-8 text-center text-zinc-600 text-xs font-mono">No notes found.</div>
                     ) : listNotes.map(note => {
                         const folderName = getFolderName(note.folderId);
                         return (
@@ -291,25 +291,26 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                 key={note.id}
                                 onClick={() => setSelectedId(note.id)}
                                 className={`
-                                    p-4 border-b border-[#111] cursor-pointer hover:bg-[#121212] transition-colors group
-                                    ${selectedId === note.id ? 'bg-[#121212] border-l-2 border-l-[#10b981]' : 'border-l-2 border-l-transparent'}
+                                    p-4 border-b border-zinc-800/50 cursor-pointer hover:bg-zinc-900/50 transition-colors group
+                                    ${selectedId === note.id ? 'bg-zinc-900 border-l-2 border-l-emerald-500' : 'border-l-2 border-l-transparent'}
                                 `}
                             >
-                                <div className="flex justify-between items-start gap-2 mb-1.5">
-                                    <div className={`text-sm tracking-wide truncate flex-1 ${selectedId === note.id ? 'text-[#fff]' : 'text-[#ccc]'}`}>{note.title || 'Untitled'}</div>
+                                <div className="flex justify-between items-start mb-1 gap-2">
+                                    <div className="text-sm font-medium text-zinc-200 mb-1 truncate flex-1">{note.title || 'Untitled'}</div>
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onDelete(note.id); if (selectedId === note.id) setSelectedId(null); }}
-                                        className="opacity-0 group-hover:opacity-100 text-[#555] hover:text-[#ef4444] transition-colors"
+                                        className="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-colors p-1 -m-1"
                                     >
                                         <Trash2 size={12} />
                                     </button>
                                 </div>
-                                <div className="mt-1 flex items-center justify-between text-[10px] text-[#666] font-mono">
+                                <div className="text-xs text-zinc-600 line-clamp-2 font-mono">{stripHtml(note.content) || 'No content...'}</div>
+                                <div className="mt-3 flex items-center gap-2 text-[10px] text-zinc-700">
                                     <div className="flex items-center gap-2">
                                         <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
                                     </div>
                                     {folderName && viewMode === 'all' && !activeFolderId && (
-                                        <span className="bg-[#1a1a1a] text-[#888] px-1.5 py-0.5 rounded-sm flex items-center gap-1">
+                                        <span className="bg-zinc-800 px-1.5 rounded text-zinc-500 flex items-center gap-1">
                                             {folderName}
                                         </span>
                                     )}
@@ -323,48 +324,51 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
             {/* EDITOR */}
             <div className={`
                 ${selectedId ? 'flex' : 'hidden md:flex'}
-                flex-1 flex-col bg-[#050505] min-w-0
+                flex-1 flex-col bg-background min-w-0
             `}>
                 {activeNote ? (
                     <>
                         {/* Editor Header */}
-                        <div className="h-14 border-b border-border flex items-center justify-between px-6 shrink-0 bg-[#080808]">
+                        <div className="h-16 border-b border-border flex items-center justify-between px-4 md:px-8 shrink-0 gap-3">
                             <div className="flex items-center gap-4">
                                 <button
                                     onClick={() => setSelectedId(null)}
-                                    className="md:hidden text-[#888] hover:text-white"
+                                    className="md:hidden p-2 -ml-2 text-zinc-400 hover:text-white"
                                 >
-                                    <ArrowLeft size={16} />
+                                    <ArrowLeft size={18} />
                                 </button>
 
-                                <select
-                                    value={activeNote.folderId || ''}
-                                    onChange={(e) => onUpdate(activeNote.id, { folderId: e.target.value || undefined })}
-                                    className="bg-transparent text-xs text-[#888] hover:text-[#ccc] outline-none cursor-pointer border-none p-0 focus:ring-0 appearance-none font-mono"
-                                >
-                                    <option value="">[ /Inbox ]</option>
-                                    {state.noteFolders.map(f => (
-                                        <option key={f.id} value={f.id}>[ /{f.name} ]</option>
-                                    ))}
-                                </select>
+                                <div className="flex items-center gap-2 bg-zinc-900/30 border border-zinc-800 rounded px-2 py-1">
+                                    <Folder size={12} className="text-zinc-500" />
+                                    <select
+                                        value={activeNote.folderId || ''}
+                                        onChange={(e) => onUpdate(activeNote.id, { folderId: e.target.value || undefined })}
+                                        className="bg-transparent text-xs text-zinc-400 hover:text-zinc-300 outline-none cursor-pointer border-none p-0 focus:ring-0 appearance-none font-mono"
+                                    >
+                                        <option value="">[ /Inbox ]</option>
+                                        {state.noteFolders.map(f => (
+                                            <option key={f.id} value={f.id}>[ /{f.name} ]</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
-                            <div className="flex items-center gap-4 shrink-0 text-[#888]">
-                                <span className="text-[10px] font-mono shrink-0 flex items-center gap-1.5 tracking-widest uppercase">
-                                    <Calendar size={10} />
-                                    {new Date(activeNote.updatedAt).toLocaleTimeString()}
+                            <div className="flex items-center gap-4 shrink-0 text-zinc-500 font-mono text-xs">
+                                <span className="flex items-center gap-1">
+                                    <Calendar size={12} />
+                                    <span className="hidden sm:inline">{new Date(activeNote.updatedAt).toLocaleTimeString()}</span>
                                 </span>
-                                <div className="w-px h-3 bg-[#333]" />
+                                <div className="w-px h-3 bg-zinc-700" />
                                 <button
                                     onClick={handleSaveVersion}
-                                    className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider hover:text-white transition-colors"
+                                    className="flex items-center gap-1.5 font-bold uppercase tracking-wider hover:text-zinc-300 transition-colors"
                                     title="Save Snapshot"
                                 >
                                     <Save size={12} /> Save
                                 </button>
                                 <button
                                     onClick={() => setShowVersions(!showVersions)}
-                                    className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${showVersions ? 'text-[#10b981]' : 'hover:text-white'}`}
+                                    className={`flex items-center gap-1.5 font-bold uppercase tracking-wider transition-colors ${showVersions ? 'text-emerald-500' : 'hover:text-zinc-300'}`}
                                 >
                                     <History size={12} /> History
                                 </button>
@@ -377,19 +381,19 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                             <div className="flex-1 flex flex-col min-w-0 overflow-auto no-scrollbar relative">
 
                                 {/* Floating Toolbar Minimal */}
-                                <div className="sticky top-0 z-10 w-full bg-[#050505]/95 backdrop-blur py-4 px-8 md:px-16 flex items-center gap-2 border-b border-transparent hover:border-[#111] transition-colors">
-                                    <button onMouseDown={(e) => { e.preventDefault(); handleFormat('bold'); }} className="p-1.5 text-[#666] hover:text-[#e0e0e0] hover:bg-[#111] rounded-sm transition-colors" title="Bold (Cmd+B)"><Bold size={14} /></button>
-                                    <div className="w-px h-3 bg-[#222]" />
-                                    <button onMouseDown={(e) => { e.preventDefault(); handleFormat('insertUnorderedList'); }} className="p-1.5 text-[#666] hover:text-[#e0e0e0] hover:bg-[#111] rounded-sm transition-colors" title="Bullet List"><List size={14} /></button>
-                                    <button onMouseDown={(e) => { e.preventDefault(); handleFormat('insertOrderedList'); }} className="p-1.5 text-[#666] hover:text-[#e0e0e0] hover:bg-[#111] rounded-sm transition-colors" title="Numbered List"><ListOrdered size={14} /></button>
+                                <div className="sticky top-0 z-10 w-full bg-background/95 backdrop-blur py-4 px-4 md:px-8 flex items-center gap-2 border-b border-transparent hover:border-zinc-800/50 transition-colors pt-6">
+                                    <button onMouseDown={(e) => { e.preventDefault(); handleFormat('bold'); }} className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors" title="Bold (Cmd+B)"><Bold size={14} /></button>
+                                    <div className="w-px h-3 bg-zinc-700 mx-1" />
+                                    <button onMouseDown={(e) => { e.preventDefault(); handleFormat('insertUnorderedList'); }} className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors" title="Bullet List"><List size={14} /></button>
+                                    <button onMouseDown={(e) => { e.preventDefault(); handleFormat('insertOrderedList'); }} className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded transition-colors" title="Numbered List"><ListOrdered size={14} /></button>
                                 </div>
 
-                                <div className="px-8 md:px-16 pb-4">
+                                <div className="px-4 md:px-8 pb-4">
                                     <input
                                         value={activeNote.title}
                                         onChange={e => onUpdate(activeNote.id, { title: e.target.value, updatedAt: Date.now() })}
-                                        className="bg-transparent text-xl font-semibold text-[#e0e0e0] outline-none w-full placeholder:text-[#444] tracking-wide"
-                                        placeholder="Title..."
+                                        className="bg-transparent text-lg font-medium text-zinc-100 outline-none w-full placeholder:text-zinc-700"
+                                        placeholder="Note Title..."
                                     />
                                 </div>
 
@@ -406,10 +410,9 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                         if (!activeNote) return;
                                         onUpdate(activeNote.id, { content: e.currentTarget.innerHTML, updatedAt: Date.now() });
                                     }}
-                                    className="flex-1 w-full bg-transparent px-8 md:px-16 py-2 outline-none text-[#ccc] font-mono text-sm leading-[1.8] min-h-[300px] pb-32"
+                                    className="flex-1 w-full bg-transparent px-4 md:px-8 py-2 outline-none text-zinc-300 font-mono text-sm leading-relaxed min-h-[300px] pb-32 selection:bg-emerald-900 selection:text-emerald-100"
                                     placeholder="Start typing..."
                                     style={{
-                                        // Specific styles to ensure bullets and lists render nicely internally
                                         listStylePosition: 'inside'
                                     }}
                                 />
@@ -417,34 +420,34 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
 
                             {/* Versions Sidebar */}
                             {showVersions && (
-                                <div className="w-64 border-l border-border bg-[#080808] flex flex-col shrink-0 animate-in slide-in-from-right-8 duration-200">
-                                    <div className="p-4 border-b border-[#1a1a1a] flex justify-between items-center">
-                                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#666]">History</h3>
-                                        <button onClick={() => setShowVersions(false)} className="p-1 hover:bg-[#111] rounded-sm text-[#666] hover:text-[#fff]" title="Close">
+                                <div className="w-64 border-l border-zinc-800/50 bg-surface/50 flex flex-col shrink-0 animate-in slide-in-from-right-8 duration-200">
+                                    <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+                                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">History</h3>
+                                        <button onClick={() => setShowVersions(false)} className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-zinc-200" title="Close">
                                             <X size={12} />
                                         </button>
                                     </div>
 
                                     {selectedVersion ? (
                                         <div className="flex-1 flex flex-col overflow-hidden">
-                                            <div className="p-3 border-b border-[#1a1a1a] bg-[#111] flex justify-between items-center">
+                                            <div className="p-3 border-b border-zinc-800 bg-zinc-900/50 flex justify-between items-center">
                                                 <div className="flex flex-col">
-                                                    <span className="text-[10px] text-[#888] uppercase tracking-[0.1em]">Snapshot</span>
-                                                    <span className="text-xs text-[#e0e0e0] mt-0.5">{new Date(selectedVersion.timestamp).toLocaleString()}</span>
+                                                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Snapshot</span>
+                                                    <span className="text-xs text-zinc-200 mt-0.5">{new Date(selectedVersion.timestamp).toLocaleString()}</span>
                                                 </div>
-                                                <button onClick={() => setSelectedVersion(null)} className="p-1 text-[#666] hover:text-[#fff] bg-[#1a1a1a] rounded-sm"><ArrowLeft size={12} /></button>
+                                                <button onClick={() => setSelectedVersion(null)} className="p-1 text-zinc-500 hover:text-zinc-200 bg-zinc-800 rounded"><ArrowLeft size={12} /></button>
                                             </div>
-                                            <div className="flex-1 overflow-y-auto p-4 bg-[#0a0a0a]">
+                                            <div className="flex-1 overflow-y-auto p-4">
                                                 {/* Render HTML content for snapshot as well since it could have formatting */}
                                                 <div
-                                                    className="text-xs text-[#888] font-mono leading-[1.8]"
+                                                    className="text-xs text-zinc-400 font-mono leading-relaxed selection:bg-emerald-900 selection:text-emerald-100"
                                                     dangerouslySetInnerHTML={{ __html: selectedVersion.content }}
                                                 />
                                             </div>
-                                            <div className="p-4 border-t border-[#1a1a1a]">
+                                            <div className="p-4 border-t border-zinc-800">
                                                 <button
                                                     onClick={() => handleRestoreVersion(selectedVersion)}
-                                                    className="w-full py-2 bg-[#10b981]/10 text-[#10b981] hover:bg-[#10b981]/20 border border-[#10b981]/20 rounded-sm text-[11px] font-bold transition-colors flex items-center justify-center gap-2 uppercase tracking-wide"
+                                                    className="w-full py-2 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 rounded text-xs font-bold transition-colors flex items-center justify-center gap-2 uppercase tracking-wide"
                                                 >
                                                     <RotateCcw size={14} />
                                                     Restore
@@ -454,7 +457,7 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                     ) : (
                                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
                                             {(!activeNote.versions || activeNote.versions.length === 0) ? (
-                                                <div className="p-6 text-center text-[10px] text-[#555] font-mono uppercase tracking-[0.1em] leading-relaxed">
+                                                <div className="p-6 text-center text-[10px] text-zinc-600 font-mono uppercase tracking-widest leading-relaxed">
                                                     No snapshots saved.
                                                 </div>
                                             ) : (
@@ -464,16 +467,16 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                                         <div
                                                             key={v.id}
                                                             onClick={() => setSelectedVersion(v)}
-                                                            className="group p-3 rounded-sm border border-transparent hover:border-[#222] hover:bg-[#111] cursor-pointer transition-colors flex flex-col gap-1.5"
+                                                            className="group p-3 rounded border border-transparent hover:border-zinc-800 hover:bg-zinc-900/50 cursor-pointer transition-colors flex flex-col gap-1.5"
                                                         >
                                                             <div className="flex items-center justify-between">
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-xs text-[#ccc] font-medium">{new Date(v.timestamp).toLocaleDateString()}</span>
+                                                                    <span className="text-xs text-zinc-300 font-medium">{new Date(v.timestamp).toLocaleDateString()}</span>
                                                                 </div>
-                                                                <span className="text-[10px] text-[#666] font-mono">{new Date(v.timestamp).toLocaleTimeString()}</span>
+                                                                <span className="text-[10px] text-zinc-500 font-mono">{new Date(v.timestamp).toLocaleTimeString()}</span>
                                                             </div>
                                                             <div className="flex items-center justify-between mt-1">
-                                                                <span className="text-[10px] text-[#555] truncate max-w-[120px]">
+                                                                <span className="text-[10px] text-zinc-500 truncate max-w-[120px]">
                                                                     {stripHtml(v.content) || 'Empty'}
                                                                 </span>
                                                                 <span className={`text-[10px] font-mono ${diff.color}`}>{diff.text}</span>
@@ -489,10 +492,10 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                         </div>
                     </>
                 ) : (
-                    <div className="flex-1 flex items-center justify-center text-[#333]">
+                    <div className="flex-1 flex items-center justify-center text-zinc-700">
                         <div className="flex flex-col items-center gap-3">
                             <FileText size={32} strokeWidth={1} />
-                            <span className="text-[10px] font-mono tracking-[0.2em] uppercase">No file selected</span>
+                            <span className="text-xs font-mono">Select a file to view</span>
                         </div>
                     </div>
                 )}
@@ -506,8 +509,11 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                 [contenteditable="true"] b, [contenteditable="true"] strong { font-weight: 700; color: #fff; }
                 [contenteditable="true"]:empty:before {
                     content: attr(placeholder);
-                    color: #444;
+                    color: #52525b; /* zinc-600 */
                     cursor: text;
+                }
+                [contenteditable="true"] {
+                    outline: none;
                 }
             `}} />
         </div>

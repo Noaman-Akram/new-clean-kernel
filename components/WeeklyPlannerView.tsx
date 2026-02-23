@@ -458,7 +458,6 @@ const DockItemCard: React.FC<{
         </div>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-500 hover:text-zinc-200 rounded hover:bg-zinc-800/50"><Pencil size={11} /></button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-500 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={11} /></button>
         </div>
       </div>
     );
@@ -477,7 +476,6 @@ const DockItemCard: React.FC<{
         </div>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-500 hover:text-blue-400 rounded hover:bg-zinc-800/50"><Pencil size={11} /></button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-500 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={11} /></button>
         </div>
       </div>
     );
@@ -505,20 +503,7 @@ const DockItemCard: React.FC<{
         </div>
       </div>
       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            const today = new Date();
-            today.setHours(12, 0, 0, 0);
-            onUpdate(task.id, { scheduledTime: today.getTime() });
-          }}
-          className="p-1 text-emerald-600 hover:text-emerald-400 rounded hover:bg-zinc-800/50"
-          title="Schedule today"
-        >
-          <ArrowRight size={10} />
-        </button>
         <button onClick={(e) => { e.stopPropagation(); onSelect(task); }} className="p-1 text-zinc-500 hover:text-zinc-200 rounded hover:bg-zinc-800/50"><Pencil size={11} /></button>
-        <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="p-1 text-zinc-500 hover:text-red-400 rounded hover:bg-zinc-800/50"><Trash2 size={11} /></button>
       </div>
     </div>
   );

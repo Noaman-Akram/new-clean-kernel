@@ -200,6 +200,7 @@ export interface NoteFolder {
   id: string;
   name: string;
   createdAt: number;
+  parentId?: string;
 }
 
 export interface Note {

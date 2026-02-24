@@ -118,6 +118,24 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
         return state.noteFolders.find(f => f.id === folderId)?.name || 'Unknown';
     };
 
+    const getFolderFullPath = (folderId: string): string => {
+        const folder = state.noteFolders.find(f => f.id === folderId);
+        if (!folder) return '';
+        if (folder.parentId) {
+            return `${getFolderFullPath(folder.parentId)} / ${folder.name}`;
+        }
+        return folder.name;
+    };
+
+    const getFolderOptions = () => {
+        return state.noteFolders.map(f => ({
+            ...f,
+            fullPath: getFolderFullPath(f.id),
+            // Indentation based on depth
+            indentLevel: getFolderFullPath(f.id).split('/').length - 1
+        })).sort((a, b) => a.fullPath.localeCompare(b.fullPath));
+    };
+
     const stripHtml = (html: string) => {
         if (!html) return '';
         const spacedHtml = html.replace(/<\/(div|p|h[1-6]|li|ul|ol)>/ig, ' </$1>').replace(/<br[^>]*>/ig, ' ');
@@ -244,7 +262,7 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                 onChange={e => setNewFolderName(e.target.value)}
                                 onKeyDown={e => {
                                     if (e.key === 'Enter' && newFolderName.trim()) {
-                                        onFolderAdd({ id: generateId(), name: newFolderName.trim(), createdAt: Date.now() });
+                                        onFolderAdd({ id: generateId(), name: newFolderName.trim(), createdAt: Date.now(), parentId: activeFolderId || undefined });
                                         setNewFolderName('');
                                         setIsAddingFolder(false);
                                     } else if (e.key === 'Escape') {
@@ -259,27 +277,32 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                     )}
                     {activeFolderId && (
                         <button
-                            onClick={() => setActiveFolderId(null)}
+                            onClick={() => {
+                                const current = state.noteFolders.find(f => f.id === activeFolderId);
+                                setActiveFolderId(current?.parentId || null);
+                            }}
                             className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors rounded"
                         >
                             <ArrowLeft size={12} />
-                            Back to root
+                            Back
                         </button>
                     )}
-                    {state.noteFolders.map(folder => (
-                        <div
-                            key={folder.id}
-                            className={`group flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${activeFolderId === folder.id ? 'bg-zinc-800 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}
-                        >
-                            <div className="flex items-center gap-2 flex-1" onClick={() => setActiveFolderId(folder.id)}>
-                                <Folder size={12} className={activeFolderId === folder.id ? 'text-emerald-500' : 'text-zinc-500'} />
-                                <span className="font-medium truncate">{folder.name}</span>
+                    {state.noteFolders
+                        .filter(f => (f.parentId || null) === (activeFolderId || null))
+                        .map(folder => (
+                            <div
+                                key={folder.id}
+                                className={`group flex items-center justify-between px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${activeFolderId === folder.id ? 'bg-zinc-800 text-emerald-500' : 'text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200'}`}
+                            >
+                                <div className="flex items-center gap-2 flex-1" onClick={() => setActiveFolderId(folder.id)}>
+                                    <Folder size={12} className={activeFolderId === folder.id ? 'text-emerald-500' : 'text-zinc-500'} />
+                                    <span className="font-medium truncate">{folder.name}</span>
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); onFolderDelete(folder.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-opacity">
+                                    <Trash2 size={10} />
+                                </button>
                             </div>
-                            <button onClick={(e) => { e.stopPropagation(); onFolderDelete(folder.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-opacity">
-                                <Trash2 size={10} />
-                            </button>
-                        </div>
-                    ))}
+                        ))}
                 </div>
 
                 {/* NOTES LIST */}
@@ -348,8 +371,10 @@ const NotesView: React.FC<Props> = ({ state, onUpdate, onAdd, onDelete, onFolder
                                         className="bg-transparent text-xs text-zinc-400 hover:text-zinc-300 outline-none cursor-pointer border-none p-0 focus:ring-0 appearance-none font-mono"
                                     >
                                         <option value="">[ /Inbox ]</option>
-                                        {state.noteFolders.map(f => (
-                                            <option key={f.id} value={f.id}>[ /{f.name} ]</option>
+                                        {getFolderOptions().map(f => (
+                                            <option key={f.id} value={f.id}>
+                                                [ /{'\u00A0'.repeat(f.indentLevel * 3)}{f.name} ]
+                                            </option>
                                         ))}
                                     </select>
                                 </div>

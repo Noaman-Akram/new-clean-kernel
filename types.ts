@@ -160,13 +160,15 @@ export interface Client { // Acts as "Entity" (Person or Company)
 
 export interface Transaction {
   id: string;
-  amount: number;
+  amount: number; // positive = income, negative = expense
   date: number;
   description: string;
   type: 'INCOME' | 'EXPENSE';
   category: string;
   accountId?: string;
   relatedEntityId?: string; // Link to Client/Entity
+  notes?: string;
+  tags?: string[];
 }
 
 export type AccountType = 'CASH' | 'BANK' | 'CRYPTO' | 'ASSET';
@@ -178,6 +180,75 @@ export interface Account {
   currency: 'USD' | 'EGP';
   note?: string;
   color?: string; // For visual identification
+}
+// Finance Categories
+export interface FinanceCategory {
+  id: string;
+  name: string;
+  icon: string;
+  type: 'INCOME' | 'EXPENSE' | 'BOTH';
+  order: number;
+  archived: boolean;
+}
+
+// Forecast
+export type ForecastStatus = 'planned' | 'recurring' | 'potential' | 'scenario';
+
+export interface ForecastEntry {
+  id: string;
+  amount: number; // positive = income, negative = expense
+  date: number;
+  description: string;
+  type: 'INCOME' | 'EXPENSE';
+  category: string;
+  accountId?: string;
+  notes?: string;
+  tags?: string[];
+  status: ForecastStatus;
+  recurringRuleId?: string;
+}
+
+// Recurring Rules
+export type RecurringFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+
+export interface RecurringRule {
+  id: string;
+  description: string;
+  amount: number; // always positive
+  type: 'INCOME' | 'EXPENSE';
+  category: string;
+  accountId?: string;
+  frequency: RecurringFrequency;
+  startDate: number;
+  endDate?: number;
+  active: boolean;
+  notes?: string;
+  isSubscription: boolean;
+  nextOccurrence?: number;
+}
+
+// Obligations
+export type ObligationType = 'OWED_TO_ME' | 'I_OWE' | 'ITEM_BORROWED' | 'ITEM_LENT' | 'SERVICE_OWED';
+
+export interface Obligation {
+  id: string;
+  type: ObligationType;
+  description: string;
+  amount?: number;
+  entityName?: string;
+  date: number;
+  dueDate?: number;
+  settled: boolean;
+  settledDate?: number;
+  notes?: string;
+}
+
+// Ledger Settings
+export interface LedgerSettings {
+  amountPresets: number[];
+  defaultAccountId?: string;
+  defaultCurrency: string;
+  confirmQuickLog: boolean;
 }
 
 export interface ShoppingListItem {
@@ -484,6 +555,11 @@ export interface AppState {
   clients: Client[];
   transactions: Transaction[];
   accounts: Account[];
+  financeCategories: FinanceCategory[];
+  forecastEntries: ForecastEntry[];
+  recurringRules: RecurringRule[];
+  obligations: Obligation[];
+  ledgerSettings: LedgerSettings;
   shoppingList: ShoppingListItem[];
   notes: Note[];
   noteFolders: NoteFolder[];

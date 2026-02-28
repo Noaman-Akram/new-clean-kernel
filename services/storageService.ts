@@ -1,4 +1,4 @@
-import { AppState, UserPreferences } from '../types';
+import { AppState, UserPreferences, FinanceCategory, LedgerSettings } from '../types';
 import { db } from './firebase';
 import { getDefaultUserPreferences, getDefaultProtocolContexts, getDefaultWeeklyActivities } from '../defaultPreferences';
 import {
@@ -38,6 +38,45 @@ let currentUserId: string | null = null;
 let lastSnapshotMeta: SnapshotMeta = { version: 0, updatedAt: 0, clientId: null };
 let lastSavedState: AppState | null = null;
 
+
+// --- DEFAULT FINANCE CATEGORIES ---
+const DEFAULT_FINANCE_CATEGORIES: FinanceCategory[] = [
+  { id: 'fc-salary', name: 'Salary', icon: '💼', type: 'INCOME', order: 1, archived: false },
+  { id: 'fc-freelance', name: 'Freelance', icon: '💻', type: 'INCOME', order: 2, archived: false },
+  { id: 'fc-investment', name: 'Investments', icon: '📈', type: 'INCOME', order: 3, archived: false },
+  { id: 'fc-gift-in', name: 'Gift Received', icon: '🎁', type: 'INCOME', order: 4, archived: false },
+  { id: 'fc-transfer-in', name: 'Transfer In', icon: '💸', type: 'BOTH', order: 5, archived: false },
+  { id: 'fc-other-income', name: 'Other Income', icon: '✅', type: 'INCOME', order: 6, archived: false },
+  { id: 'fc-housing', name: 'Housing & Rent', icon: '🏠', type: 'EXPENSE', order: 7, archived: false },
+  { id: 'fc-utilities', name: 'Utilities & Bills', icon: '🔌', type: 'EXPENSE', order: 8, archived: false },
+  { id: 'fc-dining', name: 'Dining Out', icon: '🍔', type: 'EXPENSE', order: 9, archived: false },
+  { id: 'fc-groceries', name: 'Groceries', icon: '🛒', type: 'EXPENSE', order: 10, archived: false },
+  { id: 'fc-coffee', name: 'Coffee & Cafes', icon: '☕', type: 'EXPENSE', order: 11, archived: false },
+  { id: 'fc-transport', name: 'Transport', icon: '🚗', type: 'EXPENSE', order: 12, archived: false },
+  { id: 'fc-fuel', name: 'Fuel', icon: '⛽', type: 'EXPENSE', order: 13, archived: false },
+  { id: 'fc-health', name: 'Health & Medical', icon: '🏥', type: 'EXPENSE', order: 14, archived: false },
+  { id: 'fc-pharmacy', name: 'Pharmacy', icon: '💊', type: 'EXPENSE', order: 15, archived: false },
+  { id: 'fc-education', name: 'Education & Books', icon: '🎓', type: 'EXPENSE', order: 16, archived: false },
+  { id: 'fc-clothing', name: 'Clothing & Fashion', icon: '👗', type: 'EXPENSE', order: 17, archived: false },
+  { id: 'fc-shopping', name: 'Shopping & Retail', icon: '🛍️', type: 'EXPENSE', order: 18, archived: false },
+  { id: 'fc-entertainment', name: 'Entertainment', icon: '🎮', type: 'EXPENSE', order: 19, archived: false },
+  { id: 'fc-subscriptions', name: 'Subscriptions', icon: '📱', type: 'EXPENSE', order: 20, archived: false },
+  { id: 'fc-travel', name: 'Travel', icon: '✈️', type: 'EXPENSE', order: 21, archived: false },
+  { id: 'fc-business', name: 'Business Expenses', icon: '🏢', type: 'EXPENSE', order: 22, archived: false },
+  { id: 'fc-gifts-out', name: 'Gifts & Donations', icon: '🤲', type: 'EXPENSE', order: 23, archived: false },
+  { id: 'fc-tech', name: 'Tech & Electronics', icon: '🖥️', type: 'EXPENSE', order: 24, archived: false },
+  { id: 'fc-personal-care', name: 'Personal Care', icon: '💈', type: 'EXPENSE', order: 25, archived: false },
+  { id: 'fc-banking', name: 'Banking & Fees', icon: '🏦', type: 'EXPENSE', order: 26, archived: false },
+  { id: 'fc-repairs', name: 'Repairs & Maintenance', icon: '🔧', type: 'EXPENSE', order: 27, archived: false },
+  { id: 'fc-other', name: 'Other', icon: '❓', type: 'BOTH', order: 28, archived: false },
+];
+
+const DEFAULT_LEDGER_SETTINGS: LedgerSettings = {
+  amountPresets: [25, 50, 100, 200, 500, 1000],
+  defaultCurrency: 'USD',
+  confirmQuickLog: false,
+};
+
 // --- DEFAULT STATE ---
 const INITIAL_STATE: AppState = {
   activeSession: {
@@ -47,12 +86,17 @@ const INITIAL_STATE: AppState = {
   tasks: [],
   clients: [],
   transactions: [],
+  accounts: [],
+  financeCategories: DEFAULT_FINANCE_CATEGORIES,
+  forecastEntries: [],
+  recurringRules: [],
+  obligations: [],
+  ledgerSettings: DEFAULT_LEDGER_SETTINGS,
   notes: [],
   noteFolders: [],
   resources: [],
   marketing: [],
   activities: [],
-  accounts: [],
   shoppingList: [],
   workoutSessions: [],
   workoutTemplates: [],
@@ -144,6 +188,15 @@ const normalizeState = (state: Partial<AppState> | null | undefined): AppState =
     weeklyActivities: state?.weeklyActivities || INITIAL_STATE.weeklyActivities,
     dailyProtocolState: state?.dailyProtocolState || {},
     timeBlocks: state?.timeBlocks || {},
+    financeCategories: Array.isArray(state?.financeCategories) && state.financeCategories.length > 0
+      ? state.financeCategories
+      : DEFAULT_FINANCE_CATEGORIES,
+    forecastEntries: state?.forecastEntries || [],
+    recurringRules: state?.recurringRules || [],
+    obligations: state?.obligations || [],
+    ledgerSettings: state?.ledgerSettings
+      ? { ...DEFAULT_LEDGER_SETTINGS, ...state.ledgerSettings }
+      : DEFAULT_LEDGER_SETTINGS,
   };
 };
 
@@ -296,6 +349,14 @@ const computeChanges = (prevState: AppState, nextState: AppState): ChangeRecord[
   changes.push(...diffArrayById('client', prevState.clients, nextState.clients));
   changes.push(...diffArrayById('transaction', prevState.transactions, nextState.transactions));
   changes.push(...diffArrayById('account', prevState.accounts, nextState.accounts));
+  if (prevState.financeCategories && nextState.financeCategories)
+    changes.push(...diffArrayById('financeCategory', prevState.financeCategories, nextState.financeCategories));
+  if (prevState.forecastEntries && nextState.forecastEntries)
+    changes.push(...diffArrayById('forecastEntry', prevState.forecastEntries, nextState.forecastEntries));
+  if (prevState.recurringRules && nextState.recurringRules)
+    changes.push(...diffArrayById('recurringRule', prevState.recurringRules, nextState.recurringRules));
+  if (prevState.obligations && nextState.obligations)
+    changes.push(...diffArrayById('obligation', prevState.obligations, nextState.obligations));
   changes.push(...diffArrayById('shoppingItem', prevState.shoppingList, nextState.shoppingList));
   changes.push(...diffArrayById('note', prevState.notes, nextState.notes));
   changes.push(...diffArrayById('noteFolder', prevState.noteFolders, nextState.noteFolders));

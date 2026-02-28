@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, NoteFolder, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession, TimeBlock } from './types';
+import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, NoteFolder, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession, TimeBlock, FinanceCategory, ForecastEntry, RecurringRule, Obligation, LedgerSettings } from './types';
 import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
 import { auth } from './services/firebase';
 import { generateId } from './utils';
@@ -287,6 +287,115 @@ const App: React.FC = () => {
     setState(prev => prev ? ({
       ...prev,
       accounts: prev.accounts.filter(a => a.id !== id)
+    }) : null);
+  }
+
+  const handleTransactionUpdate = (id: string, updates: Partial<Transaction>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      transactions: prev.transactions.map(t => t.id === id ? { ...t, ...updates } : t)
+    }) : null);
+  }
+
+  const handleFinanceCategoryAdd = (cat: FinanceCategory) => {
+    setState(prev => prev ? ({ ...prev, financeCategories: [...(prev.financeCategories || []), cat] }) : null);
+  }
+
+  const handleFinanceCategoryUpdate = (id: string, updates: Partial<FinanceCategory>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      financeCategories: (prev.financeCategories || []).map(c => c.id === id ? { ...c, ...updates } : c)
+    }) : null);
+  }
+
+  const handleFinanceCategoryDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      financeCategories: (prev.financeCategories || []).filter(c => c.id !== id)
+    }) : null);
+  }
+
+  const handleForecastEntryAdd = (entry: ForecastEntry) => {
+    setState(prev => prev ? ({ ...prev, forecastEntries: [entry, ...(prev.forecastEntries || [])] }) : null);
+  }
+
+  const handleForecastEntryUpdate = (id: string, updates: Partial<ForecastEntry>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      forecastEntries: (prev.forecastEntries || []).map(e => e.id === id ? { ...e, ...updates } : e)
+    }) : null);
+  }
+
+  const handleForecastEntryDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      forecastEntries: (prev.forecastEntries || []).filter(e => e.id !== id)
+    }) : null);
+  }
+
+  const handleForecastEntryApprove = (id: string) => {
+    setState(prev => {
+      if (!prev) return null;
+      const entry = (prev.forecastEntries || []).find(e => e.id === id);
+      if (!entry) return prev;
+      const tx: Transaction = {
+        id: generateId(),
+        amount: entry.amount,
+        date: entry.date,
+        description: entry.description,
+        type: entry.type,
+        category: entry.category,
+        accountId: entry.accountId,
+        notes: entry.notes,
+      };
+      return {
+        ...prev,
+        transactions: [tx, ...prev.transactions],
+        forecastEntries: (prev.forecastEntries || []).filter(e => e.id !== id)
+      };
+    });
+  }
+
+  const handleRecurringRuleAdd = (rule: RecurringRule) => {
+    setState(prev => prev ? ({ ...prev, recurringRules: [...(prev.recurringRules || []), rule] }) : null);
+  }
+
+  const handleRecurringRuleUpdate = (id: string, updates: Partial<RecurringRule>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      recurringRules: (prev.recurringRules || []).map(r => r.id === id ? { ...r, ...updates } : r)
+    }) : null);
+  }
+
+  const handleRecurringRuleDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      recurringRules: (prev.recurringRules || []).filter(r => r.id !== id)
+    }) : null);
+  }
+
+  const handleObligationAdd = (obligation: Obligation) => {
+    setState(prev => prev ? ({ ...prev, obligations: [obligation, ...(prev.obligations || [])] }) : null);
+  }
+
+  const handleObligationUpdate = (id: string, updates: Partial<Obligation>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      obligations: (prev.obligations || []).map(o => o.id === id ? { ...o, ...updates } : o)
+    }) : null);
+  }
+
+  const handleObligationDelete = (id: string) => {
+    setState(prev => prev ? ({
+      ...prev,
+      obligations: (prev.obligations || []).filter(o => o.id !== id)
+    }) : null);
+  }
+
+  const handleLedgerSettingsUpdate = (updates: Partial<LedgerSettings>) => {
+    setState(prev => prev ? ({
+      ...prev,
+      ledgerSettings: { ...(prev.ledgerSettings || {}), ...updates } as LedgerSettings
     }) : null);
   }
 
@@ -862,10 +971,25 @@ const App: React.FC = () => {
         return <LedgerView
           state={state}
           onAdd={handleTransactionAdd}
+          onUpdate={handleTransactionUpdate}
+          onDeleteTransaction={handleTransactionDelete}
           onAddAccount={handleAccountAdd}
           onUpdateAccount={handleAccountUpdate}
           onDeleteAccount={handleAccountDelete}
-          onDeleteTransaction={handleTransactionDelete}
+          onAddCategory={handleFinanceCategoryAdd}
+          onUpdateCategory={handleFinanceCategoryUpdate}
+          onDeleteCategory={handleFinanceCategoryDelete}
+          onAddForecastEntry={handleForecastEntryAdd}
+          onUpdateForecastEntry={handleForecastEntryUpdate}
+          onDeleteForecastEntry={handleForecastEntryDelete}
+          onApproveForecastEntry={handleForecastEntryApprove}
+          onAddRecurringRule={handleRecurringRuleAdd}
+          onUpdateRecurringRule={handleRecurringRuleUpdate}
+          onDeleteRecurringRule={handleRecurringRuleDelete}
+          onAddObligation={handleObligationAdd}
+          onUpdateObligation={handleObligationUpdate}
+          onDeleteObligation={handleObligationDelete}
+          onUpdateLedgerSettings={handleLedgerSettingsUpdate}
         />;
       case Page.MARKETING:
         return <MarketingView state={state} onAdd={handleMarketingAdd} onUpdate={handleMarketingUpdate} onDelete={handleMarketingDelete} />;

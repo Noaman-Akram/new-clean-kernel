@@ -167,6 +167,7 @@ export interface Transaction {
   category: string;
   accountId?: string;
   relatedEntityId?: string; // Link to Client/Entity
+  fees?: number; // display-only, does NOT affect running balance
   notes?: string;
   tags?: string[];
 }
@@ -249,6 +250,8 @@ export interface LedgerSettings {
   defaultAccountId?: string;
   defaultCurrency: string;
   confirmQuickLog: boolean;
+  tablePreset?: string; // 'compact' | 'standard' | 'detailed' | 'simple'
+  columnOverrides?: Record<string, boolean>; // per-column visibility overrides
 }
 
 export interface ShoppingListItem {

@@ -71,6 +71,11 @@ const App: React.FC = () => {
   const isDirtyRef = useRef(false);
   const hasHydratedRef = useRef(false);
   const [showChallengeSetup, setShowChallengeSetup] = useState(false);
+  const [systemNotice, setSystemNotice] = useState<{
+    level: 'INFO' | 'SUCCESS' | 'WARN' | 'ERROR';
+    text: string;
+    createdAt: number;
+  } | null>(null);
   const lastRemoteVersionRef = useRef(0);
   const TIME_ZONES = [
     'Africa/Cairo',
@@ -161,6 +166,12 @@ const App: React.FC = () => {
     };
   }, [authUser]);
 
+  useEffect(() => {
+    if (!systemNotice) return;
+    const timer = setTimeout(() => setSystemNotice(null), 7000);
+    return () => clearTimeout(timer);
+  }, [systemNotice]);
+
   // --- PERSISTENCE ---
   useEffect(() => {
     if (!state || loading) return;
@@ -212,6 +223,16 @@ const App: React.FC = () => {
   const handleNavigate = (page: Page) => {
     setCurrentPage(page);
     localStorage.setItem('noeman_local_page', page);
+  };
+
+  const pushSystemNotice = (notice: {
+    level: 'INFO' | 'SUCCESS' | 'WARN' | 'ERROR';
+    text: string;
+  }) => {
+    setSystemNotice({
+      ...notice,
+      createdAt: Date.now(),
+    });
   };
 
   const handleTaskAdd = (
@@ -999,6 +1020,7 @@ const App: React.FC = () => {
           onChatUpdate={handleChatUpdate}
           onAddGoal={handleHorizonGoalAdd}
           onUpdateGoal={handleHorizonGoalUpdate}
+          onSystemNotice={pushSystemNotice}
         />;
       case Page.SUPPLICATIONS:
         return <SupplicationsView state={state} onPrayerToggle={handlePrayerToggle} onAdhkarToggle={handleAdhkarToggle} />;
@@ -1334,6 +1356,31 @@ const App: React.FC = () => {
             )}
           </div>
         </div>
+
+        {systemNotice && (
+          <div
+            className={`px-4 py-2 border-b text-[11px] font-mono flex items-center justify-between gap-3 ${
+              systemNotice.level === 'ERROR'
+                ? 'bg-red-950/20 border-red-500/20 text-red-300'
+                : systemNotice.level === 'WARN'
+                  ? 'bg-amber-950/20 border-amber-500/20 text-amber-300'
+                  : systemNotice.level === 'SUCCESS'
+                    ? 'bg-emerald-950/20 border-emerald-500/20 text-emerald-300'
+                    : 'bg-sky-950/20 border-sky-500/20 text-sky-300'
+            }`}
+          >
+            <div className="truncate">
+              <span className="opacity-70 mr-2">SYSTEM</span>
+              <span>{systemNotice.text}</span>
+            </div>
+            <button
+              onClick={() => setSystemNotice(null)}
+              className="uppercase tracking-wider opacity-70 hover:opacity-100 transition-opacity"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto relative pb-20 md:pb-0">
           {renderView()}

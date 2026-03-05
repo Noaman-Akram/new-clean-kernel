@@ -9,8 +9,46 @@ import {
     Plus, CreditCard, TrendingUp, TrendingDown, Wallet, Edit2, Check, X, Trash2,
     BarChart2, Calendar, Tag, RefreshCw, Filter, Settings, ArrowUpRight,
     ArrowDownLeft, ChevronDown, ChevronUp, CheckCircle, AlertCircle,
-    DollarSign, Zap, Eye, EyeOff, ToggleLeft, ToggleRight, MoreHorizontal
+    DollarSign, Zap, Eye, EyeOff, ToggleLeft, ToggleRight, MoreHorizontal, Layout
 } from 'lucide-react';
+
+// ─── TABLE COLUMN SYSTEM ──────────────────────────────────────────────────────
+
+type ColumnId = 'date' | 'description' | 'category' | 'account' | 'fees' | 'in' | 'out' | 'balance' | 'notes';
+
+interface ColDef { id: ColumnId; label: string; width: string; align?: 'right' }
+
+const COL_DEFS: ColDef[] = [
+    { id: 'date',        label: 'Date',     width: '100px' },
+    { id: 'description', label: 'Details',  width: '1fr'   },
+    { id: 'category',    label: 'Category', width: '140px' },
+    { id: 'account',     label: 'Account',  width: '90px'  },
+    { id: 'fees',        label: 'Fees',     width: '80px',  align: 'right' },
+    { id: 'in',          label: 'In',       width: '90px',  align: 'right' },
+    { id: 'out',         label: 'Out',      width: '90px',  align: 'right' },
+    { id: 'balance',     label: 'Balance',  width: '110px', align: 'right' },
+    { id: 'notes',       label: 'Notes',    width: '180px', align: 'right' },
+];
+
+type TablePresetId = 'simple' | 'compact' | 'standard' | 'detailed';
+
+const TABLE_PRESETS: { id: TablePresetId; label: string; cols: ColumnId[] }[] = [
+    { id: 'simple',   label: 'Simple',   cols: ['date', 'description', 'in', 'out', 'balance'] },
+    { id: 'compact',  label: 'Compact',  cols: ['date', 'description', 'category', 'in', 'out', 'balance'] },
+    { id: 'standard', label: 'Standard', cols: ['date', 'description', 'category', 'account', 'in', 'out', 'balance', 'notes'] },
+    { id: 'detailed', label: 'Detailed', cols: ['date', 'description', 'category', 'account', 'fees', 'in', 'out', 'balance', 'notes'] },
+];
+
+function getActiveCols(presetId: TablePresetId, overrides: Record<string, boolean>): ColumnId[] {
+    const base = TABLE_PRESETS.find(p => p.id === presetId)?.cols || TABLE_PRESETS[2].cols;
+    return COL_DEFS
+        .filter(c => (c.id in overrides ? overrides[c.id] : base.includes(c.id)))
+        .map(c => c.id);
+}
+
+function buildGrid(cols: ColumnId[]): string {
+    return cols.map(id => COL_DEFS.find(c => c.id === id)!.width).join(' ');
+}
 
 // ─── PROPS ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +76,7 @@ interface Props {
     onUpdateLedgerSettings: (updates: Partial<LedgerSettings>) => void;
 }
 
-type LedgerTab = 'ledger' | 'forecast' | 'subscriptions' | 'obligations' | 'analytics' | 'settings';
+type LedgerTab = 'ledger' | 'subscriptions' | 'obligations' | 'analytics' | 'settings';
 type DateRange = 'all' | 'this-month' | 'last-3-months' | 'this-year';
 
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
@@ -132,57 +170,55 @@ const LedgerView: React.FC<Props> = (props) => {
     }, [plannedBalance, state.forecastEntries]);
 
     const TABS: { key: LedgerTab; label: string }[] = [
-        { key: 'ledger', label: 'Ledger' },
-        { key: 'forecast', label: 'Forecast' },
+        { key: 'ledger',        label: 'Ledger' },
         { key: 'subscriptions', label: 'Subscriptions' },
-        { key: 'obligations', label: 'Obligations' },
-        { key: 'analytics', label: 'Analytics' },
-        { key: 'settings', label: 'Settings' },
+        { key: 'obligations',   label: 'Obligations' },
+        { key: 'analytics',     label: 'Analytics' },
+        { key: 'settings',      label: 'Settings' },
     ];
 
     return (
         <div className="h-full flex flex-col bg-background animate-fade-in">
             {/* ── Header ── */}
-            <div className="border-b border-border bg-surface/20 px-4 md:px-6 pt-5 pb-4 shrink-0">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+            <div className="border-b border-border bg-surface/20 px-4 md:px-6 pt-5 pb-0 shrink-0">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-5">
                     <div>
-                        <div className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                            <CreditCard size={12} /> Current Balance
+                        <div className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest mb-1">
+                            Total Balance
                         </div>
-                        <div className={`text-3xl md:text-4xl font-mono font-semibold ${currentBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
+                        <div className={`text-3xl md:text-4xl font-mono font-bold tracking-tight ${currentBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
                             {fmtCurrency(currentBalance, currency)}
                         </div>
                     </div>
-                    <div className="flex gap-4 text-right">
-                        <div>
-                            <div className="text-[10px] font-mono text-zinc-600 uppercase">Planned</div>
-                            <div className={`text-lg font-mono ${plannedBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <div className="flex gap-6 pb-1">
+                        <div className="text-right">
+                            <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-0.5">Planned</div>
+                            <div className={`text-base font-mono font-semibold ${plannedBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                 {fmtCurrency(plannedBalance, currency)}
                             </div>
                         </div>
-                        <div>
-                            <div className="text-[10px] font-mono text-zinc-600 uppercase">Potential</div>
-                            <div className="text-lg font-mono text-zinc-400">
+                        <div className="text-right">
+                            <div className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-0.5">Potential</div>
+                            <div className="text-base font-mono font-semibold text-zinc-500">
                                 {fmtCurrency(potentialBalance, currency)}
                             </div>
                         </div>
                     </div>
                 </div>
-                {/* Tab Nav */}
-                <div className="flex gap-1 overflow-x-auto">
-                    {TABS.map(t => (
-                        <button
-                            key={t.key}
-                            onClick={() => setActiveTab(t.key)}
-                            className={`px-3 py-1.5 text-xs font-mono rounded whitespace-nowrap transition-colors ${
-                                activeTab === t.key
-                                    ? 'bg-zinc-800 text-zinc-100 border border-zinc-700'
-                                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'
-                            }`}
-                        >
-                            {t.label}
-                        </button>
-                    ))}
+                {/* Tab Nav — size+weight+underline contrast */}
+                <div className="flex gap-0 overflow-x-auto">
+                    {TABS.map(t => {
+                        const isActive = activeTab === t.key;
+                        return (
+                            <button key={t.key} onClick={() => setActiveTab(t.key)}
+                                className={`relative px-4 py-2.5 whitespace-nowrap transition-all ${
+                                    isActive ? 'text-white text-sm font-semibold' : 'text-zinc-500 text-xs font-normal hover:text-zinc-300'
+                                }`}>
+                                {t.label}
+                                {isActive && <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-emerald-500 rounded-t" />}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -195,7 +231,6 @@ const LedgerView: React.FC<Props> = (props) => {
                         onOpenModal={(preset) => { setModalPreset(preset || {}); setShowModal(true); }}
                     />
                 )}
-                {activeTab === 'forecast' && <ForecastTab {...props} currency={currency} />}
                 {activeTab === 'subscriptions' && <SubscriptionsTab {...props} currency={currency} />}
                 {activeTab === 'obligations' && <ObligationsTab {...props} currency={currency} />}
                 {activeTab === 'analytics' && <AnalyticsTab {...props} currency={currency} />}
@@ -223,17 +258,23 @@ interface LedgerTabProps extends Props {
     onOpenModal: (preset?: Partial<Transaction>) => void;
 }
 
-const LedgerTab: React.FC<LedgerTabProps> = ({ state, currency, onOpenModal, onUpdate, onDeleteTransaction, onAddAccount, onUpdateAccount, onDeleteAccount }) => {
+const LedgerTab: React.FC<LedgerTabProps> = ({ state, currency, onOpenModal, onUpdate, onDeleteTransaction, onAddAccount, onUpdateAccount, onDeleteAccount, onUpdateLedgerSettings, onAddForecastEntry, onDeleteForecastEntry, onApproveForecastEntry }) => {
     const [dateRange, setDateRange] = useState<DateRange>('this-month');
     const [filterAccount, setFilterAccount] = useState('all');
     const [filterType, setFilterType] = useState<'all' | 'INCOME' | 'EXPENSE'>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [quickInput, setQuickInput] = useState('');
+    const [forecastInput, setForecastInput] = useState('');
     const [showAccounts, setShowAccounts] = useState(true);
     const [inlineEditId, setInlineEditId] = useState<string | null>(null);
     const [inlineEdit, setInlineEdit] = useState<Partial<Transaction>>({});
     const [isManagingAccounts, setIsManagingAccounts] = useState(false);
     const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
+
+    const activePreset = ((state.ledgerSettings?.tablePreset as TablePresetId) || 'standard');
+    const colOverrides = state.ledgerSettings?.columnOverrides || {};
+    const activeCols = useMemo(() => getActiveCols(activePreset, colOverrides), [activePreset, colOverrides]);
+    const gridTemplate = useMemo(() => buildGrid(activeCols), [activeCols]);
 
     const { start: rangeStart, end: rangeEnd } = getDateRangeBounds(dateRange);
 
@@ -309,56 +350,78 @@ const LedgerTab: React.FC<LedgerTabProps> = ({ state, currency, onOpenModal, onU
         { key: 'all', label: 'All' },
     ];
 
+    const handleForecastQuickSubmit = () => {
+        const parsed = parseQuickEntry(forecastInput, state.accounts);
+        if (!parsed) return;
+        const entry: ForecastEntry = {
+            id: generateId(), amount: parsed.amount!, date: Date.now() + 7 * 24 * 3600000,
+            description: parsed.description || 'Forecast entry',
+            type: parsed.type!, category: 'fc-other', status: 'planned',
+            accountId: parsed.accountId,
+        };
+        onAddForecastEntry(entry);
+        setForecastInput('');
+    };
+
     return (
         <div className="h-full flex flex-col overflow-hidden">
-            {/* Filter Bar */}
-            <div className="px-4 md:px-6 py-3 border-b border-border flex flex-wrap items-center gap-2 shrink-0 bg-surface/10">
-                <div className="flex gap-1">
+            {/* Toolbar: Quick Entry + Add */}
+            <div className="px-4 md:px-6 py-2.5 border-b border-border shrink-0 flex gap-2 items-center">
+                <Zap size={13} className="text-zinc-600 shrink-0" />
+                <input value={quickInput} onChange={e => setQuickInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleQuickSubmit(); }}
+                    placeholder="Quick entry: 50 coffee · +3000 salary wise · 200 rent"
+                    className="flex-1 bg-transparent text-sm text-zinc-200 placeholder-zinc-600 outline-none font-mono" />
+                <button onClick={() => onOpenModal()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold transition-colors shrink-0">
+                    <Plus size={13} /> Add
+                </button>
+            </div>
+
+            {/* Filter Row — high contrast chips */}
+            <div className="px-4 md:px-6 py-2 border-b border-border/50 shrink-0 flex flex-wrap items-center gap-2">
+                <div className="flex gap-0.5">
                     {DATE_RANGES.map(r => (
                         <button key={r.key} onClick={() => setDateRange(r.key)}
-                            className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors ${dateRange === r.key ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'}`}>
+                            className={`px-2.5 py-1 rounded-full text-xs font-mono transition-all ${
+                                dateRange === r.key ? 'bg-white text-black font-semibold' : 'text-zinc-500 hover:text-zinc-300'
+                            }`}>
                             {r.label}
                         </button>
                     ))}
                 </div>
+                <div className="w-px h-3 bg-zinc-800" />
+                {(['all', 'INCOME', 'EXPENSE'] as const).map(t => (
+                    <button key={t} onClick={() => setFilterType(t)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-mono transition-all ${
+                            filterType === t ? 'bg-white text-black font-semibold' : 'text-zinc-500 hover:text-zinc-300'
+                        }`}>
+                        {t === 'all' ? 'All' : t === 'INCOME' ? 'In' : 'Out'}
+                    </button>
+                ))}
                 <select value={filterAccount} onChange={e => setFilterAccount(e.target.value)}
-                    className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 outline-none">
+                    className="bg-transparent border-0 text-xs text-zinc-500 outline-none cursor-pointer hover:text-zinc-300">
                     <option value="all">All Accounts</option>
                     {state.accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
-                <div className="flex gap-1">
-                    {(['all', 'INCOME', 'EXPENSE'] as const).map(t => (
-                        <button key={t} onClick={() => setFilterType(t)}
-                            className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors ${filterType === t ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900'}`}>
-                            {t === 'all' ? 'All' : t === 'INCOME' ? 'In' : 'Out'}
-                        </button>
-                    ))}
-                </div>
                 <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search..."
-                    className="bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1 text-xs text-zinc-300 outline-none w-32 focus:border-zinc-600" />
-                <div className="ml-auto flex gap-2">
-                    <button onClick={() => setIsManagingAccounts(!isManagingAccounts)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 text-zinc-400 border border-zinc-800 rounded text-xs font-mono hover:bg-zinc-800 transition-colors">
-                        <Wallet size={12} /> Accounts
-                    </button>
-                    <button onClick={() => onOpenModal()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-black rounded text-xs font-semibold hover:bg-zinc-200 transition-colors">
-                        <Plus size={12} /> Add
-                    </button>
-                </div>
-            </div>
+                    className="bg-zinc-900 border border-zinc-800 rounded px-2 py-0.5 text-xs text-zinc-300 outline-none w-24 focus:border-zinc-600" />
 
-            {/* Quick Entry Bar */}
-            <div className="px-4 md:px-6 py-2 border-b border-border shrink-0">
-                <div className="flex gap-2">
-                    <input value={quickInput} onChange={e => setQuickInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleQuickSubmit(); }}
-                        placeholder="Quick entry: 50 coffee · +3000 salary wise · 200 rent"
-                        className="flex-1 bg-zinc-950 border border-zinc-800 rounded px-3 py-1.5 text-xs text-zinc-300 placeholder-zinc-600 outline-none focus:border-zinc-600 font-mono" />
-                    <button onClick={handleQuickSubmit}
-                        className="px-3 py-1.5 bg-zinc-800 text-zinc-300 rounded text-xs hover:bg-zinc-700 transition-colors">
-                        <Zap size={12} />
+                {/* Preset selector — secondary focus, small size */}
+                <div className="ml-auto flex items-center gap-1">
+                    <Layout size={11} className="text-zinc-700" />
+                    {TABLE_PRESETS.map(p => (
+                        <button key={p.id} onClick={() => onUpdateLedgerSettings({ tablePreset: p.id })}
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+                                activePreset === p.id ? 'bg-zinc-800 text-zinc-300 font-semibold' : 'text-zinc-700 hover:text-zinc-500'
+                            }`}>
+                            {p.label}
+                        </button>
+                    ))}
+                    <button onClick={() => setIsManagingAccounts(!isManagingAccounts)}
+                        className="ml-2 text-zinc-700 hover:text-zinc-400 p-1 transition-colors">
+                        <Wallet size={12} />
                     </button>
                 </div>
             </div>
@@ -398,33 +461,28 @@ const LedgerTab: React.FC<LedgerTabProps> = ({ state, currency, onOpenModal, onU
                 )}
 
                 {/* Running Balance Table */}
-                <div className="text-[10px] font-mono text-zinc-600 uppercase mb-3">
-                    {filteredTxs.length} transactions · {DATE_RANGES.find(r => r.key === dateRange)?.label || 'All'}
+                <div className="text-[10px] font-mono text-zinc-600 uppercase mb-2">
+                    {filteredTxs.length} entries
                 </div>
 
-                <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                <div className="border border-zinc-800/60 rounded-lg overflow-hidden">
                     {/* Table Header */}
-                    <div className="hidden md:grid grid-cols-[100px_1fr_140px_90px_90px_110px_180px] bg-zinc-900 px-4 py-2 text-[10px] font-mono text-zinc-600 uppercase border-b border-zinc-800">
-                        <span>Date</span>
-                        <span>Description</span>
-                        <span>Category</span>
-                        <span className="text-right">In</span>
-                        <span className="text-right">Out</span>
-                        <span className="text-right">Balance</span>
-                        <span className="text-right">Notes</span>
+                    <div className="hidden md:grid px-4 py-2 text-[9px] font-mono text-zinc-600 uppercase tracking-widest border-b border-zinc-800 bg-zinc-900/50"
+                        style={{ gridTemplateColumns: gridTemplate }}>
+                        {activeCols.map(col => {
+                            const def = COL_DEFS.find(c => c.id === col)!;
+                            return <span key={col} className={def.align === 'right' ? 'text-right' : ''}>{def.label}</span>;
+                        })}
                     </div>
 
                     {/* Starting Balance Row */}
-                    <div className="hidden md:grid grid-cols-[100px_1fr_140px_90px_90px_110px_180px] px-4 py-2.5 bg-zinc-900/40 border-b border-zinc-800 text-xs">
-                        <span className="text-zinc-600 font-mono">—</span>
-                        <span className="text-zinc-500 font-mono italic">Starting Balance</span>
-                        <span />
-                        <span />
-                        <span />
-                        <span className={`text-right font-mono text-sm font-medium ${startingBalance >= 0 ? 'text-zinc-300' : 'text-red-400'}`}>
-                            {fmtCurrency(startingBalance, currency)}
-                        </span>
-                        <span />
+                    <div className="hidden md:grid px-4 py-2 border-b border-zinc-800/60 bg-zinc-900/20"
+                        style={{ gridTemplateColumns: gridTemplate }}>
+                        {activeCols.map(col => {
+                            if (col === 'description') return <span key={col} className="text-zinc-600 text-xs font-mono italic">Starting Balance</span>;
+                            if (col === 'balance') return <span key={col} className={`text-xs font-mono text-right ${startingBalance >= 0 ? 'text-zinc-500' : 'text-red-400'}`}>{fmtCurrency(startingBalance, currency)}</span>;
+                            return <span key={col} />;
+                        })}
                     </div>
 
                     {/* Month Groups */}
@@ -438,11 +496,11 @@ const LedgerTab: React.FC<LedgerTabProps> = ({ state, currency, onOpenModal, onU
                         return (
                             <div key={monthKey}>
                                 {/* Month Header */}
-                                <div className="flex items-center gap-3 px-4 py-2 bg-zinc-900/60 border-b border-zinc-800 sticky top-0 z-10">
-                                    <span className="text-xs font-mono text-zinc-400 font-medium">{monthKey}</span>
-                                    <span className="text-[10px] text-emerald-600 font-mono">+{fmtCurrency(monthIn, currency)}</span>
-                                    <span className="text-[10px] text-zinc-600 font-mono">-{fmtCurrency(monthOut, currency)}</span>
-                                    <span className={`text-[10px] font-mono ml-auto ${monthNet >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                <div className="flex items-center gap-3 px-4 py-1.5 bg-zinc-900/50 border-b border-zinc-800/60 sticky top-0 z-10">
+                                    <span className="text-[10px] font-mono text-zinc-400 font-semibold uppercase tracking-wider">{monthKey}</span>
+                                    <span className="text-[9px] text-emerald-700 font-mono">+{fmtCurrency(monthIn, currency)}</span>
+                                    <span className="text-[9px] text-zinc-700 font-mono">−{fmtCurrency(monthOut, currency)}</span>
+                                    <span className={`text-[9px] font-mono ml-auto ${monthNet >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                         net {monthNet >= 0 ? '+' : ''}{fmtCurrency(monthNet, currency)}
                                     </span>
                                 </div>
@@ -450,85 +508,109 @@ const LedgerTab: React.FC<LedgerTabProps> = ({ state, currency, onOpenModal, onU
                                 {monthTxs.map(tx => {
                                     const isEditing = inlineEditId === tx.id;
                                     const cat = state.financeCategories.find(c => c.id === tx.category || c.name === tx.category);
-                                    const acctName = state.accounts.find(a => a.id === tx.accountId)?.name || '';
+                                    const acc = state.accounts.find(a => a.id === tx.accountId);
                                     return (
-                                        <div key={tx.id} className="group border-b border-zinc-900">
-                                            {/* Desktop Row */}
-                                            <div className="hidden md:grid grid-cols-[100px_1fr_140px_90px_90px_110px_180px] px-4 py-3 hover:bg-zinc-900/30 transition-colors items-center">
-                                                <span className="text-[11px] text-zinc-500 font-mono">{fmtDate(tx.date)}</span>
-                                                <div className="flex items-center gap-1 min-w-0">
-                                                    {isEditing ? (
-                                                        <input autoFocus value={inlineEdit.description || ''}
-                                                            onChange={e => setInlineEdit(prev => ({ ...prev, description: e.target.value }))}
-                                                            onKeyDown={e => { if (e.key === 'Enter') saveInlineEdit(); if (e.key === 'Escape') setInlineEditId(null); }}
-                                                            className="bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-sm text-zinc-200 outline-none w-full font-medium" />
-                                                    ) : (
-                                                        <span onClick={() => startInlineEdit(tx)}
-                                                            className="text-sm text-zinc-200 font-medium cursor-text hover:text-white truncate">
-                                                            {tx.description || <span className="text-zinc-600 italic">no description</span>}
+                                        <div key={tx.id} className="group border-b border-zinc-900/80">
+                                            {/* Desktop Row — dynamic grid */}
+                                            <div className="hidden md:grid px-4 py-2.5 hover:bg-zinc-900/30 transition-colors items-center"
+                                                style={{ gridTemplateColumns: gridTemplate }}>
+                                                {activeCols.map(col => {
+                                                    if (col === 'date') return (
+                                                        <span key={col} className="text-[11px] text-zinc-500 font-mono">{fmtDate(tx.date)}</span>
+                                                    );
+                                                    if (col === 'description') return (
+                                                        <div key={col} className="flex items-center gap-1 min-w-0">
+                                                            {isEditing ? (
+                                                                <input autoFocus value={inlineEdit.description || ''}
+                                                                    onChange={e => setInlineEdit(prev => ({ ...prev, description: e.target.value }))}
+                                                                    onKeyDown={e => { if (e.key === 'Enter') saveInlineEdit(); if (e.key === 'Escape') setInlineEditId(null); }}
+                                                                    className="bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-sm text-zinc-200 outline-none w-full font-medium" />
+                                                            ) : (
+                                                                <span onClick={() => startInlineEdit(tx)}
+                                                                    className="text-sm text-zinc-100 font-medium cursor-text hover:text-white truncate">
+                                                                    {tx.description || <span className="text-zinc-600 italic">no description</span>}
+                                                                </span>
+                                                            )}
+                                                            <div className="ml-auto flex gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                                                                <button onClick={() => startInlineEdit(tx)} className="p-0.5 text-zinc-600 hover:text-zinc-400"><Edit2 size={10} /></button>
+                                                                <button onClick={() => onDeleteTransaction(tx.id)} className="p-0.5 text-zinc-700 hover:text-red-400"><Trash2 size={10} /></button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                    if (col === 'category') return (
+                                                        <div key={col}>
+                                                            {isEditing ? (
+                                                                <input value={inlineEdit.category || ''}
+                                                                    onChange={e => setInlineEdit(prev => ({ ...prev, category: e.target.value }))}
+                                                                    className="bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-xs text-zinc-300 outline-none w-full font-mono" />
+                                                            ) : (
+                                                                <span className="text-[10px] font-mono text-zinc-500">
+                                                                    {cat ? `${cat.icon} ${cat.name}` : tx.category}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                    if (col === 'account') return (
+                                                        <span key={col} className="text-[10px] text-zinc-600 font-mono">{acc?.name || '—'}</span>
+                                                    );
+                                                    if (col === 'fees') return (
+                                                        <span key={col} className="text-xs font-mono text-zinc-700 text-right block">
+                                                            {tx.fees ? fmtCurrency(tx.fees) : '—'}
                                                         </span>
-                                                    )}
-                                                    {acctName && <span className="text-[10px] text-zinc-600 font-mono ml-1 shrink-0">{acctName}</span>}
-                                                </div>
-                                                <div>
-                                                    {isEditing ? (
-                                                        <input value={inlineEdit.category || ''}
-                                                            onChange={e => setInlineEdit(prev => ({ ...prev, category: e.target.value }))}
-                                                            className="bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-xs text-zinc-300 outline-none w-full font-mono" />
-                                                    ) : (
-                                                        <span className="text-[10px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded cursor-text" onClick={() => startInlineEdit(tx)}>
-                                                            {cat ? `${cat.icon} ${cat.name}` : tx.category}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="text-right">
-                                                    {tx.amount > 0 && <span className="text-sm font-mono text-emerald-400">{fmtCurrency(tx.amount, currency)}</span>}
-                                                </div>
-                                                <div className="text-right">
-                                                    {tx.amount < 0 && <span className="text-sm font-mono text-zinc-400">{fmtCurrency(Math.abs(tx.amount), currency)}</span>}
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className={`text-sm font-mono ${(tx as any).runningBalance >= 0 ? 'text-zinc-300' : 'text-red-400'}`}>
-                                                        {fmtCurrency((tx as any).runningBalance, currency)}
-                                                    </span>
-                                                </div>
-                                                <div className="text-right flex items-center justify-end gap-1">
-                                                    {isEditing ? (
-                                                        <>
-                                                            <input value={inlineEdit.notes || ''}
-                                                                onChange={e => setInlineEdit(prev => ({ ...prev, notes: e.target.value }))}
-                                                                placeholder="notes..."
-                                                                className="bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-xs text-zinc-300 outline-none flex-1 font-mono" />
-                                                            <button onClick={saveInlineEdit} className="text-emerald-500 hover:text-emerald-400 p-1"><Check size={12} /></button>
-                                                            <button onClick={() => setInlineEditId(null)} className="text-zinc-600 hover:text-zinc-400 p-1"><X size={12} /></button>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <span className="text-[11px] text-zinc-600 font-mono truncate max-w-[100px]">{tx.notes || ''}</span>
-                                                            <button onClick={() => startInlineEdit(tx)} className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-zinc-400 transition-all"><Edit2 size={11} /></button>
-                                                            <button onClick={() => onDeleteTransaction(tx.id)} className="opacity-0 group-hover:opacity-100 p-1 text-zinc-700 hover:text-red-400 transition-all"><Trash2 size={11} /></button>
-                                                        </>
-                                                    )}
-                                                </div>
+                                                    );
+                                                    if (col === 'in') return (
+                                                        <div key={col} className="text-right">
+                                                            {tx.amount > 0 && <span className="text-sm font-mono font-semibold text-emerald-400">{fmtCurrency(tx.amount, currency)}</span>}
+                                                        </div>
+                                                    );
+                                                    if (col === 'out') return (
+                                                        <div key={col} className="text-right">
+                                                            {tx.amount < 0 && <span className="text-sm font-mono text-zinc-400">{fmtCurrency(Math.abs(tx.amount), currency)}</span>}
+                                                        </div>
+                                                    );
+                                                    if (col === 'balance') return (
+                                                        <div key={col} className="text-right">
+                                                            <span className={`text-sm font-mono font-bold ${(tx as any).runningBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
+                                                                {fmtCurrency((tx as any).runningBalance, currency)}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                    if (col === 'notes') return (
+                                                        <div key={col} className="text-right flex items-center justify-end gap-1">
+                                                            {isEditing ? (
+                                                                <>
+                                                                    <input value={inlineEdit.notes || ''}
+                                                                        onChange={e => setInlineEdit(prev => ({ ...prev, notes: e.target.value }))}
+                                                                        placeholder="notes..."
+                                                                        className="bg-zinc-900 border border-zinc-700 rounded px-2 py-0.5 text-xs text-zinc-300 outline-none flex-1 font-mono" />
+                                                                    <button onClick={saveInlineEdit} className="text-emerald-500 hover:text-emerald-400 p-1"><Check size={12} /></button>
+                                                                    <button onClick={() => setInlineEditId(null)} className="text-zinc-600 hover:text-zinc-400 p-1"><X size={12} /></button>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-[11px] text-zinc-600 font-mono truncate max-w-[120px]">{tx.notes || ''}</span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                    return null;
+                                                })}
                                             </div>
                                             {/* Mobile Row */}
                                             <div className="md:hidden px-4 py-3 hover:bg-zinc-900/30 transition-colors">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="text-sm text-zinc-200 font-medium truncate">{tx.description}</div>
+                                                        <div className="text-sm text-zinc-100 font-medium truncate">{tx.description}</div>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <span className="text-[10px] text-zinc-600 font-mono">{fmtDate(tx.date)}</span>
-                                                            <span className="text-[10px] text-zinc-600 font-mono">{cat ? `${cat.icon} ${cat.name}` : tx.category}</span>
-                                                            {acctName && <span className="text-[10px] text-zinc-600 font-mono">{acctName}</span>}
+                                                            <span className="text-[10px] text-zinc-600">{cat ? `${cat.icon} ${cat.name}` : tx.category}</span>
+                                                            {acc && <span className="text-[10px] text-zinc-700">{acc.name}</span>}
                                                         </div>
-                                                        {tx.notes && <div className="text-[10px] text-zinc-600 mt-0.5 italic">{tx.notes}</div>}
                                                     </div>
                                                     <div className="text-right shrink-0">
-                                                        <div className={`text-sm font-mono font-medium ${tx.amount > 0 ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                                                        <div className={`text-sm font-mono font-semibold ${tx.amount > 0 ? 'text-emerald-400' : 'text-zinc-400'}`}>
                                                             {tx.amount > 0 ? '+' : ''}{fmtCurrency(tx.amount, currency)}
                                                         </div>
-                                                        <div className={`text-[10px] font-mono ${(tx as any).runningBalance >= 0 ? 'text-zinc-500' : 'text-red-500'}`}>
-                                                            bal {fmtCurrency((tx as any).runningBalance, currency)}
+                                                        <div className={`text-[10px] font-mono font-bold ${(tx as any).runningBalance >= 0 ? 'text-zinc-300' : 'text-red-400'}`}>
+                                                            {fmtCurrency((tx as any).runningBalance, currency)}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -545,15 +627,73 @@ const LedgerTab: React.FC<LedgerTabProps> = ({ state, currency, onOpenModal, onU
                     })}
 
                     {/* Closing Balance Row */}
-                    <div className="hidden md:grid grid-cols-[100px_1fr_140px_90px_90px_110px_180px] px-4 py-2.5 bg-zinc-900/40 border-t border-zinc-800 text-xs">
-                        <span className="text-zinc-600 font-mono">—</span>
-                        <span className="text-zinc-500 font-mono italic">Closing Balance</span>
-                        <span /><span /><span />
-                        <span className={`text-right font-mono text-sm font-semibold ${closingBalance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {fmtCurrency(closingBalance, currency)}
-                        </span>
-                        <span />
+                    <div className="hidden md:grid px-4 py-3 border-t-2 border-zinc-700/50 bg-zinc-900/30"
+                        style={{ gridTemplateColumns: gridTemplate }}>
+                        {activeCols.map(col => {
+                            if (col === 'description') return <span key={col} className="text-zinc-300 text-xs font-mono font-semibold">Closing Balance</span>;
+                            if (col === 'balance') return <span key={col} className={`text-sm font-mono font-bold text-right block ${closingBalance >= 0 ? 'text-white' : 'text-red-400'}`}>{fmtCurrency(closingBalance, currency)}</span>;
+                            return <span key={col} />;
+                        })}
                     </div>
+                </div>
+
+                {/* ── Forecast Section (amber / projected) ── */}
+                <div className="mt-5 mb-8 border border-dashed border-amber-900/40 rounded-xl overflow-hidden">
+                    <div className="bg-amber-950/20 px-4 py-2.5 flex items-center justify-between border-b border-amber-900/30">
+                        <div className="flex items-center gap-2">
+                            <TrendingUp size={12} className="text-amber-500" />
+                            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider font-mono">Forecast — Projected</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-amber-800">from {fmtCurrency(closingBalance, currency)}</span>
+                    </div>
+                    {/* Forecast quick entry */}
+                    <div className="px-4 py-2 border-b border-amber-900/20 bg-amber-950/10 flex items-center gap-2">
+                        <Zap size={11} className="text-amber-800 shrink-0" />
+                        <input value={forecastInput} onChange={e => setForecastInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') handleForecastQuickSubmit(); }}
+                            placeholder="+5000 client payment, −1200 rent next month..."
+                            className="flex-1 bg-transparent text-xs text-amber-200/60 placeholder-amber-900/60 outline-none" />
+                    </div>
+                    {/* Forecast rows */}
+                    {state.forecastEntries.length === 0 ? (
+                        <div className="py-6 text-center text-amber-900/60 text-xs">No forecast entries. Quick-add above or create from Subscriptions.</div>
+                    ) : (
+                        (() => {
+                            let projBal = closingBalance;
+                            return state.forecastEntries
+                                .filter(e => filterAccount === 'all' || e.accountId === filterAccount)
+                                .sort((a, b) => a.date - b.date)
+                                .map(entry => {
+                                    projBal += entry.amount;
+                                    const thisBal = projBal;
+                                    const isIncome = entry.amount > 0;
+                                    const STATUS_CLS: Record<ForecastStatus, string> = {
+                                        planned: 'text-blue-500', recurring: 'text-emerald-500',
+                                        potential: 'text-amber-500', scenario: 'text-purple-500',
+                                    };
+                                    return (
+                                        <div key={entry.id}
+                                            className="flex items-center gap-3 px-4 py-2 border-b border-amber-900/15 hover:bg-amber-950/15 transition-colors">
+                                            <span className="text-[10px] font-mono text-amber-800/70 w-16 shrink-0">{fmtDate(entry.date)}</span>
+                                            <span className="flex-1 text-xs text-amber-200/50 truncate">{entry.description}</span>
+                                            <span className={`text-[9px] font-mono shrink-0 ${STATUS_CLS[entry.status]}`}>{entry.status}</span>
+                                            <span className={`text-xs font-mono font-semibold w-20 text-right shrink-0 ${isIncome ? 'text-emerald-500/70' : 'text-red-500/70'}`}>
+                                                {isIncome ? '+' : '−'}{fmtCurrency(Math.abs(entry.amount), currency)}
+                                            </span>
+                                            <span className={`text-xs font-mono font-bold w-20 text-right shrink-0 ${thisBal >= 0 ? 'text-amber-300' : 'text-red-400'}`}>
+                                                {fmtCurrency(thisBal, currency)}
+                                            </span>
+                                            <div className="flex gap-1 shrink-0">
+                                                <button onClick={() => onApproveForecastEntry(entry.id)} title="Convert to real transaction"
+                                                    className="p-1 text-amber-800 hover:text-emerald-400 transition-colors"><Check size={11} /></button>
+                                                <button onClick={() => onDeleteForecastEntry(entry.id)}
+                                                    className="p-1 text-amber-900 hover:text-red-400 transition-colors"><X size={11} /></button>
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                        })()
+                    )}
                 </div>
             </div>
         </div>
@@ -1353,8 +1493,51 @@ const LedgerSettingsTab: React.FC<SettingsTabProps> = ({ state, onUpdateLedgerSe
         setNewCatForm({ name: '', icon: '💰', type: 'EXPENSE' });
     };
 
+    const activePresetId = ((state.ledgerSettings?.tablePreset as TablePresetId) || 'standard');
+    const colOverrides = state.ledgerSettings?.columnOverrides || {};
+
     return (
         <div className="h-full overflow-auto px-4 md:px-6 py-4 space-y-8">
+
+            {/* Table Configuration */}
+            <div>
+                <div className="text-[10px] font-mono text-zinc-600 uppercase mb-3">Table Layout</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                    {TABLE_PRESETS.map(p => (
+                        <button key={p.id} onClick={() => onUpdateLedgerSettings({ tablePreset: p.id })}
+                            className={`p-3 rounded-lg border text-left transition-all ${
+                                activePresetId === p.id
+                                    ? 'border-emerald-600 bg-emerald-900/20 text-zinc-200'
+                                    : 'border-zinc-800 bg-zinc-900/30 text-zinc-500 hover:border-zinc-700 hover:text-zinc-400'
+                            }`}>
+                            <div className="text-xs font-semibold mb-0.5">{p.label}</div>
+                            <div className="text-[10px] font-mono">{p.cols.filter(c => c !== 'actions').join(' · ')}</div>
+                        </button>
+                    ))}
+                </div>
+
+                <div className="text-[10px] font-mono text-zinc-600 uppercase mb-2">Column Overrides</div>
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-1.5">
+                    {COL_DEFS.filter(c => c.id !== 'description').map(c => {
+                        const presetDefault = TABLE_PRESETS.find(p => p.id === activePresetId)?.cols.includes(c.id) ?? false;
+                        const isOn = c.id in colOverrides ? colOverrides[c.id] : presetDefault;
+                        return (
+                            <button key={c.id} onClick={() => {
+                                const next = { ...colOverrides, [c.id]: !isOn };
+                                onUpdateLedgerSettings({ columnOverrides: next });
+                            }}
+                                className={`px-2 py-1.5 rounded border text-[10px] font-mono transition-all flex items-center gap-1.5 ${
+                                    isOn
+                                        ? 'border-zinc-600 bg-zinc-800 text-zinc-300'
+                                        : 'border-zinc-800 text-zinc-700 hover:text-zinc-500'
+                                }`}>
+                                {isOn ? <Eye size={10} /> : <EyeOff size={10} />} {c.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
             {/* Amount Presets */}
             <div>
                 <div className="text-[10px] font-mono text-zinc-600 uppercase mb-3">Amount Picker Presets</div>

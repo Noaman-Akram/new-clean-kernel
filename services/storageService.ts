@@ -75,6 +75,8 @@ const DEFAULT_LEDGER_SETTINGS: LedgerSettings = {
   amountPresets: [25, 50, 100, 200, 500, 1000],
   defaultCurrency: 'USD',
   confirmQuickLog: false,
+  tablePreset: 'standard',
+  columnOverrides: {},
 };
 
 // --- DEFAULT STATE ---

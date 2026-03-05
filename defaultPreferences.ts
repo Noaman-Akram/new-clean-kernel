@@ -1,5 +1,15 @@
-import { UserPreferences, QuickNavShortcut, QuickAction, DashboardWidgetConfig, Page, ProtocolContext, WeeklyActivities } from './types';
+import {
+  AIContextSettings,
+  UserPreferences,
+  QuickNavShortcut,
+  QuickAction,
+  DashboardWidgetConfig,
+  Page,
+  ProtocolContext,
+  WeeklyActivities,
+} from './types';
 import { generateId } from './utils';
+import { getDefaultContextPackConfigs } from './services/context/contextRegistry';
 
 // Default Protocol Contexts
 export const getDefaultProtocolContexts = (): ProtocolContext[] => [
@@ -188,6 +198,17 @@ export const getDefaultDashboardWidgets = (): DashboardWidgetConfig[] => [
 ];
 
 // Default User Preferences Factory
+export const getDefaultAIContextSettings = (): AIContextSettings => ({
+  mode: 'MANUAL_ONLY',
+  sourceUx: 'CHIPS',
+  budgetMode: 'ADAPTIVE',
+  targetTokens: 1500,
+  minTokens: 700,
+  maxTokens: 1800,
+  includeThreadMemory: true,
+  packs: getDefaultContextPackConfigs(),
+});
+
 export const getDefaultUserPreferences = (): UserPreferences => ({
   dashboard: {
     quickNavShortcuts: getDefaultQuickNavShortcuts(),
@@ -204,4 +225,5 @@ export const getDefaultUserPreferences = (): UserPreferences => ({
   dateFormat: 'US',
   timeFormat: '12h',
   currency: 'USD',
+  aiContext: getDefaultAIContextSettings(),
 });

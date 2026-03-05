@@ -307,6 +307,7 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: number;
+  contextTrace?: ContextSourceTrace[];
 }
 
 export interface ActiveSession {
@@ -448,6 +449,52 @@ export interface DashboardWidgetConfig {
   order: number;
 }
 
+export type ContextPackId =
+  | 'TASKS'
+  | 'DAY_META'
+  | 'PROTOCOLS'
+  | 'FOCUS'
+  | 'CHALLENGE'
+  | 'LEDGER'
+  | 'CRM'
+  | 'NETWORK'
+  | 'NOTES'
+  | 'RESOURCES'
+  | 'MARKETING'
+  | 'ACTIVITIES'
+  | 'GYM'
+  | 'SUPPLICATIONS';
+
+export interface ContextPackConfig {
+  id: ContextPackId;
+  enabled: boolean;
+  priority: number; // lower = higher priority
+  maxItems: number; // per-pack line cap before budget trim
+}
+
+export type ContextBudgetMode = 'ADAPTIVE' | 'STRICT' | 'RICH';
+
+export interface AIContextSettings {
+  mode: 'MANUAL_ONLY';
+  sourceUx: 'CHIPS';
+  budgetMode: ContextBudgetMode;
+  targetTokens: number;
+  minTokens: number;
+  maxTokens: number;
+  includeThreadMemory: boolean;
+  packs: ContextPackConfig[];
+}
+
+export interface ContextSourceTrace {
+  packId: ContextPackId;
+  label: string;
+  module: string;
+  asOf: number;
+  itemsUsed: number;
+  tokensUsed: number;
+  cache: 'HIT' | 'MISS';
+}
+
 export interface UserPreferences {
   dashboard: {
     quickNavShortcuts: QuickNavShortcut[];
@@ -465,6 +512,7 @@ export interface UserPreferences {
   dateFormat?: 'US' | 'EU' | 'ISO'; // MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD
   timeFormat?: '12h' | '24h';
   currency?: 'USD' | 'EGP' | 'EUR' | 'GBP';
+  aiContext?: AIContextSettings;
 }
 
 // Focus & Distraction Tracking

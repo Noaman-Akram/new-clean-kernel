@@ -1020,6 +1020,7 @@ const App: React.FC = () => {
           onChatUpdate={handleChatUpdate}
           onAddGoal={handleHorizonGoalAdd}
           onUpdateGoal={handleHorizonGoalUpdate}
+          onPreferencesUpdate={handlePreferencesUpdate}
           onSystemNotice={pushSystemNotice}
         />;
       case Page.SUPPLICATIONS:

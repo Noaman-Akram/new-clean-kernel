@@ -1,6 +1,12 @@
 import { AppState, UserPreferences, FinanceCategory, LedgerSettings } from '../types';
 import { db } from './firebase';
-import { getDefaultUserPreferences, getDefaultProtocolContexts, getDefaultWeeklyActivities } from '../defaultPreferences';
+import {
+  getDefaultAIContextSettings,
+  getDefaultUserPreferences,
+  getDefaultProtocolContexts,
+  getDefaultWeeklyActivities,
+} from '../defaultPreferences';
+import { normalizeContextPackConfigs } from './context/contextRegistry';
 import {
   addDoc,
   collection,
@@ -158,6 +164,19 @@ const INITIAL_STATE: AppState = {
 
 const normalizeUserPreferences = (preferences: Partial<UserPreferences> | undefined): UserPreferences => {
   const defaults = getDefaultUserPreferences();
+  const defaultAIContext = getDefaultAIContextSettings();
+  const incomingAIContext = preferences?.aiContext;
+  const rawMinTokens = Number.isFinite(incomingAIContext?.minTokens)
+    ? Math.round(Number(incomingAIContext?.minTokens))
+    : defaultAIContext.minTokens;
+  const rawMaxTokens = Number.isFinite(incomingAIContext?.maxTokens)
+    ? Math.round(Number(incomingAIContext?.maxTokens))
+    : defaultAIContext.maxTokens;
+  const minTokens = Math.max(300, Math.min(rawMinTokens, rawMaxTokens));
+  const maxTokens = Math.max(minTokens, rawMaxTokens);
+  const targetTokens = Number.isFinite(incomingAIContext?.targetTokens)
+    ? Math.round(Number(incomingAIContext?.targetTokens))
+    : defaultAIContext.targetTokens;
   return {
     ...defaults,
     ...preferences,
@@ -177,6 +196,18 @@ const normalizeUserPreferences = (preferences: Partial<UserPreferences> | undefi
       ...(preferences?.planner || {}),
     },
     timeZone: preferences?.timeZone || defaults.timeZone,
+    aiContext: {
+      ...defaultAIContext,
+      ...(incomingAIContext || {}),
+      mode: 'MANUAL_ONLY',
+      sourceUx: 'CHIPS',
+      budgetMode: incomingAIContext?.budgetMode || defaultAIContext.budgetMode,
+      targetTokens: Math.max(minTokens, Math.min(targetTokens, maxTokens)),
+      minTokens,
+      maxTokens,
+      includeThreadMemory: incomingAIContext?.includeThreadMemory ?? defaultAIContext.includeThreadMemory,
+      packs: normalizeContextPackConfigs(incomingAIContext?.packs),
+    },
   };
 };
 

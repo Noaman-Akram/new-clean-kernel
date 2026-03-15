@@ -1,18 +1,16 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppState, Task, TaskStatus, Category, Severity, PrayerName, DayMeta, ProtocolContext, WeeklyActivities, DayViewLayout, TimeBlock } from '../types';
 import { getPrayerTimesForDate } from '../utils/prayerTimes';
 import {
   Plus, Check, X, ChevronLeft, ChevronRight,
-  Sunrise, Sun, CloudSun, Sunset, Moon, Play, MoreHorizontal,
-  Zap, Clock, Layers, BookOpen, Dumbbell,
-  GripVertical, Trash2, ArrowRight,
-  CheckCircle2, Circle, Feather, Heart, Star
+  Sunrise, Sun, CloudSun, Sunset, Moon, Play,
+  Zap, Clock, BookOpen, Dumbbell,
+  Trash2, ArrowRight, List, Columns3,
+  CheckCircle2, Star, StickyNote, Repeat, Target, LayoutTemplate
 } from 'lucide-react';
-import { getPropheticQuoteForDate } from '../utils/quotes';
 import ProtocolsSidebar from './ProtocolsSidebar';
 import ProtocolsEditor from './ProtocolsEditor';
 import WeeklyActivitiesEditor from './WeeklyActivitiesEditor';
-import { generateId } from '../utils';
 import { DEFAULT_TIME_ZONE, dateFromDateKey, getDateKeyInTimeZone, getLocalTimestampForDateKey, shiftDateKey } from '../utils/dateTime';
 
 interface Props {
@@ -26,7 +24,6 @@ interface Props {
   onAdhkarToggle: (adhkarKey: string) => void;
   onDayMetaUpdate: (dateKey: string, updates: Partial<DayMeta>) => void;
   activeTaskId: string | null;
-  onTaskSelect: (task: Task) => void;
   onProtocolToggle?: (dateKey: string, itemId: string) => void;
   onWeeklyActivityToggle?: (dateKey: string, activityId: string) => void;
   onProtocolContextsUpdate?: (contexts: ProtocolContext[]) => void;
@@ -37,39 +34,80 @@ interface Props {
   onTimeBlockDelete?: (dateKey: string, blockId: string) => void;
 }
 
-const PRAYER_BLOCKS: { name: PrayerName; arabic: string; icon: any; color: string; bgColor: string }[] = [
-  { name: 'Fajr', arabic: 'الفجر', icon: Sunrise, color: 'text-orange-400', bgColor: 'bg-orange-500/10 border-orange-500/20' },
-  { name: 'Dhuhr', arabic: 'الظهر', icon: Sun, color: 'text-yellow-400', bgColor: 'bg-yellow-500/10 border-yellow-500/20' },
-  { name: 'Asr', arabic: 'العصر', icon: CloudSun, color: 'text-amber-400', bgColor: 'bg-amber-500/10 border-amber-500/20' },
-  { name: 'Maghrib', arabic: 'المغرب', icon: Sunset, color: 'text-orange-500', bgColor: 'bg-orange-500/10 border-orange-500/20' },
-  { name: 'Isha', arabic: 'العشاء', icon: Moon, color: 'text-indigo-400', bgColor: 'bg-indigo-500/10 border-indigo-500/20' }
+type DayTab = 'tasks' | 'habits' | 'templates';
+type ViewMode = 'list' | 'kanban';
+
+// Prayer info for rituals sidebar
+const PRAYER_ITEMS: { key: PrayerName; label: string; icon: any; color: string }[] = [
+  { key: 'Fajr', label: 'Fajr', icon: Sunrise, color: 'text-orange-400' },
+  { key: 'Dhuhr', label: 'Dhuhr', icon: Sun, color: 'text-yellow-400' },
+  { key: 'Asr', label: 'Asr', icon: CloudSun, color: 'text-amber-400' },
+  { key: 'Maghrib', label: 'Maghrib', icon: Sunset, color: 'text-orange-500' },
+  { key: 'Isha', label: 'Isha', icon: Moon, color: 'text-indigo-400' },
 ];
 
-const RITUAL_SECTIONS = [
+const EXTRA_RITUALS: { key: string; label: string; icon: any; color: string }[] = [
+  { key: 'MorningAthkar', label: 'Morning Athkar', icon: BookOpen, color: 'text-emerald-400' },
+  { key: 'EveningAthkar', label: 'Evening Athkar', icon: BookOpen, color: 'text-emerald-400' },
+  { key: 'Quran', label: 'Quran Reading', icon: BookOpen, color: 'text-teal-400' },
+  { key: 'Workout', label: 'Workout', icon: Dumbbell, color: 'text-blue-400' },
+  { key: 'Journal', label: 'Journal', icon: StickyNote, color: 'text-purple-400' },
+];
+
+const ALL_RITUAL_KEYS = [...PRAYER_ITEMS.map(p => p.key), ...EXTRA_RITUALS.map(r => r.key)];
+
+// Quick templates
+const QUICK_TEMPLATES = [
   {
-    label: 'PRAYERS',
-    items: [
-      { key: 'Fajr', label: 'Fajr Prayer', icon: Sunrise, color: 'text-orange-400' },
-      { key: 'Dhuhr', label: 'Dhuhr Prayer', icon: Sun, color: 'text-yellow-400' },
-      { key: 'Asr', label: 'Asr Prayer', icon: CloudSun, color: 'text-amber-400' },
-      { key: 'Maghrib', label: 'Maghrib Prayer', icon: Sunset, color: 'text-orange-500' },
-      { key: 'Isha', label: 'Isha Prayer', icon: Moon, color: 'text-indigo-400' },
+    name: 'Morning Routine',
+    icon: Sunrise,
+    color: 'text-orange-400',
+    tasks: [
+      { title: 'Fajr Prayer', time: '5:00' },
+      { title: 'Morning Athkar', time: '5:15' },
+      { title: 'Quran Reading', time: '5:30' },
+      { title: 'Workout', time: '6:00' },
+      { title: 'Breakfast & Plan Day', time: '7:00' },
     ]
   },
   {
-    label: 'ATHKAR',
-    items: [
-      { key: 'MorningAthkar', label: 'Morning Athkar', icon: BookOpen, color: 'text-emerald-400' },
-      { key: 'EveningAthkar', label: 'Evening Athkar', icon: BookOpen, color: 'text-emerald-400' },
+    name: 'Evening Routine',
+    icon: Moon,
+    color: 'text-indigo-400',
+    tasks: [
+      { title: 'Evening Athkar', time: '18:00' },
+      { title: 'Maghrib Prayer', time: '18:15' },
+      { title: 'Family Time', time: '19:00' },
+      { title: 'Isha Prayer', time: '19:30' },
+      { title: 'Review & Journal', time: '21:00' },
     ]
   },
   {
-    label: 'WELLNESS',
-    items: [
-      { key: 'Workout', label: 'Workout', icon: Dumbbell, color: 'text-blue-400' },
-      { key: 'Quran', label: 'Quran Reading', icon: BookOpen, color: 'text-teal-400' },
+    name: 'Deep Work Day',
+    icon: Zap,
+    color: 'text-emerald-400',
+    tasks: [
+      { title: 'Deep Work Block 1', time: '9:00' },
+      { title: 'Break', time: '11:00' },
+      { title: 'Deep Work Block 2', time: '11:30' },
+      { title: 'Dhuhr Prayer + Lunch', time: '12:30' },
+      { title: 'Deep Work Block 3', time: '14:00' },
+      { title: 'Asr Prayer', time: '15:30' },
+      { title: 'Email & Admin', time: '16:00' },
     ]
-  }
+  },
+  {
+    name: 'Jummah Day',
+    icon: Star,
+    color: 'text-yellow-400',
+    tasks: [
+      { title: 'Fajr Prayer', time: '5:00' },
+      { title: 'Quran Reading', time: '5:30' },
+      { title: 'Jummah Prayer', time: '12:00' },
+      { title: 'Family Time', time: '14:00' },
+      { title: 'Rest & Recharge', time: '16:00' },
+    ]
+  },
 ];
 
 const DayView: React.FC<Props> = ({
@@ -83,59 +121,28 @@ const DayView: React.FC<Props> = ({
   onAdhkarToggle,
   onDayMetaUpdate,
   activeTaskId,
-  onTaskSelect,
   onProtocolToggle,
   onWeeklyActivityToggle,
   onProtocolContextsUpdate,
   onWeeklyActivitiesUpdate,
-  onLayoutChange,
-  onTimeBlockAdd,
-  onTimeBlockUpdate,
-  onTimeBlockDelete,
 }) => {
   const timeZone = state.userPreferences?.timeZone || DEFAULT_TIME_ZONE;
   const [selectedDate, setSelectedDate] = useState(() =>
     dateFromDateKey(getDateKeyInTimeZone(new Date(), timeZone))
   );
+  const [activeTab, setActiveTab] = useState<DayTab>('tasks');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [captureValue, setCaptureValue] = useState('');
-  const [addingToBlock, setAddingToBlock] = useState<string | null>(null);
-  const [addValue, setAddValue] = useState('');
-  const [addTime, setAddTime] = useState('');
-  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [showPrevDays, setShowPrevDays] = useState(false);
   const [showProtocolsEditor, setShowProtocolsEditor] = useState(false);
   const [showWeeklyEditor, setShowWeeklyEditor] = useState(false);
-  const [showScheduler, setShowScheduler] = useState<string | null>(null);
-  const [schedulerHour, setSchedulerHour] = useState('9');
-  const [schedulerMinute, setSchedulerMinute] = useState('00');
-  const mainScrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setSelectedDate(prev => dateFromDateKey(getDateKeyInTimeZone(prev, timeZone)));
-  }, [timeZone]);
 
   const dateKey = getDateKeyInTimeZone(selectedDate, timeZone);
-  const todayDate = getDateKeyInTimeZone(new Date(), timeZone);
-  const isToday = dateKey === todayDate;
+  const todayKey = getDateKeyInTimeZone(new Date(), timeZone);
+  const isToday = dateKey === todayKey;
 
-  // Adjacent days for peek columns
-  const prevDateKey = shiftDateKey(dateKey, -1);
-  const nextDateKey = shiftDateKey(dateKey, 1);
-
-  // Hijri Date
-  const hijriDate = useMemo(() => {
-    try {
-      return new Intl.DateTimeFormat('en-u-ca-islamic-umalqura', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }).format(selectedDate);
-    } catch (_e) { return ''; }
-  }, [selectedDate]);
-
-  // Prayer Times
+  // Prayer times
   const prayerTimes = useMemo(() => getPrayerTimesForDate(selectedDate), [selectedDate]);
-
-  // Current prayer detection
   const currentPrayerIndex = useMemo(() => {
     if (!isToday) return -1;
     const now = new Date();
@@ -143,126 +150,80 @@ const DayView: React.FC<Props> = ({
     let current = -1;
     for (let i = 0; i < prayerTimes.length; i++) {
       const pt = new Date(prayerTimes[i].timestamp);
-      const ptMinutes = pt.getHours() * 60 + pt.getMinutes();
-      if (nowMinutes >= ptMinutes) current = i;
+      if (nowMinutes >= pt.getHours() * 60 + pt.getMinutes()) current = i;
     }
     return current;
   }, [prayerTimes, isToday]);
 
-  // Next prayer countdown
-  const nextPrayerInfo = useMemo(() => {
-    if (!isToday) return null;
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    for (let i = 0; i < prayerTimes.length; i++) {
-      const pt = new Date(prayerTimes[i].timestamp);
-      const ptMinutes = pt.getHours() * 60 + pt.getMinutes();
-      if (ptMinutes > nowMinutes) {
-        const diff = ptMinutes - nowMinutes;
-        const hours = Math.floor(diff / 60);
-        const minutes = diff % 60;
-        return {
-          name: prayerTimes[i].name,
-          countdown: hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`,
-        };
-      }
-    }
-    return null;
-  }, [prayerTimes, isToday]);
-
-  // Helper: get tasks for a dateKey
-  const getTasksForDate = (dk: string) => {
+  // Tasks for selected date
+  const daysTasks = useMemo(() => {
     return state.tasks.filter(task => {
       if (task.scheduledTime) {
-        const d = new Date(task.scheduledTime);
-        const taskDk = getDateKeyInTimeZone(d, timeZone);
-        return taskDk === dk;
+        const taskDk = getDateKeyInTimeZone(new Date(task.scheduledTime), timeZone);
+        return taskDk === dateKey;
       }
       return false;
     }).sort((a, b) => (a.scheduledTime || 0) - (b.scheduledTime || 0));
-  };
+  }, [state.tasks, dateKey, timeZone]);
 
-  const daysTasks = useMemo(() => getTasksForDate(dateKey), [state.tasks, dateKey, timeZone]);
-  const prevDayTasks = useMemo(() => getTasksForDate(prevDateKey), [state.tasks, prevDateKey, timeZone]);
-  const nextDayTasks = useMemo(() => getTasksForDate(nextDateKey), [state.tasks, nextDateKey, timeZone]);
+  // Previous days' incomplete tasks
+  const previousDaysTasks = useMemo(() => {
+    return state.tasks.filter(task => {
+      if (task.status === TaskStatus.DONE) return false;
+      if (!task.scheduledTime) return false;
+      const taskDk = getDateKeyInTimeZone(new Date(task.scheduledTime), timeZone);
+      return taskDk < dateKey;
+    }).sort((a, b) => (b.scheduledTime || 0) - (a.scheduledTime || 0));
+  }, [state.tasks, dateKey, timeZone]);
+
+  // Habit tasks
+  const habitTasks = useMemo(() => {
+    return state.tasks.filter(t => t.dockSection === 'HABIT');
+  }, [state.tasks]);
 
   const completedTasks = daysTasks.filter(t => t.status === TaskStatus.DONE);
   const pendingTasks = daysTasks.filter(t => t.status !== TaskStatus.DONE);
   const progress = daysTasks.length > 0 ? Math.round((completedTasks.length / daysTasks.length) * 100) : 0;
 
-  // Group tasks by prayer blocks
-  const getTasksForPrayerBlock = (prayerIndex: number, tasks: Task[], prayers: ReturnType<typeof getPrayerTimesForDate>) => {
-    const prayer = prayers[prayerIndex];
-    if (!prayer) return [];
+  // Rituals
+  const rituals = state.dayMeta[dateKey]?.rituals || {};
+  const completedRituals = ALL_RITUAL_KEYS.filter(k => rituals[k]).length;
+  const totalRituals = ALL_RITUAL_KEYS.length;
 
-    const prayerTime = new Date(prayer.timestamp);
-    const prayerMinutes = prayerTime.getHours() * 60 + prayerTime.getMinutes();
+  // Sticky note
+  const stickyNote = state.stickyNotes?.[dateKey] || '';
 
-    let nextPrayerMinutes = 24 * 60;
-    if (prayerIndex < prayers.length - 1) {
-      const nextPt = new Date(prayers[prayerIndex + 1].timestamp);
-      nextPrayerMinutes = nextPt.getHours() * 60 + nextPt.getMinutes();
-    }
+  // --- HANDLERS ---
 
-    // For Fajr, also include tasks before Fajr
-    const startMinutes = prayerIndex === 0 ? 0 : prayerMinutes;
-
-    return tasks.filter(task => {
-      if (!task.scheduledTime) return false;
-      const t = new Date(task.scheduledTime);
-      const taskMinutes = t.getHours() * 60 + t.getMinutes();
-      return taskMinutes >= startMinutes && taskMinutes < nextPrayerMinutes;
-    });
-  };
-
-  // Inbox tasks (noon default)
-  const inboxTasks = daysTasks.filter(t => {
-    if (!t.scheduledTime) return true;
-    const d = new Date(t.scheduledTime);
-    return d.getHours() === 12 && d.getMinutes() === 0;
-  });
-
-  const activeTask = daysTasks.find(t => t.id === activeTaskId);
-
-  // Handlers
-  const handleToggleComplete = (task: Task) => {
-    onTaskUpdate(task.id, { status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE });
+  const parseTimeFromInput = (input: string): { title: string; hour: number; minute: number } | null => {
+    // Match @HH:MM, @Hpm, @Ham patterns
+    const timeMatch = input.match(/@(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+    if (!timeMatch) return null;
+    let hour = parseInt(timeMatch[1]);
+    const minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+    const ampm = timeMatch[3]?.toLowerCase();
+    if (ampm === 'pm' && hour < 12) hour += 12;
+    if (ampm === 'am' && hour === 12) hour = 0;
+    const title = input.replace(/@\d{1,2}(?::\d{2})?\s*(?:am|pm)?/i, '').trim();
+    return { title, hour, minute };
   };
 
   const handleCapture = () => {
     if (!captureValue.trim()) return;
-    const scheduleDate = new Date(selectedDate);
-    scheduleDate.setHours(12, 0, 0, 0);
-    onTaskAdd(captureValue.trim(), Category.CORE, 'MED', { scheduledTime: scheduleDate.getTime() });
+    const parsed = parseTimeFromInput(captureValue);
+    if (parsed && parsed.title) {
+      const schedTime = getLocalTimestampForDateKey(dateKey, parsed.hour, parsed.minute);
+      onTaskAdd(parsed.title, Category.CORE, 'MED', { scheduledTime: schedTime });
+    } else {
+      // Default to noon
+      const schedTime = getLocalTimestampForDateKey(dateKey, 12, 0);
+      onTaskAdd(captureValue.trim(), Category.CORE, 'MED', { scheduledTime: schedTime });
+    }
     setCaptureValue('');
   };
 
-  const handleAddToBlock = (prayerName: string) => {
-    if (!addValue.trim()) return;
-    const prayer = prayerTimes.find(p => p.name === prayerName);
-    if (!prayer) return;
-    const pt = new Date(prayer.timestamp);
-    let hour = pt.getHours();
-    let minute = pt.getMinutes() + 5;
-    if (addTime) {
-      const [h, m] = addTime.split(':').map(Number);
-      if (!isNaN(h)) hour = h;
-      if (!isNaN(m)) minute = m;
-    }
-    const schedTime = getLocalTimestampForDateKey(dateKey, hour, minute);
-    onTaskAdd(addValue.trim(), Category.CORE, 'MED', { scheduledTime: schedTime });
-    setAddValue('');
-    setAddTime('');
-    setAddingToBlock(null);
-  };
-
-  const handleScheduleTask = (taskId: string) => {
-    const hour = parseInt(schedulerHour);
-    const minute = parseInt(schedulerMinute);
-    if (isNaN(hour)) return;
-    const schedTime = getLocalTimestampForDateKey(dateKey, hour, minute || 0);
-    onTaskUpdate(taskId, { scheduledTime: schedTime });
-    setShowScheduler(null);
+  const handleToggleComplete = (task: Task) => {
+    onTaskUpdate(task.id, { status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE });
   };
 
   const handleReschedule = (task: Task, daysOffset: number) => {
@@ -275,96 +236,75 @@ const DayView: React.FC<Props> = ({
     onTaskUpdate(task.id, { scheduledTime: newDate.getTime() });
   };
 
-  const formatTime = (ts: number) => {
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+  const handleApplyTemplate = (template: typeof QUICK_TEMPLATES[0]) => {
+    template.tasks.forEach(t => {
+      const [h, m] = t.time.split(':').map(Number);
+      const schedTime = getLocalTimestampForDateKey(dateKey, h, m);
+      onTaskAdd(t.title, Category.CORE, 'MED', { scheduledTime: schedTime });
+    });
   };
 
-  // Prophetic quote for the day
-  const propheticQuote = useMemo(() => getPropheticQuoteForDate(selectedDate), [selectedDate]);
+  const formatTime = (ts: number) => {
+    return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+  };
 
-  // Ritual state
-  const rituals = state.dayMeta[dateKey]?.rituals || {};
-  const totalRituals = RITUAL_SECTIONS.reduce((sum, s) => sum + s.items.length, 0);
-  const completedRituals = RITUAL_SECTIONS.reduce((sum, s) => sum + s.items.filter(i => rituals[i.key]).length, 0);
+  const formatDateForPrevious = (ts: number) => {
+    const d = new Date(ts);
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  };
 
-  // ==================== TASK CARD COMPONENT ====================
-  const TaskCard: React.FC<{ task: Task; compact?: boolean; ghost?: boolean }> = ({ task, compact, ghost }) => {
+  // --- TASK CARD ---
+  const TaskCard: React.FC<{ task: Task; showDate?: boolean }> = ({ task, showDate }) => {
     const isActive = task.id === activeTaskId;
     const isDone = task.status === TaskStatus.DONE;
 
     return (
       <div
-        onClick={() => !ghost && onTaskSelect(task)}
-        className={`group/card relative flex items-start gap-3 px-3 py-2.5 rounded-lg border transition-all ${ghost
-          ? 'opacity-30 border-zinc-800/30 bg-transparent cursor-default'
-          : isDone
-            ? 'bg-zinc-900/20 border-zinc-800/30 opacity-50'
+        className={`group/card relative flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+          isDone
+            ? 'opacity-50'
             : isActive
-              ? 'bg-emerald-950/30 border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.08)]'
-              : 'bg-zinc-900/40 border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900/60 cursor-pointer'
-          }`}
+              ? 'bg-emerald-950/20 border border-emerald-500/20'
+              : 'hover:bg-zinc-800/30'
+        }`}
       >
-        {/* Drag handle */}
-        {!ghost && !compact && (
-          <div className="mt-0.5 text-zinc-800 group-hover/card:text-zinc-600 transition-colors cursor-grab">
-            <GripVertical size={12} />
-          </div>
-        )}
-
         {/* Checkbox */}
-        {!ghost && (
-          <button
-            onClick={(e) => { e.stopPropagation(); handleToggleComplete(task); }}
-            className="mt-0.5 shrink-0"
-          >
-            {isDone ? (
-              <div className="w-4 h-4 bg-emerald-500 rounded flex items-center justify-center">
-                <Check size={10} className="text-black" strokeWidth={3} />
-              </div>
-            ) : (
-              <div className={`w-4 h-4 rounded border-2 transition-colors ${isActive ? 'border-emerald-500/50' : 'border-zinc-700 group-hover/card:border-zinc-500'}`} />
-            )}
-          </button>
-        )}
+        <button
+          onClick={() => handleToggleComplete(task)}
+          className="shrink-0"
+        >
+          {isDone ? (
+            <div className="w-[18px] h-[18px] bg-emerald-500 rounded-full flex items-center justify-center">
+              <Check size={10} className="text-black" strokeWidth={3} />
+            </div>
+          ) : (
+            <div className={`w-[18px] h-[18px] rounded-full border-2 transition-colors ${
+              isActive ? 'border-emerald-500/50' : 'border-zinc-700 group-hover/card:border-zinc-500'
+            }`} />
+          )}
+        </button>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className={`text-[12px] leading-snug font-medium ${isDone ? 'text-zinc-600 line-through' : ghost ? 'text-zinc-700' : 'text-zinc-200'}`}>
+          <span className={`text-[13px] ${isDone ? 'text-zinc-600 line-through' : 'text-zinc-200'}`}>
             {task.title}
-          </div>
-          {!compact && task.scheduledTime && !ghost && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] text-zinc-500 font-mono">{formatTime(task.scheduledTime)}</span>
-              {task.duration && <span className="text-[10px] text-zinc-600">{task.duration}m</span>}
-              {task.category && (
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${task.category === Category.CORE ? 'bg-blue-500/10 text-blue-400' :
-                  task.category === Category.GROWTH ? 'bg-orange-500/10 text-orange-400' :
-                    'bg-emerald-500/10 text-emerald-400'
-                  }`}>
-                  {task.category}
-                </span>
-              )}
-              {task.impact === 'HIGH' && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 uppercase">High</span>
-              )}
-            </div>
-          )}
-          {!compact && task.subtasks && task.subtasks.length > 0 && !ghost && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500">
-              <CheckCircle2 size={10} />
-              <span>{task.subtasks.filter(s => s.done).length}/{task.subtasks.length}</span>
-            </div>
-          )}
+          </span>
         </div>
 
-        {/* Actions */}
-        {!ghost && !isDone && (
-          <div className="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0">
+        {/* Time */}
+        {task.scheduledTime && (
+          <span className="text-[11px] text-zinc-500 font-mono shrink-0">
+            {showDate ? formatDateForPrevious(task.scheduledTime) : formatTime(task.scheduledTime)}
+          </span>
+        )}
+
+        {/* Actions on hover */}
+        {!isDone && (
+          <div className="flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0">
             <button
               onClick={(e) => { e.stopPropagation(); onStartSession(task.id); }}
               className="p-1 text-zinc-600 hover:text-emerald-400 transition-colors"
-              title="Start"
+              title="Start session"
             >
               <Play size={11} fill="currentColor" />
             </button>
@@ -386,202 +326,252 @@ const DayView: React.FC<Props> = ({
         )}
 
         {/* Active indicator */}
-        {isActive && !ghost && (
-          <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-500 rounded-full" />
+        {isActive && (
+          <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-emerald-500 rounded-full" />
         )}
       </div>
     );
   };
 
-  // ==================== PRAYER BLOCK SECTION ====================
-  const PrayerBlockSection: React.FC<{
-    prayerIndex: number;
-    tasks: Task[];
-    prayers: ReturnType<typeof getPrayerTimesForDate>;
-    ghost?: boolean;
-  }> = ({ prayerIndex, tasks, prayers, ghost }) => {
-    const prayer = PRAYER_BLOCKS[prayerIndex];
-    const prayerTime = prayers[prayerIndex];
-    const blockTasks = getTasksForPrayerBlock(prayerIndex, tasks, prayers);
-    const isCurrent = currentPrayerIndex === prayerIndex && !ghost;
-    const isPast = isToday && currentPrayerIndex > prayerIndex && !ghost;
-    const Icon = prayer.icon;
-
-    return (
-      <div className={`relative transition-all ${isPast ? 'opacity-60' : ''}`}>
-        {/* Prayer header */}
-        <div className={`flex items-center gap-3 py-2 ${ghost ? 'px-2' : 'px-1'}`}>
-          <div className={`flex items-center justify-center w-7 h-7 rounded-lg border ${isCurrent
-            ? 'bg-emerald-500/20 border-emerald-500/40'
-            : prayer.bgColor
-            }`}>
-            <Icon size={14} className={isCurrent ? 'text-emerald-400' : prayer.color} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className={`text-[11px] font-bold uppercase tracking-wider ${isCurrent ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                {prayer.name}
-              </span>
-              {!ghost && (
-                <span className="text-[10px] text-zinc-600 font-mono">{prayerTime?.time}</span>
-              )}
-              {isCurrent && (
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
-              )}
-            </div>
-          </div>
-          {!ghost && blockTasks.length > 0 && (
-            <span className="text-[10px] text-zinc-600 font-mono">{blockTasks.filter(t => t.status === TaskStatus.DONE).length}/{blockTasks.length}</span>
-          )}
-        </div>
-
-        {/* Tasks in this block */}
-        <div className={`space-y-1 ${ghost ? 'pl-2' : 'pl-10'}`}>
-          {blockTasks.map(task => (
-            <TaskCard key={task.id} task={task} ghost={ghost} compact={ghost} />
-          ))}
-
-          {/* Add task button */}
-          {!ghost && (
-            addingToBlock === prayer.name ? (
-              <div className="flex items-center gap-2 p-2 bg-zinc-900/50 border border-zinc-800/50 rounded-lg">
-                <input
-                  value={addValue}
-                  onChange={(e) => setAddValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddToBlock(prayer.name);
-                    if (e.key === 'Escape') { setAddingToBlock(null); setAddValue(''); }
-                  }}
-                  placeholder="Task title..."
-                  className="flex-1 bg-transparent text-[11px] text-zinc-300 outline-none placeholder:text-zinc-700"
-                  autoFocus
-                />
-                <button
-                  onClick={() => handleAddToBlock(prayer.name)}
-                  className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded hover:bg-emerald-500/30"
-                >
-                  ADD
-                </button>
-                <button
-                  onClick={() => { setAddingToBlock(null); setAddValue(''); }}
-                  className="text-zinc-600 hover:text-zinc-400"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setAddingToBlock(prayer.name)}
-                className="w-full py-1.5 text-[10px] text-zinc-700 hover:text-zinc-500 border border-dashed border-zinc-800/40 rounded-lg hover:border-zinc-700/50 transition-all flex items-center justify-center gap-1"
-              >
-                <Plus size={10} />
+  // --- KANBAN COLUMN ---
+  const KanbanColumn: React.FC<{ title: string; tasks: Task[]; status: TaskStatus; color: string }> = ({ title, tasks: columnTasks, color }) => (
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2 mb-3 px-1">
+        <span className={`text-[10px] font-bold uppercase tracking-widest ${color}`}>{title}</span>
+        <span className="text-[10px] text-zinc-600 font-mono">{columnTasks.length}</span>
+      </div>
+      <div className="space-y-1.5">
+        {columnTasks.map(task => (
+          <div key={task.id} className="bg-zinc-900/40 border border-zinc-800/50 rounded-lg p-3 hover:border-zinc-700 transition-colors group/card">
+            <div className="flex items-start gap-2">
+              <button onClick={() => handleToggleComplete(task)} className="mt-0.5 shrink-0">
+                {task.status === TaskStatus.DONE ? (
+                  <div className="w-4 h-4 bg-emerald-500 rounded flex items-center justify-center">
+                    <Check size={10} className="text-black" strokeWidth={3} />
+                  </div>
+                ) : (
+                  <div className="w-4 h-4 rounded border-2 border-zinc-700 group-hover/card:border-zinc-500" />
+                )}
               </button>
-            )
-          )}
-        </div>
+              <div className="flex-1 min-w-0">
+                <div className={`text-[12px] ${task.status === TaskStatus.DONE ? 'text-zinc-600 line-through' : 'text-zinc-200'}`}>
+                  {task.title}
+                </div>
+                {task.scheduledTime && (
+                  <div className="text-[10px] text-zinc-600 font-mono mt-1">{formatTime(task.scheduledTime)}</div>
+                )}
+              </div>
+            </div>
+            {task.status !== TaskStatus.DONE && (
+              <div className="flex items-center gap-1 mt-2 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                <button onClick={() => onStartSession(task.id)} className="text-[9px] text-zinc-600 hover:text-emerald-400 px-1.5 py-0.5 rounded bg-zinc-800/50">Start</button>
+                <button onClick={() => handleReschedule(task, 1)} className="text-[9px] text-zinc-600 hover:text-zinc-300 px-1.5 py-0.5 rounded bg-zinc-800/50">Tomorrow</button>
+                <button onClick={() => onTaskDelete(task.id)} className="text-[9px] text-zinc-600 hover:text-red-400 px-1.5 py-0.5 rounded bg-zinc-800/50">Delete</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {columnTasks.length === 0 && (
+          <div className="text-[11px] text-zinc-700 text-center py-6 border border-dashed border-zinc-800/40 rounded-lg">
+            No tasks
+          </div>
+        )}
       </div>
-    );
-  };
+    </div>
+  );
 
-  // ==================== PEEK COLUMN (prev/next day) ====================
-  const PeekColumn: React.FC<{ dk: string; tasks: Task[]; label: string; direction: 'prev' | 'next' }> = ({ dk, tasks, label, direction }) => {
-    const peekDate = dateFromDateKey(dk);
-    const peekPrayers = getPrayerTimesForDate(peekDate);
+  // --- TABS CONTENT ---
+
+  const renderTasksTab = () => {
+    if (viewMode === 'kanban') {
+      const todoTasks = daysTasks.filter(t => t.status === TaskStatus.TODO || t.status === TaskStatus.BACKLOG);
+      const inProgressTasks = daysTasks.filter(t => t.status === TaskStatus.IN_PROGRESS);
+      const doneTasks = daysTasks.filter(t => t.status === TaskStatus.DONE);
+
+      return (
+        <div className="flex gap-4 p-4 h-full overflow-x-auto">
+          <KanbanColumn title="To Do" tasks={todoTasks} status={TaskStatus.TODO} color="text-zinc-400" />
+          <KanbanColumn title="In Progress" tasks={inProgressTasks} status={TaskStatus.IN_PROGRESS} color="text-blue-400" />
+          <KanbanColumn title="Done" tasks={doneTasks} status={TaskStatus.DONE} color="text-emerald-400" />
+        </div>
+      );
+    }
 
     return (
-      <div
-        className="flex flex-col h-full opacity-40 hover:opacity-60 transition-opacity cursor-pointer select-none"
-        onClick={() => setSelectedDate(peekDate)}
-      >
-        {/* Peek header */}
-        <div className="py-3 px-3 text-center border-b border-zinc-900/50">
-          <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">
-            {peekDate.toLocaleDateString(undefined, { weekday: 'short' })}
-          </div>
-          <div className="text-[14px] text-zinc-500 font-bold tabular-nums">
-            {peekDate.getUTCDate()}
-          </div>
-        </div>
-
-        {/* Peek tasks by prayer */}
-        <div className="flex-1 overflow-hidden p-2 space-y-3">
-          {PRAYER_BLOCKS.map((_, i) => (
-            <PrayerBlockSection key={i} prayerIndex={i} tasks={tasks} prayers={peekPrayers} ghost />
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  // ==================== FOCUS MODE ====================
-  if (isFocusMode) {
-    return (
-      <div className="h-full flex flex-col bg-[#050505] text-zinc-400 font-mono overflow-hidden">
-        <header className="h-12 border-b border-zinc-900 flex items-center justify-between px-6 bg-black/50 shrink-0">
-          <button onClick={() => setIsFocusMode(false)} className="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 uppercase tracking-widest">
-            Exit Focus
-          </button>
-          <div className="flex items-center gap-2 text-white text-[10px] font-bold uppercase tracking-widest">
-            <Zap size={10} fill="currentColor" />
-            Focus Mode
-          </div>
-          <div className="w-16" />
-        </header>
-        <div className="flex-1 flex items-center justify-center">
-          {activeTask ? (
-            <div className="max-w-xl w-full space-y-10 text-center px-8">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white text-[10px] font-bold uppercase tracking-[0.3em]">
-                  Executing
-                </div>
-                <h2 className="text-3xl font-medium text-white tracking-tight">{activeTask.title}</h2>
-                {activeTask.notes && <p className="text-zinc-500 text-base leading-relaxed">{activeTask.notes}</p>}
-              </div>
-              {activeTask.subtasks && activeTask.subtasks.length > 0 && (
-                <div className="bg-zinc-900/30 border border-zinc-800/50 p-6 rounded-xl text-left space-y-3">
-                  {activeTask.subtasks.map(sub => (
-                    <div key={sub.id} className="flex items-center gap-3 group">
-                      <button
-                        onClick={() => {
-                          const newSubs = activeTask.subtasks?.map(s => s.id === sub.id ? { ...s, done: !s.done } : s);
-                          onTaskUpdate(activeTask.id, { subtasks: newSubs });
-                        }}
-                        className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${sub.done ? 'bg-white border-white text-black' : 'border-zinc-700 group-hover:border-white/20'}`}
-                      >
-                        {sub.done && <Check size={10} />}
-                      </button>
-                      <span className={`text-sm ${sub.done ? 'text-zinc-700 line-through' : 'text-zinc-200'}`}>{sub.title}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center justify-center gap-4">
-                <button onClick={() => handleToggleComplete(activeTask)} className="px-8 py-3 bg-white text-black font-bold text-xs rounded hover:bg-zinc-200 uppercase tracking-widest">Complete</button>
-                <button onClick={() => setIsFocusMode(false)} className="px-8 py-3 bg-zinc-900 border border-zinc-800 text-zinc-400 font-bold text-xs rounded hover:border-zinc-600 uppercase tracking-widest">Pause</button>
-              </div>
+      <div className="flex-1 overflow-y-auto">
+        {/* Task list */}
+        <div className="px-4 py-2">
+          {daysTasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-zinc-700">
+              <CheckCircle2 size={32} className="mb-3 opacity-40" />
+              <p className="text-[13px] text-zinc-600">No tasks</p>
+              <p className="text-[11px] text-zinc-700 mt-1">Add a task below or apply a template</p>
             </div>
           ) : (
-            <div className="text-center space-y-4 opacity-40">
-              <Zap size={32} className="text-zinc-700 mx-auto" />
-              <h2 className="text-lg text-zinc-400">No active task</h2>
-              <button onClick={() => setIsFocusMode(false)} className="text-[10px] font-bold text-zinc-500 hover:text-zinc-300 underline underline-offset-4 uppercase tracking-widest">
-                Back to Day View
-              </button>
+            <div className="space-y-0.5">
+              {daysTasks.map(task => (
+                <TaskCard key={task.id} task={task} />
+              ))}
             </div>
           )}
         </div>
+
+        {/* Previous days section */}
+        {previousDaysTasks.length > 0 && (
+          <div className="px-4 pt-4 pb-2 border-t border-zinc-800/30 mt-2">
+            <button
+              onClick={() => setShowPrevDays(!showPrevDays)}
+              className="flex items-center gap-2 w-full text-left mb-2"
+            >
+              <span className="text-[11px] font-bold text-amber-500/80">
+                {previousDaysTasks.length} from previous days
+              </span>
+              <div className="flex-1" />
+              <span className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors">
+                {showPrevDays ? 'Hide' : 'Show all'}
+              </span>
+            </button>
+            {(showPrevDays ? previousDaysTasks : previousDaysTasks.slice(0, 3)).map(task => (
+              <TaskCard key={task.id} task={task} showDate />
+            ))}
+          </div>
+        )}
       </div>
     );
-  }
+  };
 
+  const renderHabitsTab = () => {
+    if (habitTasks.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-700 px-4">
+          <Repeat size={32} className="mb-3 opacity-40" />
+          <p className="text-[13px] text-zinc-600">No habits tracked</p>
+          <p className="text-[11px] text-zinc-700 mt-1">Create tasks with HABIT dock section to track them here</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {habitTasks.map(habit => {
+          const tracking = habit.habitTracking || {};
+          const isCompletedToday = !!tracking[dateKey];
+          // Calculate streak
+          let streak = 0;
+          let checkDate = dateKey;
+          while (tracking[checkDate]) {
+            streak++;
+            checkDate = shiftDateKey(checkDate, -1);
+          }
+          // Calculate last 30 days completion
+          const last30 = Array.from({ length: 30 }, (_, i) => {
+            const dk = shiftDateKey(dateKey, -i);
+            return !!tracking[dk];
+          });
+          const completionRate = Math.round((last30.filter(Boolean).length / 30) * 100);
+
+          const categoryColors: Record<string, { bg: string; text: string; label: string }> = {
+            [Category.CORE]: { bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'CORE' },
+            [Category.GROWTH]: { bg: 'bg-orange-500/10', text: 'text-orange-400', label: 'GROWTH' },
+            [Category.SERVICE]: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'SERVICE' },
+          };
+          const cat = categoryColors[habit.category] || categoryColors[Category.CORE];
+
+          return (
+            <div key={habit.id} className="bg-zinc-900/30 border border-zinc-800/40 rounded-xl p-4 space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] text-zinc-200 font-medium">{habit.title}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${cat.bg} ${cat.text}`}>{cat.label}</span>
+                  </div>
+                  {habit.notes && <p className="text-[11px] text-zinc-500 mt-1">{habit.notes}</p>}
+                </div>
+                <button
+                  onClick={() => {
+                    const newTracking = { ...tracking, [dateKey]: !isCompletedToday };
+                    onTaskUpdate(habit.id, { habitTracking: newTracking });
+                  }}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    isCompletedToday
+                      ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                      : 'border border-zinc-700 hover:border-zinc-500'
+                  }`}
+                >
+                  {isCompletedToday && <Check size={14} className="text-black" strokeWidth={3} />}
+                </button>
+              </div>
+
+              {/* Progress bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-zinc-500">Completion rate</span>
+                  <span className="text-[10px] text-zinc-400 font-mono">{completionRate}%</span>
+                </div>
+                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500/60 rounded-full transition-all duration-500"
+                    style={{ width: `${completionRate}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Streak */}
+              {streak > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <Zap size={10} className="text-amber-400" />
+                  <span className="text-[10px] text-amber-400 font-bold">{streak} day streak</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderTemplatesTab = () => (
+    <div className="flex-1 overflow-y-auto p-4">
+      <p className="text-[11px] text-zinc-500 mb-4">Apply pre-built task sets for common routines</p>
+      <div className="grid grid-cols-2 gap-3">
+        {QUICK_TEMPLATES.map(template => {
+          const Icon = template.icon;
+          return (
+            <div key={template.name} className="bg-zinc-900/30 border border-zinc-800/40 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Icon size={14} className={template.color} />
+                <span className="text-[12px] text-zinc-200 font-bold">{template.name}</span>
+              </div>
+              <div className="space-y-1">
+                {template.tasks.map((t, i) => (
+                  <div key={i} className="text-[10px] text-zinc-500 flex items-center gap-2">
+                    <span className="text-zinc-600">•</span>
+                    {t.title}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => handleApplyTemplate(template)}
+                className="w-full py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-colors"
+              >
+                Apply Template
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // --- MAIN RENDER ---
   return (
-    <div className="h-full flex flex-col bg-[#050505] text-zinc-400 font-mono selection:bg-zinc-800 selection:text-white overflow-hidden">
+    <div className="h-full flex flex-col bg-[#0a0a0a] text-zinc-400 overflow-hidden">
 
-      {/* ==================== HEADER ==================== */}
-      <header className="border-b border-zinc-900 bg-black/50 backdrop-blur-md z-40 shrink-0">
-        <div className="h-12 flex items-center justify-between px-5">
+      {/* ===== HEADER ===== */}
+      <header className="border-b border-zinc-800/60 shrink-0">
+        <div className="h-14 flex items-center justify-between px-5">
           {/* Left: Date navigation */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setSelectedDate(prev => {
@@ -589,19 +579,19 @@ const DayView: React.FC<Props> = ({
                   next.setUTCDate(next.getUTCDate() - 1);
                   return next;
                 })}
-                className="p-1.5 hover:text-white text-zinc-600 transition-colors rounded hover:bg-zinc-800/50"
+                className="p-1.5 hover:text-white text-zinc-600 transition-colors rounded-lg hover:bg-zinc-800/50"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={16} />
               </button>
               <button
                 onClick={() => setSelectedDate(dateFromDateKey(getDateKeyInTimeZone(new Date(), timeZone)))}
-                className="flex flex-col items-center min-w-[100px] hover:text-white transition-colors"
+                className="flex flex-col items-center min-w-[140px] hover:text-white transition-colors"
               >
                 <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
                   {selectedDate.toLocaleDateString(undefined, { weekday: 'long' })}
                 </span>
-                <span className="text-[13px] text-zinc-300 font-bold tabular-nums">
-                  {selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                <span className="text-[14px] text-zinc-200 font-bold">
+                  {selectedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
                 </span>
               </button>
               <button
@@ -610,344 +600,276 @@ const DayView: React.FC<Props> = ({
                   next.setUTCDate(next.getUTCDate() + 1);
                   return next;
                 })}
-                className="p-1.5 hover:text-white text-zinc-600 transition-colors rounded hover:bg-zinc-800/50"
+                className="p-1.5 hover:text-white text-zinc-600 transition-colors rounded-lg hover:bg-zinc-800/50"
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={16} />
               </button>
             </div>
 
-            {hijriDate && (
-              <>
-                <div className="h-4 w-px bg-zinc-800" />
-                <span className="text-[10px] text-zinc-600 tracking-wide">{hijriDate}</span>
-              </>
-            )}
-
             {isToday && (
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-widest">
+              <span className="text-[9px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-widest">
                 Today
               </span>
             )}
           </div>
 
-          {/* Right: Progress + Actions */}
+          {/* Right: Next prayer + progress */}
           <div className="flex items-center gap-4">
-            {/* Day progress */}
+            {/* Next prayer countdown */}
+            {isToday && (() => {
+              const now = new Date();
+              const nowMinutes = now.getHours() * 60 + now.getMinutes();
+              for (let i = 0; i < prayerTimes.length; i++) {
+                const pt = new Date(prayerTimes[i].timestamp);
+                const ptMinutes = pt.getHours() * 60 + pt.getMinutes();
+                if (ptMinutes > nowMinutes) {
+                  const diff = ptMinutes - nowMinutes;
+                  const h = Math.floor(diff / 60);
+                  const m = diff % 60;
+                  const PIcon = PRAYER_ITEMS[i]?.icon || Sun;
+                  return (
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <PIcon size={12} className={PRAYER_ITEMS[i]?.color || 'text-zinc-400'} />
+                      <span className="text-zinc-400 font-medium">{prayerTimes[i].name}</span>
+                      <span className="text-zinc-600">in</span>
+                      <span className="text-emerald-400 font-mono font-bold">{h > 0 ? `${h}h ${m}m` : `${m}m`}</span>
+                    </div>
+                  );
+                }
+              }
+              return null;
+            })()}
+
+            {/* Progress */}
             {daysTasks.length > 0 && (
               <div className="flex items-center gap-2">
-                <div className="w-24 h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                <div className="w-20 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-emerald-500/70 transition-all duration-700 ease-out rounded-full"
+                    className="h-full bg-emerald-500/70 transition-all duration-500 rounded-full"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-zinc-500 font-mono tabular-nums">{completedTasks.length}/{daysTasks.length}</span>
+                <span className="text-[10px] text-zinc-500 font-mono">{completedTasks.length}/{daysTasks.length}</span>
               </div>
             )}
-
-            <div className="w-px h-4 bg-zinc-800" />
 
             {/* Focus button */}
             <button
               onClick={() => {
-                if (pendingTasks.length > 0 && !activeTask) onStartSession(pendingTasks[0].id);
-                setIsFocusMode(true);
+                if (pendingTasks.length > 0 && !activeTaskId) onStartSession(pendingTasks[0].id);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700 transition-all text-[10px] font-bold uppercase tracking-wider"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600 transition-all text-[10px] font-bold uppercase tracking-wider"
             >
               <Zap size={10} />
               Focus
             </button>
           </div>
         </div>
-
-        {/* Prayer time bar */}
-        {isToday && (
-          <div className="h-8 border-t border-zinc-900/50 flex items-center px-5 gap-4 bg-zinc-950/50">
-            {prayerTimes.map((pt, i) => {
-              const isCurrent = currentPrayerIndex === i;
-              const isPast = currentPrayerIndex > i;
-              return (
-                <div key={pt.name} className={`flex items-center gap-1.5 ${isCurrent ? 'text-emerald-400' : isPast ? 'text-zinc-700' : 'text-zinc-500'}`}>
-                  {isCurrent && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
-                  <span className="text-[10px] font-bold uppercase tracking-tight">{pt.name}</span>
-                  <span className="text-[10px] font-mono opacity-70">{pt.time}</span>
-                </div>
-              );
-            })}
-            {nextPrayerInfo && (
-              <>
-                <div className="flex-1" />
-                <span className="text-[10px] text-zinc-500">
-                  Next: <span className="text-zinc-400 font-bold">{nextPrayerInfo.name}</span> in <span className="text-emerald-400 font-mono">{nextPrayerInfo.countdown}</span>
-                </span>
-              </>
-            )}
-          </div>
-        )}
       </header>
 
-      {/* ==================== MAIN CONTENT ==================== */}
-      <main className="flex-1 flex min-h-0 overflow-hidden">
+      {/* ===== BODY ===== */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
 
-        {/* ---- PREVIOUS DAY PEEK ---- */}
-        <div className="w-[160px] border-r border-zinc-900/50 bg-black/20 shrink-0 overflow-hidden hidden lg:flex flex-col">
-          <PeekColumn dk={prevDateKey} tasks={prevDayTasks} label="Yesterday" direction="prev" />
-        </div>
-
-        {/* ---- CURRENT DAY (main column) ---- */}
-        <section className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
-          <div ref={mainScrollRef} className="flex-1 overflow-y-auto">
-
-            {/* Niyyah / Daily Intention */}
-            <div className="px-5 pt-4 pb-2">
-              <div className="bg-zinc-900/30 border border-zinc-800/40 rounded-xl p-4 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Feather size={14} className="text-emerald-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5">Niyyah - Today's Intention</label>
-                    <input
-                      value={state.dayMeta[dateKey]?.focus || ''}
-                      onChange={(e) => onDayMetaUpdate(dateKey, { focus: e.target.value })}
-                      placeholder="What do you intend to accomplish today? Set your positive intention..."
-                      className="w-full bg-transparent text-[13px] text-zinc-200 outline-none placeholder:text-zinc-700 font-sans leading-relaxed"
-                    />
-                  </div>
-                </div>
-
-                {/* Prophetic Quote */}
-                <div className="pt-2 border-t border-zinc-800/30">
-                  <p className="text-[11px] text-zinc-500 font-serif italic leading-relaxed">
-                    "{propheticQuote}"
-                  </p>
-                </div>
-              </div>
+        {/* ===== LEFT PANEL: TABS + CONTENT ===== */}
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          {/* Tab bar */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800/40">
+            <div className="flex items-center gap-1">
+              {([
+                { key: 'tasks' as DayTab, label: 'Tasks', icon: CheckCircle2 },
+                { key: 'habits' as DayTab, label: 'Habits', icon: Repeat },
+                { key: 'templates' as DayTab, label: 'Templates', icon: LayoutTemplate },
+              ]).map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+                      isActive
+                        ? 'bg-zinc-800 text-zinc-100'
+                        : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30'
+                    }`}
+                  >
+                    <Icon size={12} />
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Quick Capture */}
-            <div className="px-5 pb-3">
+            {/* View toggle (only for tasks) */}
+            {activeTab === 'tasks' && (
+              <div className="flex items-center gap-0.5 bg-zinc-900/50 border border-zinc-800/40 rounded-lg p-0.5">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-1.5 rounded transition-all ${viewMode === 'list' ? 'bg-zinc-800 text-zinc-200' : 'text-zinc-600 hover:text-zinc-400'}`}
+                  title="List view"
+                >
+                  <List size={12} />
+                </button>
+                <button
+                  onClick={() => setViewMode('kanban')}
+                  className={`p-1.5 rounded transition-all ${viewMode === 'kanban' ? 'bg-zinc-800 text-zinc-200' : 'text-zinc-600 hover:text-zinc-400'}`}
+                  title="Kanban view"
+                >
+                  <Columns3 size={12} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {activeTab === 'tasks' && renderTasksTab()}
+            {activeTab === 'habits' && renderHabitsTab()}
+            {activeTab === 'templates' && renderTemplatesTab()}
+          </div>
+
+          {/* Add task bar (always visible for tasks tab) */}
+          {activeTab === 'tasks' && (
+            <div className="border-t border-zinc-800/40 px-4 py-3 shrink-0">
               <div className="flex items-center gap-2">
-                <input
-                  value={captureValue}
-                  onChange={(e) => setCaptureValue(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCapture()}
-                  placeholder="Quick add task..."
-                  className="flex-1 bg-zinc-900/30 border border-zinc-800/40 rounded-lg px-3 py-2 text-[12px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-700 transition-colors"
-                />
+                <div className="flex-1 relative">
+                  <input
+                    value={captureValue}
+                    onChange={(e) => setCaptureValue(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCapture()}
+                    placeholder="Add task... (@2pm for time)"
+                    className="w-full bg-zinc-900/40 border border-zinc-800/50 rounded-lg px-3 py-2.5 text-[13px] text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-600 transition-colors"
+                  />
+                </div>
                 <button
                   onClick={handleCapture}
                   disabled={!captureValue.trim()}
-                  className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 disabled:opacity-30 transition-all"
+                  className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 disabled:opacity-30 transition-all shrink-0"
                 >
-                  <Plus size={14} />
+                  <Plus size={16} />
                 </button>
               </div>
             </div>
-
-            {/* Inbox tasks (if any unscheduled) */}
-            {inboxTasks.length > 0 && (
-              <div className="px-5 pb-3">
-                <div className="bg-zinc-900/20 border border-zinc-800/30 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Inbox</span>
-                    <span className="text-[10px] text-zinc-600 font-mono">{inboxTasks.length}</span>
-                  </div>
-                  <div className="space-y-1">
-                    {inboxTasks.map(task => (
-                      <div key={task.id} className="relative">
-                        <TaskCard task={task} />
-                        {/* Schedule button */}
-                        {task.status !== TaskStatus.DONE && (
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                            {showScheduler === task.id ? (
-                              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-700 rounded-lg p-1" onClick={(e) => e.stopPropagation()}>
-                                <input
-                                  type="number" min="0" max="23"
-                                  value={schedulerHour}
-                                  onChange={(e) => setSchedulerHour(e.target.value)}
-                                  className="w-8 bg-zinc-800 text-zinc-300 text-[10px] text-center rounded px-1 py-0.5 outline-none"
-                                />
-                                <span className="text-zinc-600 text-[10px]">:</span>
-                                <input
-                                  type="number" min="0" max="59" step="5"
-                                  value={schedulerMinute}
-                                  onChange={(e) => setSchedulerMinute(e.target.value)}
-                                  className="w-8 bg-zinc-800 text-zinc-300 text-[10px] text-center rounded px-1 py-0.5 outline-none"
-                                />
-                                <button onClick={() => handleScheduleTask(task.id)} className="text-[10px] font-bold text-emerald-400 px-1">Go</button>
-                                <button onClick={() => setShowScheduler(null)} className="text-zinc-600"><X size={10} /></button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setShowScheduler(task.id); }}
-                                className="opacity-0 group-hover/card:opacity-100 p-1 text-zinc-600 hover:text-zinc-300 transition-all"
-                                title="Schedule"
-                              >
-                                <Clock size={11} />
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ---- PRAYER-ANCHORED TIMELINE ---- */}
-            <div className="px-5 pb-6 space-y-2">
-              {PRAYER_BLOCKS.map((_, i) => (
-                <PrayerBlockSection key={i} prayerIndex={i} tasks={daysTasks} prayers={prayerTimes} />
-              ))}
-            </div>
-
-            {/* Completed tasks summary */}
-            {completedTasks.length > 0 && daysTasks.length > completedTasks.length && (
-              <div className="px-5 pb-6">
-                <div className="flex items-center gap-2 text-[10px] text-zinc-600 uppercase tracking-widest font-bold px-1 pb-2">
-                  <CheckCircle2 size={12} className="text-emerald-500/40" />
-                  Completed ({completedTasks.length})
-                </div>
-              </div>
-            )}
-
-            {/* Empty state */}
-            {daysTasks.length === 0 && (
-              <div className="px-5 py-16 text-center">
-                <div className="text-zinc-800 mb-3">
-                  <Layers size={32} className="mx-auto" />
-                </div>
-                <p className="text-[12px] text-zinc-600">No tasks for this day</p>
-                <p className="text-[10px] text-zinc-700 mt-1">Use the quick add above or schedule tasks from the planner</p>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ---- NEXT DAY PEEK ---- */}
-        <div className="w-[160px] border-l border-zinc-900/50 bg-black/20 shrink-0 overflow-hidden hidden lg:flex flex-col">
-          <PeekColumn dk={nextDateKey} tasks={nextDayTasks} label="Tomorrow" direction="next" />
+          )}
         </div>
 
-        {/* ==================== RIGHT SIDEBAR ==================== */}
-        <aside className="w-[260px] border-l border-zinc-900 flex flex-col bg-black/30 shrink-0 overflow-hidden hidden md:flex">
-
-          {/* Day Stats */}
-          <div className="p-4 border-b border-zinc-900/50 space-y-3">
-            {/* Active / Next task */}
-            {activeTask ? (
-              <div className="flex items-center gap-2 p-2.5 bg-emerald-950/20 border border-emerald-900/30 rounded-lg">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="text-[11px] text-emerald-400 truncate flex-1 font-medium">{activeTask.title}</span>
-              </div>
-            ) : pendingTasks.length > 0 ? (
-              <div className="flex items-center gap-2 p-2.5 bg-zinc-900/30 border border-zinc-800/30 rounded-lg">
-                <Clock size={11} className="text-zinc-600 shrink-0" />
-                <span className="text-[11px] text-zinc-500 truncate flex-1">Next: {pendingTasks[0].title}</span>
-              </div>
-            ) : daysTasks.length > 0 ? (
-              <div className="text-center text-[11px] text-emerald-500/60 py-2">All tasks complete</div>
-            ) : null}
-
-            {/* Progress circle */}
-            {daysTasks.length > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10">
-                  <svg className="w-10 h-10 -rotate-90" viewBox="0 0 36 36">
-                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgb(39,39,42)" strokeWidth="2" />
-                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgb(16,185,129)" strokeWidth="2"
-                      strokeDasharray={`${progress * 0.975} 100`}
-                      strokeLinecap="round"
-                      className="transition-all duration-700"
-                    />
-                  </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-zinc-400">{progress}%</span>
-                </div>
-                <div className="text-[10px] text-zinc-500 space-y-0.5">
-                  <div><span className="text-zinc-300 font-bold">{completedTasks.length}</span> done</div>
-                  <div><span className="text-zinc-300 font-bold">{pendingTasks.length}</span> remaining</div>
-                </div>
-              </div>
-            )}
+        {/* ===== RIGHT SIDEBAR: DAILY RITUALS ===== */}
+        <aside className="w-[280px] border-l border-zinc-800/60 flex flex-col shrink-0 overflow-hidden hidden md:flex">
+          {/* Rituals header */}
+          <div className="px-4 py-3 border-b border-zinc-800/40 flex items-center justify-between">
+            <span className="text-[12px] font-bold text-zinc-300">Daily Rituals</span>
+            <span className="text-[11px] text-zinc-500 font-mono">{completedRituals}/{totalRituals}</span>
           </div>
 
-          {/* Daily Rituals - Scrollable checklist */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-4 space-y-4">
-              {/* Rituals header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Star size={12} className="text-zinc-500" />
-                  <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Daily Rituals</span>
-                </div>
-                <span className="text-[10px] text-zinc-500 font-mono">{completedRituals}/{totalRituals}</span>
-              </div>
+            {/* Prayers */}
+            <div className="px-4 py-3 space-y-1">
+              {PRAYER_ITEMS.map((prayer, i) => {
+                const isChecked = !!rituals[prayer.key];
+                const isCurrent = currentPrayerIndex === i;
+                const isPast = isToday && currentPrayerIndex > i;
+                const Icon = prayer.icon;
 
-              {/* Rituals progress */}
-              <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500/60 transition-all duration-500 rounded-full"
-                  style={{ width: `${totalRituals > 0 ? (completedRituals / totalRituals) * 100 : 0}%` }}
+                return (
+                  <button
+                    key={prayer.key}
+                    onClick={() => {
+                      const current = state.dayMeta[dateKey]?.rituals || {};
+                      onDayMetaUpdate(dateKey, { rituals: { ...current, [prayer.key]: !isChecked } });
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                      isChecked ? 'opacity-50' : isCurrent ? 'bg-zinc-800/30' : 'hover:bg-zinc-800/20'
+                    }`}
+                  >
+                    <Icon size={14} className={prayer.color} />
+                    <span className={`text-[12px] flex-1 text-left font-medium ${
+                      isCurrent ? 'text-zinc-100' : isPast && !isChecked ? 'text-zinc-600' : 'text-zinc-300'
+                    }`}>
+                      {prayer.label}
+                    </span>
+                    <span className="text-[11px] text-zinc-600 font-mono mr-2">
+                      {prayerTimes[i]?.time}
+                    </span>
+                    <div className={`w-[18px] h-[18px] rounded-full flex items-center justify-center transition-all ${
+                      isChecked
+                        ? 'bg-emerald-500'
+                        : 'border border-zinc-700'
+                    }`}>
+                      {isChecked && <Check size={10} className="text-black" strokeWidth={3} />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-zinc-800/40 mx-4" />
+
+            {/* Extra rituals */}
+            <div className="px-4 py-3 space-y-1">
+              {EXTRA_RITUALS.map(ritual => {
+                const isChecked = !!rituals[ritual.key];
+                const Icon = ritual.icon;
+
+                return (
+                  <button
+                    key={ritual.key}
+                    onClick={() => {
+                      const current = state.dayMeta[dateKey]?.rituals || {};
+                      onDayMetaUpdate(dateKey, { rituals: { ...current, [ritual.key]: !isChecked } });
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                      isChecked ? 'opacity-50' : 'hover:bg-zinc-800/20'
+                    }`}
+                  >
+                    <span className={`text-[12px] flex-1 text-left font-medium ${isChecked ? 'text-zinc-500' : 'text-zinc-300'}`}>
+                      {ritual.label}
+                    </span>
+                    <div className={`w-[18px] h-[18px] rounded-full flex items-center justify-center transition-all ${
+                      isChecked
+                        ? 'bg-emerald-500'
+                        : 'border border-zinc-700'
+                    }`}>
+                      {isChecked && <Check size={10} className="text-black" strokeWidth={3} />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-zinc-800/40 mx-4" />
+
+            {/* Protocols */}
+            {onProtocolToggle && onWeeklyActivityToggle && (
+              <div className="px-4 py-3">
+                <ProtocolsSidebar
+                  protocolContexts={state.protocolContexts || []}
+                  weeklyActivities={state.weeklyActivities || {}}
+                  dailyProtocolState={state.dailyProtocolState || {}}
+                  dateKey={dateKey}
+                  onProtocolToggle={onProtocolToggle}
+                  onWeeklyActivityToggle={onWeeklyActivityToggle}
+                  onOpenProtocolsEditor={() => setShowProtocolsEditor(true)}
+                  onOpenWeeklyEditor={() => setShowWeeklyEditor(true)}
                 />
               </div>
+            )}
 
-              {/* Ritual sections */}
-              {RITUAL_SECTIONS.map(section => (
-                <div key={section.label} className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-zinc-600 uppercase tracking-[0.2em] px-1">{section.label}</span>
-                  {section.items.map(item => {
-                    const isChecked = !!rituals[item.key];
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.key}
-                        onClick={() => {
-                          const current = state.dayMeta[dateKey]?.rituals || {};
-                          onDayMetaUpdate(dateKey, { rituals: { ...current, [item.key]: !isChecked } });
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all ${isChecked
-                          ? 'bg-emerald-500/5 border-emerald-500/20'
-                          : 'bg-zinc-900/20 border-zinc-800/30 hover:border-zinc-700 hover:bg-zinc-900/40'
-                          }`}
-                      >
-                        <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${isChecked
-                          ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                          : 'border border-zinc-700'
-                          }`}>
-                          {isChecked ? <Check size={12} className="text-black" strokeWidth={3} /> : <Icon size={12} className={item.color + ' opacity-40'} />}
-                        </div>
-                        <span className={`text-[11px] font-medium flex-1 text-left ${isChecked ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                          {item.label}
-                        </span>
-                        {isChecked && <CheckCircle2 size={12} className="text-emerald-500/50" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
+            {/* Divider */}
+            <div className="h-px bg-zinc-800/40 mx-4" />
 
-              {/* Protocols */}
-              {onProtocolToggle && onWeeklyActivityToggle && (
-                <div className="pt-2 border-t border-zinc-800/30">
-                  <ProtocolsSidebar
-                    protocolContexts={state.protocolContexts || []}
-                    weeklyActivities={state.weeklyActivities || {}}
-                    dailyProtocolState={state.dailyProtocolState || {}}
-                    dateKey={dateKey}
-                    onProtocolToggle={onProtocolToggle}
-                    onWeeklyActivityToggle={onWeeklyActivityToggle}
-                    onOpenProtocolsEditor={() => setShowProtocolsEditor(true)}
-                    onOpenWeeklyEditor={() => setShowWeeklyEditor(true)}
-                  />
-                </div>
-              )}
+            {/* Note area */}
+            <div className="px-4 py-3">
+              <textarea
+                value={stickyNote}
+                onChange={(e) => onStickyNoteUpdate(dateKey, e.target.value)}
+                placeholder="Note..."
+                className="w-full bg-transparent text-[12px] text-zinc-400 placeholder:text-zinc-700 outline-none resize-none min-h-[80px] leading-relaxed"
+              />
             </div>
           </div>
         </aside>
-      </main>
+      </div>
 
       {/* Modals */}
       {showProtocolsEditor && onProtocolContextsUpdate && (

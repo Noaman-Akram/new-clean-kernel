@@ -1063,6 +1063,27 @@ const App: React.FC = () => {
           onDeleteTemplate={handleDeleteTemplate}
           onAddExercise={handleAddExercise}
         />;
+      case Page.DAY:
+        return <DayView
+          state={state}
+          onTaskUpdate={handleTaskUpdate}
+          onTaskAdd={handleTaskAdd}
+          onTaskDelete={handleTaskDelete}
+          onStartSession={startSession}
+          onStickyNoteUpdate={handleStickyNoteUpdate}
+          onPrayerToggle={handlePrayerToggle}
+          onAdhkarToggle={handleAdhkarToggle}
+          onDayMetaUpdate={handleDayMetaUpdate}
+          activeTaskId={state.activeSession.taskId}
+          onProtocolToggle={handleProtocolToggle}
+          onWeeklyActivityToggle={handleWeeklyActivityToggle}
+          onProtocolContextsUpdate={handleProtocolContextsUpdate}
+          onWeeklyActivitiesUpdate={handleWeeklyActivitiesUpdate}
+          onLayoutChange={handleLayoutChange}
+          onTimeBlockAdd={handleTimeBlockAdd}
+          onTimeBlockUpdate={handleTimeBlockUpdate}
+          onTimeBlockDelete={handleTimeBlockDelete}
+        />;
       case Page.FOCUS:
         return <FocusView
           state={state}
@@ -1221,6 +1242,13 @@ const App: React.FC = () => {
             onClick={() => handleNavigate(Page.WEEKLY)}
             icon={<Layers size={18} />}
             label="Planner"
+            setHover={setHoveredNav}
+          />
+          <NavIcon
+            active={currentPage === Page.DAY}
+            onClick={() => handleNavigate(Page.DAY)}
+            icon={<Calendar size={18} />}
+            label="Day"
             setHover={setHoveredNav}
           />
           <NavIcon
@@ -1487,6 +1515,7 @@ const App: React.FC = () => {
       <div className="md:hidden h-[64px] bg-surface border-t border-border flex items-center gap-4 px-4 overflow-x-auto no-scrollbar z-50 fixed bottom-0 left-0 right-0 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
         <MobileNavIcon active={currentPage === Page.COCKPIT} onClick={() => handleNavigate(Page.COCKPIT)} icon={<LayoutGrid size={20} />} label="Cockpit" />
         <MobileNavIcon active={currentPage === Page.WEEKLY} onClick={() => handleNavigate(Page.WEEKLY)} icon={<Layers size={20} />} label="Planner" />
+        <MobileNavIcon active={currentPage === Page.DAY} onClick={() => handleNavigate(Page.DAY)} icon={<Calendar size={20} />} label="Day" />
         <MobileNavIcon active={currentPage === Page.LEDGER} onClick={() => handleNavigate(Page.LEDGER)} icon={<CreditCard size={20} />} label="Ledger" />
         <MobileNavIcon active={currentPage === Page.MARKETING} onClick={() => handleNavigate(Page.MARKETING)} icon={<Megaphone size={20} />} label="Mktg" />
         <MobileNavIcon active={currentPage === Page.NETWORK} onClick={() => handleNavigate(Page.NETWORK)} icon={<Users size={20} />} label="Network" />

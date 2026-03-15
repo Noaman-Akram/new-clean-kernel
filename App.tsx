@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, NoteFolder, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession, TimeBlock, FinanceCategory, ForecastEntry, RecurringRule, Obligation, LedgerSettings } from './types';
 import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
 import { auth } from './services/firebase';
@@ -25,9 +25,15 @@ import {
   Dumbbell,
   Calendar,
   Zap,
-  Settings
+  Settings,
+  Sunrise,
+  Sun,
+  CloudSun,
+  Sunset,
+  Moon
 } from 'lucide-react';
 import { DEFAULT_TIME_ZONE, getDateKeyInTimeZone } from './utils/dateTime';
+import { getPrayerTimesForDate } from './utils/prayerTimes';
 
 // Views
 import DashboardView from './components/DashboardView';
@@ -1150,6 +1156,41 @@ const App: React.FC = () => {
 
   const activeTask = state.tasks.find(t => t.id === state.activeSession.taskId);
 
+  // Global prayer time computation
+  const PRAYER_ICONS_MAP: Record<string, React.ReactNode> = {
+    'Fajr': <Sunrise size={11} className="text-orange-400" />,
+    'Dhuhr': <Sun size={11} className="text-yellow-400" />,
+    'Asr': <CloudSun size={11} className="text-amber-400" />,
+    'Maghrib': <Sunset size={11} className="text-orange-500" />,
+    'Isha': <Moon size={11} className="text-indigo-400" />,
+  };
+
+  const globalPrayerTimes = useMemo(() => getPrayerTimesForDate(new Date()), []);
+  const globalPrayerInfo = useMemo(() => {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    let currentName = '';
+    let nextName = '';
+    let nextCountdown = '';
+    for (let i = 0; i < globalPrayerTimes.length; i++) {
+      const pt = new Date(globalPrayerTimes[i].timestamp);
+      const ptMinutes = pt.getHours() * 60 + pt.getMinutes();
+      if (nowMinutes >= ptMinutes) currentName = globalPrayerTimes[i].name;
+    }
+    for (let i = 0; i < globalPrayerTimes.length; i++) {
+      const pt = new Date(globalPrayerTimes[i].timestamp);
+      const ptMinutes = pt.getHours() * 60 + pt.getMinutes();
+      if (ptMinutes > nowMinutes) {
+        nextName = globalPrayerTimes[i].name;
+        const diff = ptMinutes - nowMinutes;
+        const h = Math.floor(diff / 60);
+        const m = diff % 60;
+        nextCountdown = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        break;
+      }
+    }
+    return { currentName: currentName || 'Isha', nextName, nextCountdown };
+  }, [globalPrayerTimes]);
 
   return (
     <div className="flex h-screen w-screen bg-background text-zinc-300 font-sans overflow-hidden selection:bg-zinc-700 selection:text-zinc-100">
@@ -1286,6 +1327,18 @@ const App: React.FC = () => {
             <span className="text-zinc-200 font-medium">{currentPage}</span>
             <span className="opacity-40">/</span>
             <span>{authUser ? 'CLOUD_SYNC' : 'LOCAL_ENV'}</span>
+          </div>
+
+          {/* Global Prayer Time Widget */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900/60 border border-zinc-800/50">
+            {PRAYER_ICONS_MAP[globalPrayerInfo.currentName]}
+            <span className="text-[10px] font-bold text-zinc-300">{globalPrayerInfo.currentName} Time</span>
+            {globalPrayerInfo.nextName && (
+              <>
+                <div className="w-px h-3 bg-zinc-700/50" />
+                <span className="text-[10px] text-zinc-500">Next: <span className="text-zinc-400 font-bold">{globalPrayerInfo.nextName}</span> in <span className="text-emerald-400 font-mono">{globalPrayerInfo.nextCountdown}</span></span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {/* BACKUP MENU */}

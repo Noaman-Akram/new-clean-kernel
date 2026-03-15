@@ -129,7 +129,7 @@ const DayView: React.FC<Props> = ({
         month: 'long',
         year: 'numeric'
       }).format(selectedDate);
-    } catch { return ''; }
+    } catch (_e) { return ''; }
   }, [selectedDate]);
 
   // Prayer Times

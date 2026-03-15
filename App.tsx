@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppState, Page, Task, TaskStatus, Category, Client, Transaction, ChatMessage, Note, NoteFolder, Resource, MarketingItem, Activity, TaskSlot, Pillar, HorizonGoal, Account, WorkoutSession, WorkoutTemplate, TemplateExercise, Exercise, DayMeta, UserPreferences, Distraction, ProtocolContext, WeeklyActivities, DayViewLayout, Challenge, ChallengeDay, FocusSession, TimeBlock, FinanceCategory, ForecastEntry, RecurringRule, Obligation, LedgerSettings } from './types';
 import { applyRemoteState, getClientId, getSnapshotMeta, loadState, saveState, setCurrentUser, subscribeToRemoteState, SnapshotMeta } from './services/storageService';
 import { auth } from './services/firebase';
@@ -1156,7 +1156,7 @@ const App: React.FC = () => {
 
   const activeTask = state.tasks.find(t => t.id === state.activeSession.taskId);
 
-  // Global prayer time computation
+  // Global prayer time computation (no hooks - computed inline to avoid Rules of Hooks violation)
   const PRAYER_ICONS_MAP: Record<string, React.ReactNode> = {
     'Fajr': <Sunrise size={11} className="text-orange-400" />,
     'Dhuhr': <Sun size={11} className="text-yellow-400" />,
@@ -1165,8 +1165,8 @@ const App: React.FC = () => {
     'Isha': <Moon size={11} className="text-indigo-400" />,
   };
 
-  const globalPrayerTimes = useMemo(() => getPrayerTimesForDate(new Date()), []);
-  const globalPrayerInfo = useMemo(() => {
+  const globalPrayerTimes = getPrayerTimesForDate(new Date());
+  const globalPrayerInfo = (() => {
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     let currentName = '';
@@ -1190,7 +1190,7 @@ const App: React.FC = () => {
       }
     }
     return { currentName: currentName || 'Isha', nextName, nextCountdown };
-  }, [globalPrayerTimes]);
+  })();
 
   return (
     <div className="flex h-screen w-screen bg-background text-zinc-300 font-sans overflow-hidden selection:bg-zinc-700 selection:text-zinc-100">
